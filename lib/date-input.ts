@@ -99,6 +99,23 @@ export function formatTimeText(time: string, format: TimeFormat) {
   return `${hours % 12 || 12}:${pad(minutes)} ${hours < 12 ? 'AM' : 'PM'}`
 }
 
+/** Where the time dial's numbers sit, as a fraction of its radius. */
+export const DIAL_RINGS = { outer: 0.8, inner: 0.52 }
+
+/**
+ * The number on the time dial at a point, laid out as on Android: 12 at the top, clockwise. `x`/`y` are
+ * from the centre as a fraction of the radius, y down. Hours snap to the nearest mark; in 24-hour format
+ * the outer ring is 12 and 1–11 and the inner one 00 and 13–23. Minutes snap to 5.
+ */
+export function dialValue(x: number, y: number, step: 'hour' | 'minute', format: TimeFormat, pm: boolean) {
+  const degrees = ((Math.atan2(x, -y) * 180) / Math.PI + 360) % 360
+  const mark = Math.round(degrees / 30) % 12
+  if (step === 'minute') return mark * 5
+  if (format === '12h') return mark + (pm ? 12 : 0)
+  const inner = Math.hypot(x, y) < (DIAL_RINGS.outer + DIAL_RINGS.inner) / 2
+  return inner ? (mark ? mark + 12 : 0) : mark || 12
+}
+
 /** Digits each part takes, so a mask knows where one ends and the next begins. */
 const WIDTHS: Record<Part, number> = { d: 2, m: 2, y: 4 }
 

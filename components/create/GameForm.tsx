@@ -556,7 +556,6 @@ export function GameForm({
                     anchor={timeField}
                     autoFocus={picker.fromButton}
                     onClose={closePicker}
-                    align="end"
                     value={time}
                     format={timeFormat}
                     isPast={(candidate) => date !== '' && hasPassed(date, candidate)}

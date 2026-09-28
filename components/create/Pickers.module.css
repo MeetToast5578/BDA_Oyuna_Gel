@@ -1,7 +1,12 @@
-/* Date and time popovers on "Yeni Oyun Yarat": a hero-gradient header over a white card. */
+/*
+ * Date and time popovers on "Yeni Oyun Yarat": white cards with a hero-gradient band. Each opens under
+ * its field's icon button and grows out of it: the button's centre is 20px in from the right edge and
+ * 28px above the popover (half the 40px field, plus the 8px gap).
+ */
 .popover {
   position: absolute;
   top: calc(100% + 8px);
+  right: 0;
   z-index: 30;
   width: 300px;
   padding-bottom: 12px;
@@ -12,7 +17,8 @@
   box-shadow:
     0 24px 48px -18px color-mix(in srgb, var(--color-primary-night) 45%, transparent),
     0 4px 12px rgba(0, 0, 0, 0.04);
-  animation: popIn 0.34s var(--ease-spring);
+  transform-origin: calc(100% - 20px) -28px;
+  animation: popIn 0.32s var(--ease-out);
 }
 
 /* Focusable (tabIndex -1) so a press on its text keeps focus inside instead of moving it to <main>. */
@@ -20,26 +26,15 @@
   outline: none;
 }
 
-.start {
-  left: 0;
-  transform-origin: top left;
-}
-
-.end {
-  right: 0;
-  transform-origin: top right;
-}
-
 @keyframes popIn {
   from {
     opacity: 0;
-    transform: translateY(-8px) scale(0.94);
+    transform: scale(0.15);
   }
 }
 
 @media (max-width: 560px) {
   .popover {
-    right: 0;
     left: 0;
     width: auto;
   }
@@ -116,7 +111,6 @@
 
 .nav:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.28);
-  transform: scale(1.08);
 }
 
 .nav:active:not(:disabled) {
@@ -172,9 +166,9 @@
   }
 }
 
-.day,
-.cell {
+.day {
   position: relative;
+  aspect-ratio: 1;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
@@ -190,35 +184,22 @@
     transform 0.25s var(--ease-spring);
 }
 
-.day {
-  aspect-ratio: 1;
-}
-
-.day:hover:not(:disabled),
-.cell:hover:not(:disabled) {
+.day:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
   background: var(--color-primary-tint);
-  transform: translateY(-2px);
 }
 
-.day:active:not(:disabled),
-.cell:active:not(:disabled) {
+.day:active:not(:disabled) {
   transform: scale(0.92);
 }
 
-/* Days and times that have gone. */
-.day:disabled,
-.cell:disabled {
+/* Days that have gone. */
+.day:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
 
-.cell:disabled {
-  text-decoration: line-through;
-}
-
-.day:focus-visible,
-.cell:focus-visible {
+.day:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
@@ -236,8 +217,7 @@
   transform: translateX(-50%);
 }
 
-.day[aria-pressed='true'],
-.cell[aria-pressed='true'] {
+.day[aria-pressed='true'] {
   border-color: transparent;
   background: var(--hero-gradient);
   color: #fff;
@@ -283,18 +263,151 @@
 }
 
 .chip:hover {
-  background: var(--color-primary);
-  color: #fff;
-  transform: translateY(-1px);
+  background: var(--color-primary-soft);
 }
 
 .chip:active {
   transform: scale(0.96);
 }
 
-/* Time: a big "19 : 30" readout; the hour or minute part picks which grid shows. */
-.clockHead {
-  padding-block: 14px;
+/* Time: a round dial (see TimePopover) over a "19 : 30" readout. */
+.dial {
+  position: relative;
+  width: min(256px, 100% - 24px);
+  aspect-ratio: 1;
+  margin: 16px auto 0;
+  border: 1px solid var(--color-primary-border-soft);
+  border-radius: 50%;
+  background: var(--color-primary-soft);
+  cursor: pointer;
+  user-select: none;
+  touch-action: none; /* dragging turns the hand instead of scrolling the page */
+}
+
+.dial:focus {
+  outline: none;
+}
+
+.dial:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* The pin the hand turns on. */
+.dial::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  transform: translate(-50%, -50%);
+}
+
+/* From the pin to the chosen number; its height (the ring) and turn are set inline. */
+.hand {
+  position: absolute;
+  bottom: 50%;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: var(--color-primary);
+  transform-origin: bottom center;
+  transition:
+    transform 0.3s var(--ease-out),
+    height 0.3s var(--ease-out);
+}
+
+/* The knob at its tip, which the chosen number sits on. */
+.hand::before {
+  content: '';
+  position: absolute;
+  top: -17px;
+  left: -16px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 6px 14px -4px color-mix(in srgb, var(--color-primary) 70%, transparent);
+}
+
+/* A typed minute between the marks (19:07): a dot on the knob in place of a number. */
+.hand[data-between]::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+/* Swapping hours for minutes: the new numbers settle in. */
+.marks {
+  position: absolute;
+  inset: 0;
+  animation: settle 0.3s var(--ease-out);
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+/* Each number is a circle the size of the knob, so hovering one lights up the spot a press would pick. */
+.mark {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-heading);
+  transform: translate(-50%, -50%);
+  transition:
+    color 0.25s var(--ease-out),
+    background-color 0.15s ease;
+}
+
+/* 00 and 13–23 in 24 saat: smaller, so the circles don't touch their neighbours. */
+.inner {
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+/* Touch screens would keep it lit after a tap. */
+@media (hover: hover) {
+  .mark:hover:not([data-chosen], [data-past]) {
+    background: var(--color-primary-border);
+  }
+}
+
+.mark[data-chosen] {
+  color: #fff;
+}
+
+/* Hours and minutes that have gone. */
+.mark[data-past] {
+  opacity: 0.3;
+}
+
+.readout {
+  justify-content: center;
+  gap: 14px;
+  margin: 14px 12px 0;
+  padding-block: 10px;
+  border-radius: var(--radius-md);
 }
 
 .display {
@@ -343,35 +456,6 @@
 @keyframes blink {
   50% {
     opacity: 0.3;
-  }
-}
-
-.stepLabel {
-  padding: 12px 14px 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-subtle);
-}
-
-.cells {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
-  padding-inline: 12px;
-}
-
-.cell {
-  height: 36px;
-  border-color: var(--color-primary-border-soft);
-  background: var(--color-primary-tint);
-  animation: rise 0.34s var(--ease-spring) backwards;
-  animation-delay: calc(var(--i, 0) * 12ms);
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.9);
   }
 }
 
