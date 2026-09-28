@@ -240,38 +240,27 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--color-primary);
+  color: var(--color-heading);
   transition:
     background-color 0.15s ease,
     color 0.15s ease,
     box-shadow 0.2s ease;
 }
 
-.pickerButton:hover {
-  background: var(--color-primary-tint);
+/* The icon takes the button's colour, over the Icon's own default. */
+.pickerButton svg {
+  color: inherit;
 }
 
-.pickerButton:hover svg {
-  animation: tick 0.5s var(--ease-spring);
+.pickerButton:hover {
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
 }
 
 .pickerButton[aria-expanded='true'] {
   background: var(--hero-gradient);
   color: #fff;
   box-shadow: var(--shadow-button);
-}
-
-.pickerButton[aria-expanded='true'] svg {
-  animation: tick 0.5s var(--ease-spring);
-}
-
-@keyframes tick {
-  30% {
-    transform: rotate(-14deg) scale(1.2);
-  }
-  65% {
-    transform: rotate(10deg);
-  }
 }
 
 /* Venue combobox */

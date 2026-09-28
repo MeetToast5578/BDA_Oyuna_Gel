@@ -28,6 +28,8 @@ import {
 import {
   addDays,
   addMonths,
+  DIAL_RINGS,
+  dialValue,
   formatDateInput,
   formatDateText,
   formatTimeInput,
@@ -347,6 +349,27 @@ describe('typed date and time', () => {
     expect(addMonths('2026-01', -1)).toBe('2025-12')
     expect(addDays('2026-09-30', 1)).toBe('2026-10-01')
     expect(addDays('2027-01-01', -1)).toBe('2026-12-31')
+  })
+
+  it('reads the time dial like an Android clock', () => {
+    const at = (degrees: number, radius = DIAL_RINGS.outer) => {
+      const radians = (degrees * Math.PI) / 180
+      return [radius * Math.sin(radians), -radius * Math.cos(radians)] as const
+    }
+    // 24 saat: 12 and 1–11 outside, 00 and 13–23 inside.
+    expect(dialValue(...at(0), 'hour', '24h', false)).toBe(12)
+    expect(dialValue(...at(0, DIAL_RINGS.inner), 'hour', '24h', false)).toBe(0)
+    expect(dialValue(...at(90), 'hour', '24h', false)).toBe(3)
+    expect(dialValue(...at(90, DIAL_RINGS.inner), 'hour', '24h', false)).toBe(15)
+    expect(dialValue(...at(205, DIAL_RINGS.inner), 'hour', '24h', false)).toBe(19) // 205° is nearer 7 than 6
+    // 12 saat: one ring, in the half AM/PM shows.
+    expect(dialValue(...at(0), 'hour', '12h', false)).toBe(0)
+    expect(dialValue(...at(0), 'hour', '12h', true)).toBe(12)
+    expect(dialValue(...at(210, DIAL_RINGS.inner), 'hour', '12h', true)).toBe(19)
+    // Minutes snap to 5, and just before the top is :00, not :60.
+    expect(dialValue(...at(180), 'minute', '24h', false)).toBe(30)
+    expect(dialValue(...at(270), 'minute', '12h', true)).toBe(45)
+    expect(dialValue(...at(356), 'minute', '24h', false)).toBe(0)
   })
 
   it('masks a date as it is typed, in the chosen format', () => {
