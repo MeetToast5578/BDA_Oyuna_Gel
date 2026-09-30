@@ -2,9 +2,9 @@
  * Fills the database with a realistic sample dataset: venues across Baku, players, teams, games in
  * every availability state, the join rows behind each game's player count, and an audit trail.
  *
- * Run with `npm run seed`. Re-running is safe: every record it creates is removed first, and it is
- * deterministic, so the same run produces the same data. Accounts that are not seed accounts — your
- * own admin login — are never touched.
+ * Run with `npm run seed`. Re-running is safe: every game, venue and team is removed first (real ones
+ * included), and it is deterministic, so the same run produces the same data. Only user accounts
+ * outside the seed domain — your own admin login — are kept.
  */
 import { getPayload } from 'payload'
 
@@ -145,20 +145,10 @@ const TEAMS: Array<{ name: string; shortName: string; sport: Sport }> = [
 
 // ---------------------------------------------------------------------------- games
 
-const GAME_TITLES: Record<Sport, string[]> = {
-  football: [
-    'Səhər futbolu', 'Axşam 5-ə-5', 'Həftəsonu 7-yə-7', 'Korporativ futbol', 'Gecə liqası',
-    'Dostluq görüşü', 'Mini-futbol turu', 'Məhəllə çempionatı', 'Cümə axşamı 5-ə-5',
-  ],
-  basketball: [
-    'Streetball axşamı', '3-ə-3 turnir', 'Basketbol məşqi', 'Axşam basketbolu',
-    'Universitet liqası', 'Bazar basketbol axşamı',
-  ],
-  tennis: [
-    'Tennis cütlük turu', 'Səhər tennisi', 'Tennis məşq saatı', 'Həvəskar tennis görüşü',
-    'Şənbə tennis görüşü',
-  ],
-}
+/** Sport-neutral names, safe at any time and for any size. */
+const NEUTRAL_TITLES = ['Dostluq oyunu', 'Məhəllə oyunu', 'Yoldaşlıq oyunu']
+/** The Azerbaijani suffix in "5-ə-5" follows the number: beş → ə, altı → ya, yeddi → yə. */
+const SIDE_SUFFIX: Record<number, string> = { 3: 'ə', 4: 'ə', 5: 'ə', 6: 'ya', 7: 'yə' }
 
 const LEVELS: Level[] = ['beginner', 'medium', 'high']
 const MAX_PLAYERS: Record<Sport, number[]> = {
@@ -175,10 +165,23 @@ function bakuSlot(dayOffset: number, hour: number, minute: number) {
   return new Date(startOfBakuDay(new Date(), dayOffset).getTime() + hour * HOUR_MS + minute * MINUTE_MS)
 }
 
-function currentBakuHour() {
-  return Number(
-    new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Baku', hour: '2-digit', hourCycle: 'h23' }).format(new Date()),
-  )
+function bakuHour(date = new Date()) {
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Baku', hour: '2-digit', hourCycle: 'h23' }).format(date))
+}
+
+/**
+ * Named after when and how the game is played, so a title never contradicts its own date, time or
+ * size: "Axşam 5-ə-5" is an evening game of five a side, "Cümə axşamı …" really is on a Thursday.
+ */
+function titleFor(game: Pick<PlannedGame, 'sport' | 'maxPlayers' | 'scheduledAt'>) {
+  if (random() < 0.25) return pick(NEUTRAL_TITLES)
+  const side = game.maxPlayers / 2
+  const format =
+    game.sport === 'tennis' ? (side === 1 ? 'tək oyun' : 'cütlük oyunu') : `${side}-${SIDE_SUFFIX[side]}-${side}`
+  const hour = bakuHour(game.scheduledAt)
+  const dayPart = hour < 12 ? 'Səhər' : hour < 16 ? 'Günorta' : hour < 22 ? 'Axşam' : 'Gecə'
+  const weekday = new Intl.DateTimeFormat('az', { timeZone: 'Asia/Baku', weekday: 'long' }).format(game.scheduledAt)
+  return `${pick([dayPart, weekday.charAt(0).toLocaleUpperCase('az') + weekday.slice(1)])} ${format}`
 }
 
 type PlannedGame = {
@@ -188,7 +191,7 @@ type PlannedGame = {
   venueIndex: number
   scheduledAt: Date
   maxPlayers: number
-  /** Players already in, which is exactly how many participant rows the game gets. */
+  /** Players already in, the host included (so always at least 1); the game gets one participant row per player but the host. */
   currentCount: number
   status: GameStatus
   homeScore: number
@@ -202,42 +205,48 @@ type PlannedGame = {
  */
 function planGames(): PlannedGame[] {
   const games: PlannedGame[] = []
-  const nowHour = currentBakuHour()
+  const nowHour = bakuHour()
 
   for (let dayOffset = -7; dayOffset <= 13; dayOffset++) {
     // Today can only host slots that have not started yet; the next two days are the busiest.
     const slots = SLOT_HOURS.filter((hour) => dayOffset !== 0 || hour >= nowHour + 2)
     const perDay = dayOffset < 0 ? 3 : dayOffset <= 2 ? 5 : 3
     const hours = shuffled(slots).slice(0, Math.min(perDay, slots.length))
+    const booked = new Map<number, number[]>()
 
     for (const hour of hours) {
-      const venueIndex = pickInt(0, VENUES.length - 1)
+      // A venue hosts one game at a time: skip any that already has one within two hours (a game runs up to 90 minutes).
+      let venueIndex: number
+      do venueIndex = pickInt(0, VENUES.length - 1)
+      while (booked.get(venueIndex)?.some((other) => Math.abs(other - hour) < 2))
+      booked.set(venueIndex, [...(booked.get(venueIndex) ?? []), hour])
       const venue = VENUES[venueIndex]
       const sport = pick(venue.sportTypes)
       const maxPlayers = pick(MAX_PLAYERS[sport])
 
       let status: GameStatus = 'scheduled'
-      let currentCount = 0
       let homeScore = 0
       let awayScore = 0
+      // The host is always the first player, so no game is ever empty; a 2-player tennis game is 1 (open) or 2 (full).
+      const fewest = Math.min(2, maxPlayers - 1)
+      let currentCount = pickInt(fewest, Math.max(fewest, maxPlayers - 3))
 
       if (dayOffset < 0) {
         // One in five past games fell through; the rest were played to the end.
         status = random() < 0.2 ? 'cancelled' : 'finished'
-        currentCount = status === 'finished' ? maxPlayers : pickInt(1, Math.max(1, maxPlayers - 3))
         if (status === 'finished') {
+          currentCount = maxPlayers
           homeScore = pickInt(0, sport === 'basketball' ? 98 : 6)
           awayScore = pickInt(0, sport === 'basketball' ? 98 : 6)
         }
       } else {
         const roll = random()
         if (roll < 0.15) currentCount = maxPlayers // full
-        else if (roll < 0.4) currentCount = maxPlayers - pickInt(1, 2) // almost gone
-        else currentCount = pickInt(0, Math.max(0, maxPlayers - 3))
+        else if (roll < 0.4) currentCount = Math.max(1, maxPlayers - pickInt(1, 2)) // almost gone
       }
 
       games.push({
-        title: pick(GAME_TITLES[sport]),
+        title: '', // set below, once the live game has its final time
         sport,
         level: pick(LEVELS),
         venueIndex,
@@ -259,6 +268,7 @@ function planGames(): PlannedGame[] {
     live.currentCount = live.maxPlayers
   }
 
+  for (const game of games) game.title = titleFor(game)
   return games
 }
 
@@ -343,9 +353,11 @@ log(`Creating ${planned.length} games and their participants…`)
 let participantCount = 0
 const createdGames: Array<{ id: Id; players: Id[] }> = []
 
-for (const game of planned) {
-  const host = pick(users)
-  const roster = shuffled(users.filter((user) => user.id !== host.id)).slice(0, game.currentCount)
+for (const [index, game] of planned.entries()) {
+  // Round-robin, so the (at most five) games of one day all have different hosts.
+  const host = users[index % users.length]
+  // The host is the game itself and has no participant row; the rest of `currentCount` are joined players.
+  const roster = shuffled(users.filter((user) => user.id !== host.id)).slice(0, game.currentCount - 1)
   const teams = shuffled(teamsBySport.get(game.sport) ?? [])
 
   const created = await payload.create({
@@ -360,8 +372,8 @@ for (const game of planned) {
       contactPhone: host.phoneNumber,
       scheduledAt: game.scheduledAt.toISOString(),
       maxPlayers: game.maxPlayers,
-      // The join endpoint keeps these two in step; the seed has to do the same.
-      availablePlayers: game.maxPlayers - roster.length,
+      // The join endpoint keeps these two in step; the seed has to do the same (the host takes a spot).
+      availablePlayers: game.maxPlayers - game.currentCount,
       status: game.status,
       homeScore: game.homeScore,
       awayScore: game.awayScore,
