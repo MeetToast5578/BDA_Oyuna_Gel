@@ -230,6 +230,15 @@
   background: #fff;
 }
 
+/* Hover swaps the gradient for the light tint, so the number and today's dot go dark to stay readable. */
+.day[aria-pressed='true']:hover:not(:disabled) {
+  color: var(--color-primary);
+}
+
+.today[aria-pressed='true']:hover:not(:disabled)::after {
+  background: var(--color-accent);
+}
+
 @keyframes pop {
   0% {
     transform: scale(0.7);
