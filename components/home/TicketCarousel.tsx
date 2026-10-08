@@ -48,6 +48,11 @@ export function TicketCarousel({ games }: { games: FeaturedGame[] }) {
   // game as slide `offset`, so the effect below moving there is invisible.
   const [active, setActive] = useState(0)
   const activeRef = useRef(0)
+  /**
+   * Where an arrow/dot scroll is heading, until it settles. Mid-scroll the centred slide still lags
+   * behind it, so stepping from that would repeat a card, or redo a jump goTo() has already made.
+   */
+  const targetRef = useRef<number | null>(null)
 
   const syncActive = useCallback(() => {
     const track = trackRef.current
@@ -105,7 +110,13 @@ export function TicketCarousel({ games }: { games: FeaturedGame[] }) {
     const scheduleSettle = () => {
       clearTimeout(settle.current)
       // A finger still on the screen owns the scroll position; recentring waits until it lifts.
-      settle.current = setTimeout(() => !dragging.current && recenter(), SETTLE_MS)
+      settle.current = setTimeout(() => {
+        if (dragging.current) return
+        // goTo() may have switched snapping off for a jump; at rest, on a card, it is safe to restore.
+        track.style.scrollSnapType = ''
+        targetRef.current = null
+        recenter()
+      }, SETTLE_MS)
     }
     const onScroll = () => {
       cancelAnimationFrame(frame.current)
@@ -116,6 +127,7 @@ export function TicketCarousel({ games }: { games: FeaturedGame[] }) {
     // pan, so a pointer-based flag would clear while the finger is still down.
     const onTouchStart = () => {
       dragging.current = true
+      targetRef.current = null
     }
     const onTouchEnd = () => {
       dragging.current = false
@@ -146,15 +158,31 @@ export function TicketCarousel({ games }: { games: FeaturedGame[] }) {
 
   function goTo(index: number) {
     const track = trackRef.current
-    const slide = slidesOf(track)[index]
+    const items = slidesOf(track)
+    // Clicks faster than the scroll settles never give recenter() its turn, so stepping through the
+    // track directly would drift into the buffer copy and stall at its far end. Every target is
+    // therefore taken back into the middle copy, jumping the track by whole copies first: invisible,
+    // since the same cards sit in the same places.
+    const target = loops ? offset + ((((index - offset) % games.length) + games.length) % games.length) : index
+    const slide = items[target]
     if (!track || !slide) return
+    const copies = (target - index) / games.length
+    if (copies !== 0 && items[offset] && items[0]) {
+      // Mid-scroll the position sits between cards, and snapping would yank it onto one: a visible
+      // jump. Off until the scroll settles (see scheduleSettle).
+      track.style.scrollSnapType = 'none'
+      track.scrollLeft += copies * (items[offset].offsetLeft - items[0].offsetLeft)
+    }
+    targetRef.current = target
     track.scrollTo({ left: centerOf(track, slide), behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
   }
 
+  /** The slide arrows and dots move from: the one being scrolled to, else the one centred. */
+  const from = () => targetRef.current ?? activeRef.current
   /** Which game is showing, regardless of the copy it came from. */
   const current = loops ? active % games.length : active
   /** Steps to a game within the copy already on screen, so a dot never scrolls the whole track. */
-  const goToGame = (gameIndex: number) => goTo(active - current + gameIndex)
+  const goToGame = (gameIndex: number) => goTo(from() - (from() % games.length) + gameIndex)
 
   return (
     <div className={styles.carousel} role="region" aria-roledescription="karusel" aria-labelledby="featured-title">
@@ -187,7 +215,7 @@ export function TicketCarousel({ games }: { games: FeaturedGame[] }) {
 
       {loops && (
         <div className={styles.controls}>
-          <button type="button" className={styles.arrow} onClick={() => goTo(active - 1)} aria-label="Əvvəlki oyun">
+          <button type="button" className={styles.arrow} onClick={() => goTo(from() - 1)} aria-label="Əvvəlki oyun">
             <Icon name="chevron" className={styles.flip} />
           </button>
           <ul className={styles.dots}>
@@ -203,7 +231,7 @@ export function TicketCarousel({ games }: { games: FeaturedGame[] }) {
               </li>
             ))}
           </ul>
-          <button type="button" className={styles.arrow} onClick={() => goTo(active + 1)} aria-label="Növbəti oyun">
+          <button type="button" className={styles.arrow} onClick={() => goTo(from() + 1)} aria-label="Növbəti oyun">
             <Icon name="chevron" />
           </button>
         </div>

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "payload generate:importmap && next build",
+    "vercel-build": "payload migrate && npm run build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",

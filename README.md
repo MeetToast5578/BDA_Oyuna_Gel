@@ -32,6 +32,20 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
 - Fill the database with sample venues, players and games: `npm run seed`
 - API reference: [docs/api.md](docs/api.md)
 
+## Deploying to Vercel
+
+1. Import the repo in Vercel (framework preset: Next.js, no other build settings needed).
+2. Add a Blob store under **Storage** and connect it to the project; that sets `BLOB_READ_WRITE_TOKEN`.
+   Uploads go to Blob whenever the token is set; without it they are written to `./media`, which
+   Vercel's read-only filesystem rejects.
+3. Set `PAYLOAD_SECRET`, `DATABASE_URL` and, for Google sign-in, `GOOGLE_CLIENT_ID` /
+   `GOOGLE_CLIENT_SECRET`, and add `https://<your-domain>/api/auth/google/callback` to the OAuth
+   client's redirect URIs.
+
+Vercel runs `npm run vercel-build`, which applies pending migrations (`payload migrate`) before
+building. Preview deployments migrate whatever database their `DATABASE_URL` points at, so give
+previews their own database if they shouldn't touch production.
+
 ## Structure
 
 | Path                | What it holds                                                   |

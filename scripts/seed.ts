@@ -6,6 +6,7 @@
  * included), and it is deterministic, so the same run produces the same data. Only user accounts
  * outside the seed domain — your own admin login — are kept.
  */
+import { randomBytes } from 'node:crypto'
 import { getPayload } from 'payload'
 
 import config from '../payload.config'
@@ -13,7 +14,6 @@ import { BAKU_UTC_OFFSET, SPORTS, startOfBakuDay } from '../lib/game-backend'
 
 /** Seed accounts are recognised by this email domain; that is how the wipe leaves real users alone. */
 const SEED_EMAIL_DOMAIN = 'seed.oyunagel.az'
-const SEED_PASSWORD = 'OyunaGel2026!'
 /** Fixed so a re-run reproduces exactly the same dataset. */
 const RANDOM_SEED = 20260917
 
@@ -55,15 +55,18 @@ function shuffled<T>(items: readonly T[]) {
 const MALE_FIRST_NAMES = [
   'Elvin', 'Rəşad', 'Nicat', 'Orxan', 'Kamran', 'Tural', 'Fərid', 'Ramil', 'Emin', 'Anar',
   'Vüsal', 'Ceyhun', 'Murad', 'Samir', 'Elçin', 'Rüfət', 'Ayxan', 'Ülvi', 'Zaur', 'Nurlan',
-  'Xəyal', 'Səbuhi', 'Fuad', 'İlkin', 'Toğrul', 'Kənan', 'Mahir', 'Şahin',
+  'Xəyal', 'Səbuhi', 'Fuad', 'İlkin', 'Toğrul', 'Kənan', 'Mahir', 'Şahin', 'Cavid', 'Rauf',
+  'Elnur', 'Vaqif', 'Əli', 'Hüseyn', 'Tofiq', 'Yusif',
 ]
 const FEMALE_FIRST_NAMES = [
   'Aysel', 'Nərmin', 'Gülnar', 'Leyla', 'Ülviyyə', 'Sevinc', 'Günel', 'Aytən', 'Nigar', 'Lalə',
-  'Zeynəb', 'Fidan', 'Şəbnəm', 'Aysu',
+  'Zeynəb', 'Fidan', 'Şəbnəm', 'Aysu', 'Səbinə', 'Kamilə', 'Mələk', 'Aynur',
 ]
-const SURNAME_STEMS = [
-  'Məmməd', 'Əli', 'Hüseyn', 'Quli', 'Həsən', 'İsmayıl', 'Rəhim', 'Abbas', 'Kərim', 'Mustafa',
-  'Nəbi', 'Vəli', 'Səfər', 'Bayram', 'Cəfər', 'Axund', 'Salman', 'Oruc', 'Tağı', 'Şirin',
+/** Male forms; the female form adds "a" (Əliyev → Əliyeva). A stem ending in a vowel takes -yev, not -ov. */
+const SURNAMES = [
+  'Məmmədov', 'Əliyev', 'Hüseynov', 'Quliyev', 'Həsənov', 'İsmayılov', 'Rəhimov', 'Abbasov',
+  'Kərimov', 'Mustafayev', 'Nəbiyev', 'Vəliyev', 'Səfərov', 'Bayramov', 'Cəfərov', 'Axundov',
+  'Salmanov', 'Orucov', 'Tağıyev', 'Şirinov', 'Qasımov', 'Novruzov', 'Zeynalov', 'Babayev',
 ]
 
 /** Azerbaijani letters have no place in an email local part or a slug. */
@@ -93,8 +96,8 @@ function buildPeople(count: number) {
 
   return Array.from({ length: count }, (_, index) => {
     const { first, female } = names[index % names.length]
-    const stem = SURNAME_STEMS[(index * 7 + 3) % SURNAME_STEMS.length]
-    const last = `${stem}ov${female ? 'a' : ''}`
+    const surname = SURNAMES[(index * 7 + 3) % SURNAMES.length]
+    const last = `${surname}${female ? 'a' : ''}`
     const fullName = `${first} ${last}`
     return {
       fullName,
@@ -147,6 +150,12 @@ const TEAMS: Array<{ name: string; shortName: string; sport: Sport }> = [
 
 /** Sport-neutral names, safe at any time and for any size. */
 const NEUTRAL_TITLES = ['Dostluq oyunu', 'Məhəllə oyunu', 'Yoldaşlıq oyunu']
+/** How hosts actually name games: casual, sport-specific, still true at any time and size. */
+const CASUAL_TITLES: Record<Sport, string[]> = {
+  football: ['Mini futbol', 'Dostlarla futbol', 'Həvəskar futbol', 'Futbol, oyunçu axtarırıq'],
+  basketball: ['Streetball', 'Dostlarla basketbol', 'Həvəskar basketbol'],
+  tennis: ['Tennis partnyoru axtarıram', 'Həvəskar tennis', 'Tennis məşqi'],
+}
 /** The Azerbaijani suffix in "5-ə-5" follows the number: beş → ə, altı → ya, yeddi → yə. */
 const SIDE_SUFFIX: Record<number, string> = { 3: 'ə', 4: 'ə', 5: 'ə', 6: 'ya', 7: 'yə' }
 
@@ -174,7 +183,7 @@ function bakuHour(date = new Date()) {
  * size: "Axşam 5-ə-5" is an evening game of five a side, "Cümə axşamı …" really is on a Thursday.
  */
 function titleFor(game: Pick<PlannedGame, 'sport' | 'maxPlayers' | 'scheduledAt'>) {
-  if (random() < 0.25) return pick(NEUTRAL_TITLES)
+  if (random() < 0.4) return pick([...NEUTRAL_TITLES, ...CASUAL_TITLES[game.sport]])
   const side = game.maxPlayers / 2
   const format =
     game.sport === 'tennis' ? (side === 1 ? 'tək oyun' : 'cütlük oyunu') : `${side}-${SIDE_SUFFIX[side]}-${side}`
@@ -199,7 +208,9 @@ type PlannedGame = {
 }
 
 /**
- * Spreads games over the past week and the next two weeks. Past games are finished or cancelled,
+ * Spreads games over the past three weeks and the next month, busiest in the next few days and
+ * thinning out further ahead (as real bookings do), so the site stays populated for weeks after a
+ * run. Past games are finished or cancelled,
  * upcoming ones are scheduled with a mix of availability, so every UI state has real data behind it:
  * plenty of free spots, a single spot left, and full.
  */
@@ -207,10 +218,10 @@ function planGames(): PlannedGame[] {
   const games: PlannedGame[] = []
   const nowHour = bakuHour()
 
-  for (let dayOffset = -7; dayOffset <= 13; dayOffset++) {
+  for (let dayOffset = -21; dayOffset <= 30; dayOffset++) {
     // Today can only host slots that have not started yet; the next two days are the busiest.
     const slots = SLOT_HOURS.filter((hour) => dayOffset !== 0 || hour >= nowHour + 2)
-    const perDay = dayOffset < 0 ? 3 : dayOffset <= 2 ? 5 : 3
+    const perDay = dayOffset < 0 ? 3 : dayOffset <= 2 ? 5 : dayOffset <= 9 ? 4 : dayOffset <= 20 ? 2 : 1
     const hours = shuffled(slots).slice(0, Math.min(perDay, slots.length))
     const booked = new Map<number, number[]>()
 
@@ -295,24 +306,31 @@ log(`Removed ${removed.rowCount ?? 0} seed accounts; anything outside @${SEED_EM
 type Id = number
 type SeedUser = { id: Id; fullName: string; phoneNumber: string }
 
-const PLAYER_COUNT = 36
+const PLAYER_COUNT = 48
 log(`Creating ${PLAYER_COUNT} players…`)
 const users: SeedUser[] = []
-for (const [index, person] of buildPeople(PLAYER_COUNT).entries()) {
+for (const person of buildPeople(PLAYER_COUNT)) {
   const created = await payload.create({
     collection: 'users',
     overrideAccess: true,
     data: {
       email: person.email,
-      password: SEED_PASSWORD,
+      // Random and never printed: the seed may run against production, where a shared password
+      // in a public repo would let anyone sign in as these players through /api/users/login.
+      password: randomBytes(24).toString('base64url'),
       fullName: person.fullName,
       phoneNumber: person.phoneNumber,
-      // A couple of seed moderators, so the admin panel has more than one role to look at.
-      role: index < 2 ? 'admin' : 'user',
+      role: 'user',
     },
   })
   users.push({ id: created.id, fullName: person.fullName, phoneNumber: person.phoneNumber })
 }
+// Profiles show "Qeydiyyat: <month>"; signed up one to nine months ago, so no player appears to have
+// joined this month yet hosted games weeks before it.
+await payload.db.pool.query(
+  `UPDATE users SET created_at = now() - ((id * 37) % 240 + 30) * interval '1 day' WHERE email LIKE $1`,
+  [`%@${SEED_EMAIL_DOMAIN}`],
+)
 
 log(`Creating ${VENUES.length} venues…`)
 const arenaIds: Id[] = []
@@ -419,5 +437,4 @@ const open = planned.filter((game) => game.status === 'scheduled' && game.curren
 log('─'.repeat(52))
 log(`Seed complete — ${users.length} players, ${arenaIds.length} venues, ${TEAMS.length} teams,`)
 log(`${planned.length} games (${upcoming} upcoming, ${open} with open spots), ${participantCount} participants, ${attempts} join attempts.`)
-log(`Seed logins: any @${SEED_EMAIL_DOMAIN} address, password ${SEED_PASSWORD}`)
 log(`Sports covered: ${SPORTS.join(', ')} · times are Baku local (UTC${BAKU_UTC_OFFSET})`)
