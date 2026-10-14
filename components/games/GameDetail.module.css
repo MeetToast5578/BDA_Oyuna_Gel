@@ -254,3 +254,33 @@ a.phone:hover {
     line-height: 1.15;
   }
 }
+
+/* "Paylaş" and "Təqvimə əlavə et", under the join panel. */
+.share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.shareStatus {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.shareStatus:empty {
+  display: none;
+}
+
+.calendarLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: 14px;
+}
+
+.calendarLinks a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

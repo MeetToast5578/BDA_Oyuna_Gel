@@ -9,14 +9,17 @@ import { CoverImage } from '@/components/games/CoverImage'
 import styles from '@/components/games/GameDetail.module.css'
 import { JoinPanel } from '@/components/games/JoinPanel'
 import { PlayersButton } from '@/components/games/PlayersButton'
+import { ShareButton } from '@/components/games/ShareButton'
 import { GameDetailSkeleton } from '@/components/games/skeletons'
 import { buttonClass } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
-import { isUpcoming } from '@/lib/game-backend'
+import { googleCalendarUrl } from '@/lib/calendar'
+import { isUpcoming, shareText } from '@/lib/game-backend'
 import { getGameDetail } from '@/lib/game-queries'
 import { formatPhone } from '@/lib/phone'
 import { loginHref } from '@/lib/safe-redirect'
 import { getCurrentUser } from '@/lib/session'
+import { SITE_URL } from '@/lib/site-url'
 
 type Props = {
   params: Promise<{ id: string }>
@@ -43,10 +46,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const loaded = await loadGame((await params).id)
   if (!loaded) return { title: 'Oyun tapılmadı' }
   const { game } = loaded
-  return {
-    title: game.title,
-    description: `${game.sportLabel} · ${game.venue.label} · ${game.dateLabel}, ${game.timeLabel} · ${game.currentCount}/${game.maxCount} oyunçu`,
-  }
+  const description = `${game.sportLabel} · ${game.venue.label} · ${game.dateLabel}, ${game.timeLabel} · ${game.currentCount}/${game.maxCount} oyunçu`
+  // The image comes from opengraph-image.tsx next to this page.
+  return { title: game.title, description, openGraph: { title: game.title, description, type: 'website' } }
 }
 
 /**
@@ -84,6 +86,8 @@ async function GameDetailContent({ params, searchParams }: Props) {
   const { participants, host } = game
   // Once it has started, the page describes a game that happened rather than one to join.
   const upcoming = isUpcoming(game.status)
+  const gameUrl = `${SITE_URL}/games/${game.id}`
+  const googleCalendar = googleCalendarUrl(game, gameUrl)
 
   return (
     <div className={`${styles.layout} fade`}>
@@ -207,6 +211,25 @@ async function GameDetailContent({ params, searchParams }: Props) {
 
         {/* Keyed like the create form: a page kept mounted since a profile change prefills the new number. */}
         <JoinPanel key={user?.phoneNumber ?? 'no-phone'} game={game} user={user} autoOpen={wantsToJoin && canJoin} />
+
+        {upcoming && (
+          <section className={styles.panel} aria-label="Paylaş">
+            <ShareButton title={game.title} text={shareText(game)} url={gameUrl} />
+            {/* Only for those coming: the calendar reminds them two hours before kick-off. */}
+            {(game.viewer.joined || game.viewer.isHost) && (
+              <p className={styles.calendarLinks}>
+                <a href={`/api/v1/games/${game.id}/calendar`} download>
+                  Təqvimə əlavə et
+                </a>
+                {googleCalendar && (
+                  <a href={googleCalendar} target="_blank" rel="noopener noreferrer">
+                    Google Calendar
+                  </a>
+                )}
+              </p>
+            )}
+          </section>
+        )}
       </aside>
     </div>
   )

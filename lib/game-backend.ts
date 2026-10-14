@@ -698,3 +698,20 @@ export function parseProfileUpdate(body: unknown): ParseOk<ProfileUpdate> {
   if (Object.keys(update).length === 0) return fail('NOTHING_TO_UPDATE', 'Dəyişdiriləcək heç nə göndərilmədi.')
   return { ok: true, value: update }
 }
+
+/**
+ * What "Paylaş" sends along with the link: enough to decide from a WhatsApp message alone.
+ * "Axşam futbolu · Şən, 18 Okt, 19:00 · Aku Arena · 3 yer qalıb".
+ */
+export function shareText(game: {
+  title: string
+  dateLabel: string | null
+  timeLabel: string | null
+  venue: { name: string }
+  status: AvailabilityStatus
+  remainingSpots: number
+}) {
+  const spots = game.status === 'open' ? `${game.remainingSpots} yer qalıb` : game.status === 'full' ? 'Oyun doludur' : null
+  const when = [game.dateLabel, game.timeLabel].filter(Boolean).join(', ')
+  return [game.title, when, game.venue.name, spots].filter(Boolean).join(' · ')
+}
