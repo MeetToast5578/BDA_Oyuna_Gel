@@ -6,7 +6,7 @@ import { joinedEmail } from '@/lib/emails'
 import { invalidateGamesCache } from '@/lib/cache-tags'
 import { normalizePhone } from '@/lib/game-backend'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
-import { claimSpot, recordJoinAttempt, type JoinErrorCode } from '@/lib/join-game'
+import { claimSpot, recordJoinAttempt, tooManyRecentAttempts, type JoinErrorCode } from '@/lib/join-game'
 import { afterResponse, notify } from '@/lib/notify'
 import { rememberPhone } from '@/lib/profile-queries'
 import { SITE_URL } from '@/lib/site-url'
@@ -41,6 +41,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return apiError('UNAUTHENTICATED', 'Oyuna qoşulmaq üçün daxil olun.', 401)
   }
   const userId = Number(user.id)
+
+  if (await tooManyRecentAttempts(payload, userId, ip)) {
+    return apiError('RATE_LIMITED', 'Çox tez-tez cəhd edirsiniz. Bir dəqiqə sonra yenidən yoxlayın.', 429)
+  }
 
   const body = (await request.json().catch(() => null)) as { name?: unknown; phone?: unknown; saveToProfile?: unknown } | null
 

@@ -292,6 +292,7 @@ The spot is taken when this request succeeds. The "Bir addım qaldı" modal then
 | 409    | `GAME_FULL`         | No spots left, including losing a race for the last spot  |
 | 409    | `GAME_NOT_JOINABLE` | Cancelled, finished, live, or already started             |
 | 409    | `ALREADY_JOINED`    | This user already holds a spot                            |
+| 429    | `RATE_LIMITED`      | 10 join or leave requests in the last minute (user or IP) |
 
 **Concurrency.** The spot is claimed with one conditional `UPDATE … WHERE available_players > 0` inside a transaction (`lib/join-game.ts`). Postgres re-checks the condition after the row lock is released, so when two requests race for the last spot, exactly one succeeds and the other gets `409 GAME_FULL`, across any number of app instances. A unique `(game, user)` index prevents double joins, and a rejected join rolls the decrement back. Every attempt is written to the `join-attempts` collection (outcome, game, user, IP), readable by admins.
 
@@ -371,6 +372,7 @@ places in a full game. Response body matches the join endpoint.
 | 409    | `NOT_JOINED`        | Not in this game (also a second leave)                |
 | 409    | `HOST_CANNOT_LEAVE` | The host leaves by deleting the game                  |
 | 409    | `GAME_STARTED`      | Already kicked off, cancelled or finished             |
+| 429    | `RATE_LIMITED`      | As for join; joins and leaves share the count         |
 
 ## Profile
 

@@ -3,7 +3,7 @@ import { after, NextResponse } from 'next/server'
 import { apiError } from '@/lib/api-response'
 import { invalidateGamesCache } from '@/lib/cache-tags'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
-import { recordJoinAttempt, releaseSpot, type LeaveErrorCode } from '@/lib/join-game'
+import { recordJoinAttempt, releaseSpot, tooManyRecentAttempts, type LeaveErrorCode } from '@/lib/join-game'
 
 const LEAVE_ERRORS: Record<LeaveErrorCode, { status: number; message: string }> = {
   GAME_NOT_FOUND: { status: 404, message: 'Oyun tapılmadı.' },
@@ -32,6 +32,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return apiError('UNAUTHENTICATED', 'Oyundan çıxmaq üçün daxil olun.', 401)
   }
   const userId = Number(user.id)
+
+  if (await tooManyRecentAttempts(payload, userId, ip)) {
+    return apiError('RATE_LIMITED', 'Çox tez-tez cəhd edirsiniz. Bir dəqiqə sonra yenidən yoxlayın.', 429)
+  }
 
   try {
     const result = await releaseSpot(payload, gameId, userId)
