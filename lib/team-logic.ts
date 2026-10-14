@@ -32,6 +32,8 @@ export function eligibleSides(game: GameSides, memberOf: number[]): Side[] {
  * host, and only spill over to the other side once the host's is full.
  */
 export function occupancy(maxPlayers: number, sides: Side[], guests = 0, hostSide: Side = 'home'): Record<Side, number> {
+  // Guests are derived (max − available − rows), so counters that drifted could make them negative.
+  guests = Math.max(Math.floor(guests), 0)
   const counts = { home: 0, away: 0 }
   for (const side of sides) counts[side] += 1
   const cap = sideCapacity(maxPlayers)
@@ -39,6 +41,67 @@ export function occupancy(maxPlayers: number, sides: Side[], guests = 0, hostSid
   counts[hostSide] += withHost
   counts[otherSide(hostSide)] += guests - withHost
   return counts
+}
+
+/** A join body's `side`. Absent means "random"; anything else unknown is refused (400 INVALID_SIDE). */
+export function parseSideChoice(value: unknown): SideChoice | null {
+  if (value === undefined || value === null) return 'random'
+  return value === 'home' || value === 'away' || value === 'random' ? value : null
+}
+
+/** One participant row as the side checks see it. */
+export type SidePlayer = { userId: number; side: Side; memberOf: number[] }
+export type SidesCheck =
+  | { ok: true; counts: Record<Side, number> }
+  | { ok: false; code: 'NOT_A_MEMBER' | 'SIDE_FULL' | 'NOT_IN_GAME'; userId?: number }
+
+/**
+ * The invariant every change to a game's sides must keep: each player stands on a side they may
+ * stand on, and neither side holds more than half the game. Join, the host's reassign and
+ * "Balansla", resizing a game and changing its clubs all end with this check, inside the same
+ * transaction as the write, so none of them can leave a game in a state the others don't expect.
+ * The host's own side decides where the guests stand.
+ */
+export function checkSides(game: GameSides, players: SidePlayer[], guests: number, hostId: number | null): SidesCheck {
+  for (const player of players) {
+    if (!eligibleSides(game, player.memberOf).includes(player.side)) {
+      return { ok: false, code: 'NOT_A_MEMBER', userId: player.userId }
+    }
+  }
+  const hostSide = players.find((player) => player.userId === hostId)?.side ?? 'home'
+  const counts = occupancy(game.maxPlayers, players.map((player) => player.side), guests, hostSide)
+  const cap = sideCapacity(game.maxPlayers)
+  if (counts.home > cap || counts.away > cap) return { ok: false, code: 'SIDE_FULL' }
+  return { ok: true, counts }
+}
+
+/** The host's moves applied to the current rows. A move for someone not in the game is refused, not ignored. */
+export function applyAssignments(
+  players: SidePlayer[],
+  assignments: { userId: number; side: Side }[],
+): { ok: true; players: SidePlayer[] } | { ok: false; code: 'NOT_IN_GAME'; userId: number } {
+  const moves = new Map(assignments.map(({ userId, side }) => [userId, side]))
+  for (const userId of moves.keys()) {
+    if (!players.some((player) => player.userId === userId)) return { ok: false, code: 'NOT_IN_GAME', userId }
+  }
+  return { ok: true, players: players.map((player) => ({ ...player, side: moves.get(player.userId) ?? player.side })) }
+}
+
+/** `PATCH /sides` body: `{ assignments: [{ userId, side }] }` or `{ balance: true }`. At most one move per player in the game. */
+export function parseSidesBody(
+  body: unknown,
+): { ok: true; balance: true } | { ok: true; balance: false; assignments: { userId: number; side: Side }[] } | { ok: false } {
+  const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : null
+  if (doc?.balance === true) return { ok: true, balance: true }
+  if (!Array.isArray(doc?.assignments) || doc.assignments.length === 0 || doc.assignments.length > 22) return { ok: false } // 22: the largest game (football)
+
+  const assignments: { userId: number; side: Side }[] = []
+  for (const item of doc.assignments) {
+    const { userId, side } = (item ?? {}) as Record<string, unknown>
+    if (!Number.isSafeInteger(userId) || (userId as number) <= 0 || (side !== 'home' && side !== 'away')) return { ok: false }
+    assignments.push({ userId: userId as number, side })
+  }
+  return { ok: true, balance: false, assignments }
 }
 
 export type PickSideResult = { ok: true; side: Side } | { ok: false; code: 'NOT_A_MEMBER' | 'SIDE_FULL' }
@@ -143,6 +206,48 @@ export function nextResultStatus(
   return { ok: true, status: action === 'confirm' ? 'confirmed' : 'disputed' }
 }
 
+/** Highest score accepted; well above a basketball game's, so it only stops typos and abuse. */
+export const MAX_SCORE = 300
+
+/** `POST /result` body. Both scores must be whole numbers from 0 to MAX_SCORE. */
+export function parseResultBody(body: unknown): { ok: true; homeScore: number; awayScore: number } | { ok: false } {
+  const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  const valid = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_SCORE
+  return valid(doc.homeScore) && valid(doc.awayScore) ? { ok: true, homeScore: doc.homeScore, awayScore: doc.awayScore } : { ok: false }
+}
+
+/**
+ * Whether a game's score goes into anyone's stats. A cancelled game never does, even with a
+ * confirmed score (an admin can cancel after the fact). The stats SQL repeats this predicate.
+ */
+export const resultCounts = (gameStatus: string, state: ResultState, now = Date.now()) =>
+  gameStatus !== 'cancelled' && effectiveResultStatus(state, now) === 'confirmed'
+
+/**
+ * A game's clubs, checked when the host creates or edits it. Membership (the host on their own
+ * club's side) is `checkSides`' job; this is only what the clubs themselves must satisfy.
+ */
+export function clubSidesError(
+  gameSport: string,
+  home: { id: number; sport: string } | null,
+  away: { id: number; sport: string } | null,
+): 'TEAM_SPORT_MISMATCH' | 'SAME_TEAM' | null {
+  if ((home && home.sport !== gameSport) || (away && away.sport !== gameSport)) return 'TEAM_SPORT_MISMATCH'
+  if (home && away && home.id === away.id) return 'SAME_TEAM'
+  return null
+}
+
+/**
+ * A club after a member leaves (or deletes their account). A leaving captain hands over to the
+ * longest-standing member (`members` is in join order). The last member leaving keeps the club
+ * with no captain rather than deleting it, because past games still point at it and its record
+ * stays readable.
+ */
+export function afterMemberLeaves(members: number[], captainId: number | null, leavingId: number) {
+  const remaining = members.filter((id) => id !== leavingId)
+  return { members: remaining, captainId: captainId === leavingId ? (remaining[0] ?? null) : captainId }
+}
+
 export function outcomeFor(side: Side, homeScore: number, awayScore: number): Outcome {
   const mine = side === 'home' ? homeScore : awayScore
   const theirs = side === 'home' ? awayScore : homeScore
@@ -183,6 +288,11 @@ export function summarize(games: PlayedGame[]): WinLossRecord {
   record.points = record.wins * 3 + record.draws
   record.winRate = record.played ? record.wins / record.played : 0
   return record
+}
+
+/** The same record per sport, every sport present even with no games, in `sports` order. */
+export function summarizeBySport(games: (PlayedGame & { sport: string })[], sports: string[]) {
+  return sports.map((sport) => ({ sport, ...summarize(games.filter((game) => game.sport === sport)) }))
 }
 
 /** League table order: points, then goal difference, then goals scored. */

@@ -1,15 +1,25 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  afterMemberLeaves,
+  applyAssignments,
   autoBalance,
   balanceRating,
+  checkSides,
+  clubSidesError,
   compareStandings,
   effectiveResultStatus,
   nextResultStatus,
   occupancy,
+  parseResultBody,
+  parseSideChoice,
+  parseSidesBody,
   pickSide,
+  resultCounts,
   summarize,
+  summarizeBySport,
   type BalancePlayer,
+  type SidePlayer,
   type ResultActor,
 } from '@/lib/team-logic'
 
@@ -128,5 +138,118 @@ describe('summarize', () => {
     const b = summarize([{ side: 'home', homeScore: 5, awayScore: 0, scheduledAt: '2026-10-01T18:00:00Z' }])
     expect([a, b].sort(compareStandings)[0]).toBe(b)
     expect(summarize([]).winRate).toBe(0)
+  })
+})
+
+describe('occupancy with drifted counters', () => {
+  it('never counts negative guests', () => {
+    expect(occupancy(10, ['home', 'away'], -2)).toEqual({ home: 1, away: 1 })
+  })
+})
+
+describe('checkSides: the invariant every side change ends with', () => {
+  const HOST = 1
+  const rows = (sides: string): SidePlayer[] =>
+    [...sides].map((s, i) => ({ userId: i + 1, side: s === 'h' ? 'home' : 'away', memberOf: [] }))
+
+  it('passes a legal game and reports its counts', () => {
+    expect(checkSides(OPEN, rows('hhaa'), 2, HOST)).toEqual({ ok: true, counts: { home: 4, away: 2 } })
+  })
+
+  it('catches a side over half after a host move', () => {
+    const moved = applyAssignments(rows('hhhha'), [{ userId: 5, side: 'home' }])
+    expect(moved.ok && checkSides(OPEN, moved.players, 0, HOST)).toEqual({ ok: true, counts: { home: 5, away: 0 } })
+    const tooMany = applyAssignments(rows('hhhhha'), [{ userId: 6, side: 'home' }])
+    expect(tooMany.ok && checkSides(OPEN, tooMany.players, 0, HOST)).toEqual({ ok: false, code: 'SIDE_FULL' })
+  })
+
+  it('catches a resize that leaves a side over half, guests included', () => {
+    // 10 → 8 players: each side now holds 4, but five players already stand on home.
+    expect(checkSides({ ...OPEN, maxPlayers: 8 }, rows('hhhhha'), 0, HOST)).toEqual({ ok: false, code: 'SIDE_FULL' })
+    // Guests are no reason to refuse: they spill over to the other side.
+    expect(checkSides({ ...OPEN, maxPlayers: 8 }, rows('hhha'), 2, HOST)).toEqual({ ok: true, counts: { home: 4, away: 2 } })
+    expect(checkSides({ ...OPEN, maxPlayers: 8 }, rows('hhhha'), 4, HOST)).toEqual({ ok: false, code: 'SIDE_FULL' })
+  })
+
+  it('catches a club added to a side its players are not members of', () => {
+    expect(checkSides(CLUB_VS_OPEN, rows('ha'), 0, HOST)).toEqual({ ok: false, code: 'NOT_A_MEMBER', userId: 1 })
+    const members = rows('ha').map((p) => (p.side === 'home' ? { ...p, memberOf: [7] } : p))
+    expect(checkSides(CLUB_VS_OPEN, members, 0, HOST).ok).toBe(true)
+  })
+
+  it('moves guests with the host', () => {
+    const hostAway = rows('ah')
+    expect(checkSides(OPEN, hostAway, 3, HOST)).toEqual({ ok: true, counts: { home: 1, away: 4 } })
+  })
+
+  it('refuses moving someone who is not in the game', () => {
+    expect(applyAssignments(rows('ha'), [{ userId: 9, side: 'home' }])).toEqual({ ok: false, code: 'NOT_IN_GAME', userId: 9 })
+  })
+
+  it('agrees with autoBalance: a balance always passes the check when one exists', () => {
+    const players: BalancePlayer[] = [0.9, 0.7, 0.6, 0.5, 0.4, 0.1].map((rating, i) => ({ userId: i + 1, rating, eligible: ['home', 'away'] }))
+    const sides = autoBalance(players, 6)
+    const balanced = players.map((p) => ({ userId: p.userId, side: sides.get(p.userId)!, memberOf: [] }))
+    expect(checkSides({ ...OPEN, maxPlayers: 6 }, balanced, 0, HOST)).toEqual({ ok: true, counts: { home: 3, away: 3 } })
+  })
+})
+
+describe('request bodies', () => {
+  it('reads the join side, defaulting to random', () => {
+    expect(parseSideChoice(undefined)).toBe('random')
+    expect(parseSideChoice('away')).toBe('away')
+    expect(parseSideChoice('both')).toBeNull()
+  })
+
+  it('reads a host move or a balance request', () => {
+    expect(parseSidesBody({ balance: true })).toEqual({ ok: true, balance: true })
+    expect(parseSidesBody({ assignments: [{ userId: 3, side: 'away' }] })).toEqual({
+      ok: true,
+      balance: false,
+      assignments: [{ userId: 3, side: 'away' }],
+    })
+    expect(parseSidesBody({ assignments: [] })).toEqual({ ok: false })
+    expect(parseSidesBody({ assignments: [{ userId: '3', side: 'away' }] })).toEqual({ ok: false })
+    expect(parseSidesBody({ assignments: [{ userId: 3, side: 'middle' }] })).toEqual({ ok: false })
+    expect(parseSidesBody(null)).toEqual({ ok: false })
+  })
+
+  it('accepts only whole scores in range', () => {
+    expect(parseResultBody({ homeScore: 3, awayScore: 0 })).toEqual({ ok: true, homeScore: 3, awayScore: 0 })
+    for (const bad of [{ homeScore: -1, awayScore: 0 }, { homeScore: 1.5, awayScore: 0 }, { homeScore: '2', awayScore: 1 }, { homeScore: 301, awayScore: 0 }, {}]) {
+      expect(parseResultBody(bad)).toEqual({ ok: false })
+    }
+  })
+})
+
+describe('what counts toward stats', () => {
+  const confirmed = { status: 'confirmed' as const, reportedAt: null }
+  it('drops cancelled games and unconfirmed scores', () => {
+    expect(resultCounts('finished', confirmed)).toBe(true)
+    expect(resultCounts('cancelled', confirmed)).toBe(false)
+    expect(resultCounts('finished', { status: 'disputed', reportedAt: null })).toBe(false)
+    expect(resultCounts('finished', { status: null, reportedAt: null })).toBe(false)
+  })
+
+  it('keeps every sport in the per-sport breakdown', () => {
+    const bySport = summarizeBySport(
+      [{ sport: 'tennis', side: 'home', homeScore: 2, awayScore: 1, scheduledAt: '2026-10-01T18:00:00Z' }],
+      ['football', 'tennis'],
+    )
+    expect(bySport.map((row) => [row.sport, row.wins])).toEqual([['football', 0], ['tennis', 1]])
+  })
+})
+
+describe('clubs', () => {
+  it('checks a game\'s clubs against its sport and each other', () => {
+    expect(clubSidesError('football', { id: 1, sport: 'football' }, { id: 2, sport: 'football' })).toBeNull()
+    expect(clubSidesError('football', { id: 1, sport: 'tennis' }, null)).toBe('TEAM_SPORT_MISMATCH')
+    expect(clubSidesError('football', { id: 1, sport: 'football' }, { id: 1, sport: 'football' })).toBe('SAME_TEAM')
+  })
+
+  it('hands the captaincy to the longest-standing member', () => {
+    expect(afterMemberLeaves([5, 8, 9], 5, 5)).toEqual({ members: [8, 9], captainId: 8 })
+    expect(afterMemberLeaves([5, 8, 9], 5, 9)).toEqual({ members: [5, 8], captainId: 5 })
+    expect(afterMemberLeaves([5], 5, 5)).toEqual({ members: [], captainId: null })
   })
 })
