@@ -1,9 +1,22 @@
 # Fixes and user-experience improvements: plan
 
-> **Status: not started.** This plan covers the bugs found while planning teams
+> **Status: stages 1–3 built.** This plan covers the bugs found while planning teams
 > ([teams-and-stats-plan.md](teams-and-stats-plan.md) §5), the broken Vercel preview, and the UX
 > improvements suggested alongside them. Every step names the files it touches, how it is tested,
 > and when it counts as done. Decisions waiting on the owner are in §2.
+>
+> - **Built:** A1, A2 (with D1 as recommended: past games stay, without a host), B1–B4, C1, C2. Each
+>   was checked with the tests, a production build, and a browser on desktop and phone sizes.
+> - **Not started:** stage 0 (the owner's, in the Vercel dashboard), stages 4–7. Stage 4 waits on
+>   D2 and D3 and an email API key.
+> - **Where the build differs from the text below:**
+>   - A2 also clears the deleted host's contact number from the games that stay.
+>   - The default name stays "OyunaGəl istifadəçisi" (A2's optional wording was skipped).
+>   - B1's share panel shows the WhatsApp link on every device, not only as a fallback.
+>   - B2's calendar links appear on the game page once joined, not inside the join modal.
+>   - C1's date presets and level/venue apply to upcoming games; the past list ignores them.
+> - **Needs a native speaker's read:** the new Azerbaijani strings (share, calendar, filters, venue
+>   pages, the account-deletion dialog).
 
 All work happens on `Branch-1`. Nothing goes into `main` until the owner merges it.
 
