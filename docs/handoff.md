@@ -90,14 +90,17 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
   - Its `DATABASE_URL` and other variables target production and preview, so a `bda-next` preview
     would still use the live database. **Don't deploy `Branch-1` there.** Its settings were left
     exactly as they were.
-- **`bda-oyuna-gel`** (`prj_XhiPU2mjlB97OjJ5GYlGPgfHJ799`, same team) is the **copy for `Branch-1`**:
-  - connected to GitHub, so every push to `Branch-1` builds a preview there automatically;
-  - `DATABASE_URL` (Preview only) is the Neon `preview` branch (`ep-old-haze-aeykpqkm`), which
-    was empty: the first build (`5b0409c`) ran every migration from the baseline;
-    `PAYLOAD_SECRET` (Preview only) is its own random value;
-  - no Google keys or Blob token, so sign-in with Google and uploads don't work there;
-  - its production builds of `main` fail (no production variables), which is harmless.
-- Preview links are behind Vercel's login (deployment protection), so only team members open them.
+- **`bda-oyuna-gel`** (`prj_XhiPU2mjlB97OjJ5GYlGPgfHJ799`, same team) is the **public copy of
+  `Branch-1`**, at https://bda-oyuna-gel.vercel.app:
+  - connected to GitHub. Its production deployment is a `Branch-1` build; the owner was asked to
+    set Settings → Environments → Production → Branch Tracking to `Branch-1`, so each push updates
+    that address (until then, pushes only make previews);
+  - `DATABASE_URL` and `PAYLOAD_SECRET` (production and preview) point at the Neon `preview`
+    branch (`ep-old-haze-aeykpqkm`), never the live database. The first build ran every
+    migration from the baseline (it was empty), and one build ran the seed (48 players, 12 venues,
+    137 games); the build command is back to the default;
+  - Vercel Authentication is off for this project only, so the link can be shared;
+  - no Google keys or Blob token, so sign-in with Google and uploads don't work there.
 - The owner was advised to rotate the database password and the Google client secret at some
   point, since they were pasted into an earlier chat.
 - `lib/site-url.ts` points previews at their branch URL and production at
