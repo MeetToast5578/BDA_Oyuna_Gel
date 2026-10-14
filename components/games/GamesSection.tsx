@@ -68,7 +68,7 @@ export function GamesSection({
   to?: string
   seeAllHref?: string
   when?: ProfileWindow
-  /** `/games` only: the date, level and venue filters, and the venues to choose from. */
+  /** The two list pages only: the date, level and venue filters, and the venues to choose from. */
   filters?: ListFilters
   venues?: Array<{ id: string | null; name: string }>
 }) {
@@ -158,7 +158,7 @@ export function GamesSection({
         query={filters}
         countLabel={past ? 'keçmiş oyun' : 'açıq oyun'}
       />
-      {filters && <GamesFilters basePath={basePath} sport={sport} filters={filters} venues={venues} />}
+      {filters && <GamesFilters basePath={basePath} sport={sport} filters={filters} venues={venues} dates={!past} />}
 
       <div className={styles.games}>
         {!standalone && head}

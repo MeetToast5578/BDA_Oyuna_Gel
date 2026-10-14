@@ -11,13 +11,17 @@
 >   `GMAIL_USER` / `GMAIL_APP_PASSWORD`), on by default with a switch on the profile (D3). Join
 >   confirmations carry the calendar file; changed times or venues and cancellations (a deleted game,
 >   or the upcoming games of a deleted account) go to everyone in the game.
-> - **Not started:** stage 0 (the owner's, in the Vercel dashboard), D2 rate limits, stages 5–7.
+> - **Built since:** D2 rate limits on join and leave (429 `RATE_LIMITED`, `tests/rate-limit.test.ts`).
+> - **Not started:** stage 0 (the owner's, in the Vercel dashboard), stages 5 and 7. Stage 6 (teams)
+>   has phases 1–2 built; see the teams plan's status.
 > - **Where the build differs from the text below:**
 >   - A2 also clears the deleted host's contact number from the games that stay.
->   - The default name stays "OyunaGəl istifadəçisi" (A2's optional wording was skipped).
+>   - A host whose account is gone shows as "Silinmiş istifadəçi"; an account with no name still
+>     shows "OyunaGəl istifadəçisi".
 >   - B1's share panel shows the WhatsApp link on every device, not only as a fallback.
 >   - B2's calendar links appear on the game page once joined, not inside the join modal.
->   - C1's date presets and level/venue apply to upcoming games; the past list ignores them.
+>   - C1's level and venue filters apply to the past list too; the date presets only to upcoming
+>     games, since they only look ahead.
 > - **Needs a native speaker's read:** the new Azerbaijani strings (share, calendar, filters, venue
 >   pages, the account-deletion dialog).
 

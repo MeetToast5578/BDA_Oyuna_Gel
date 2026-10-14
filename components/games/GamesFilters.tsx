@@ -11,7 +11,7 @@ import styles from './GamesSection.module.css'
 export const DATE_LABELS: Record<DatePreset, string> = { today: 'Bu gün', tomorrow: 'Sabah', weekend: 'Həftəsonu' }
 
 /**
- * "Tarix", "Səviyyə" and "Meydança" under the sport tabs on `/games`. Every filter lives in the URL,
+ * "Tarix", "Səviyyə" and "Meydança" under the sport tabs on `/games` (and the last two on `/games/past`). Every filter lives in the URL,
  * like `?sport=`, so a filtered list can be shared and the back button undoes a change. The selects
  * are a plain GET form, which works before (and without) any JavaScript.
  */
@@ -20,28 +20,33 @@ export function GamesFilters({
   sport,
   filters,
   venues,
+  dates = true,
 }: {
   basePath: string
   sport: string | null
   filters: ListFilters
   venues: Array<{ id: string | null; name: string }>
+  /** The date links; off for past games, since they only look ahead. */
+  dates?: boolean
 }) {
   const href = (date: DatePreset | null) => withQuery(basePath, { sport, ...filters, date })
   const active = Boolean(filters.date || filters.level || filters.venue)
 
   return (
     <div className={styles.filters}>
-      <SegmentedLinks
-        label="Tarix"
-        options={[
-          { href: href(null), label: 'Hamısı', active: !filters.date },
-          ...(Object.keys(DATE_LABELS) as DatePreset[]).map((date) => ({
-            href: href(date),
-            label: DATE_LABELS[date],
-            active: filters.date === date,
-          })),
-        ]}
-      />
+      {dates && (
+        <SegmentedLinks
+          label="Tarix"
+          options={[
+            { href: href(null), label: 'Hamısı', active: !filters.date },
+            ...(Object.keys(DATE_LABELS) as DatePreset[]).map((date) => ({
+              href: href(date),
+              label: DATE_LABELS[date],
+              active: filters.date === date,
+            })),
+          ]}
+        />
+      )}
       <form action={basePath} method="get" className={styles.filterForm}>
         {sport && <input type="hidden" name="sport" value={sport} />}
         {filters.date && <input type="hidden" name="date" value={filters.date} />}

@@ -51,6 +51,8 @@ export const GAMES_MAX_LIMIT = 50
 
 /** Shown for an account with no name, the host's or a player's. */
 const DEFAULT_USER_NAME = 'OyunaGəl istifadəçisi'
+/** Shown for the host of a past game whose account was deleted (the game stays, with no host). */
+const DELETED_USER_NAME = 'Silinmiş istifadəçi'
 const HOUR_MS = 60 * 60 * 1000
 const DAY_MS = 24 * HOUR_MS
 const BAKU_OFFSET_MS = 4 * HOUR_MS
@@ -447,7 +449,7 @@ export function normalizeGameRecord(raw: unknown, now = Date.now()) {
   const sportMeta = SPORT_META[sport] ?? SPORT_META.football
   const level = String(game.level ?? 'medium')
   const host = asDoc(game.host)
-  const hostName = nonEmptyString(host?.fullName) ?? DEFAULT_USER_NAME
+  const hostName = game.host == null ? DELETED_USER_NAME : (nonEmptyString(host?.fullName) ?? DEFAULT_USER_NAME)
   // Populated or not, the relationship still names the host, which is what a profile link needs.
   const hostId = host ? host.id : game.host
   const startsAt = game.scheduledAt ? String(game.scheduledAt) : null

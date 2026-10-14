@@ -217,7 +217,15 @@ export async function findGames(query: GameListQuery, now = new Date()) {
 }
 
 /** Games that have started, not cancelled, most recent first. Cached like the upcoming list. */
-async function findPastGameDocs(sport: string | null, city: string, beforeIso: string, page: number, limit: number) {
+async function findPastGameDocs(
+  sport: string | null,
+  city: string,
+  beforeIso: string,
+  level: string | null,
+  venueId: number | null,
+  page: number,
+  limit: number,
+) {
   'use cache'
   cacheLife(CACHE_PROFILE)
   cacheTag(GAMES_CACHE_TAG)
@@ -231,6 +239,8 @@ async function findPastGameDocs(sport: string | null, city: string, beforeIso: s
         { scheduledAt: { less_than_equal: beforeIso } },
         cityWhere('arena.city', city),
         ...(sport ? [{ sport: { equals: sport } }] : []),
+        ...(level ? [{ level: { equals: level } }] : []),
+        ...(venueId ? [{ arena: { equals: venueId } }] : []),
       ],
     },
     select: CARD_SELECT,
@@ -261,7 +271,7 @@ function bucketed(now: Date) {
  */
 async function findPastGames(query: GameListQuery, now: Date) {
   // A game that started inside the current minute joins the list with the next bucket.
-  const result = await findPastGameDocs(query.sport, query.city, bucketed(now), query.page, query.limit)
+  const result = await findPastGameDocs(query.sport, query.city, bucketed(now), query.level, query.venueId, query.page, query.limit)
   return {
     games: result.docs.map((doc) => toGameCard(normalizeGameRecord(doc, now.getTime()))),
     pagination: {

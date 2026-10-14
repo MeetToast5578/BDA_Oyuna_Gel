@@ -4,7 +4,9 @@ import { Suspense } from 'react'
 import { BackHomeLink, GamesSection } from '@/components/games/GamesSection'
 import { GamesSectionSkeleton } from '@/components/games/skeletons'
 import { SPORT_LABELS } from '@/components/games/sports'
-import { loadGameList, sportFromSearchParams } from '@/lib/page-data'
+import { DEFAULT_CITY } from '@/lib/game-backend'
+import { listVenues } from '@/lib/game-queries'
+import { listFiltersFromSearchParams, loadGameList, sportFromSearchParams } from '@/lib/page-data'
 
 const PAGE_SIZE = 12
 const TITLE = 'Keçmiş oyunlar'
@@ -16,10 +18,16 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   return { title: sport ? `${SPORT_LABELS[sport]} — keçmiş oyunlar` : TITLE }
 }
 
-/** Games that already happened, most recent first. Filtered by `?sport=`, so it streams in. */
+/** Games that already happened, most recent first. Filtered by `?sport=`, level and venue, so it streams in. */
 async function PastGames({ searchParams }: { searchParams: SearchParams }) {
-  const sport = sportFromSearchParams(await searchParams)
-  const { list, sports } = await loadGameList({ sport, limit: PAGE_SIZE, when: 'past' })
+  const params = await searchParams
+  const sport = sportFromSearchParams(params)
+  // The date presets (today, tomorrow, the weekend) only look ahead.
+  const filters = { ...listFiltersFromSearchParams(params), date: null }
+  const [{ list, sports }, venues] = await Promise.all([
+    loadGameList({ sport, limit: PAGE_SIZE, when: 'past', filters }),
+    listVenues(DEFAULT_CITY, sport, null),
+  ])
 
   return (
     <GamesSection
@@ -30,6 +38,8 @@ async function PastGames({ searchParams }: { searchParams: SearchParams }) {
       basePath="/games/past"
       list={list}
       when="past"
+      filters={filters}
+      venues={venues}
     />
   )
 }

@@ -848,7 +848,7 @@ describe('normalizeGameRecord / toGameCard', () => {
   it("carries the host's id for the profile link, populated or not", () => {
     expect(normalizeGameRecord({ ...raw, host: 12 }, NOW).host).toMatchObject({ id: '12', name: 'OyunaGəl istifadəçisi' })
     // ON DELETE SET NULL: a game whose host account is gone has nobody to link to.
-    expect(normalizeGameRecord({ ...raw, host: null }, NOW).host.id).toBeNull()
+    expect(normalizeGameRecord({ ...raw, host: null }, NOW).host).toMatchObject({ id: null, name: 'Silinmiş istifadəçi', initials: 'Sİ' })
   })
 
   it('never exposes the host email as their name', () => {

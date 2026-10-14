@@ -1,3 +1,4 @@
+import { unstable_rethrow } from 'next/navigation'
 import { NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api-response'
@@ -20,6 +21,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json(await findMyGames(Number(user.id), parsed.value))
   } catch (error) {
+    // Reading the headers bails out of prerendering by throwing; that belongs to Next, not this log.
+    unstable_rethrow(error)
     console.error(error)
     return apiError('INTERNAL_ERROR', 'Oyunları yükləmək mümkün olmadı.', 500)
   }
