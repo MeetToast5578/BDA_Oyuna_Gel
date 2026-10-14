@@ -1,4 +1,5 @@
 import { postgresAdapter } from "@payloadcms/db-postgres";
+import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
 import { vercelBlobStorage } from "@payloadcms/storage-vercel-blob";
 import path from "path";
 import { buildConfig } from "payload";
@@ -22,6 +23,14 @@ import { MAX_UPLOAD_BYTES } from "./lib/uploads";
 const blobToken = /^vercel_blob_rw_[a-z\d]+_[a-z\d]+$/i.test(process.env.BLOB_READ_WRITE_TOKEN ?? "")
   ? (process.env.BLOB_READ_WRITE_TOKEN as string)
   : "";
+
+/**
+ * Emails go out through Gmail with an App Password (Google account → Security → 2-Step Verification
+ * → App passwords); the Google sign-in keys can't send mail. Without both values Payload only logs
+ * each email to the console, so local runs and tests never send anything.
+ */
+const gmailUser = process.env.GMAIL_USER ?? "";
+const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD ?? "").replace(/\s/g, "");
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -61,6 +70,22 @@ export default buildConfig({
       ),
     },
   }),
+  email:
+    gmailUser && gmailAppPassword
+      ? nodemailerAdapter({
+          defaultFromAddress: gmailUser,
+          defaultFromName: "OyunaGəl",
+          // Checking the login on every cold start would add a round trip to Google; a bad password
+          // shows up as a logged send failure instead (lib/notify.ts never lets one fail a request).
+          skipVerify: true,
+          transportOptions: {
+            host: "smtp.gmail.com",
+            port: 465,
+            secure: true,
+            auth: { user: gmailUser, pass: gmailAppPassword },
+          },
+        })
+      : undefined,
   sharp,
   plugins: [
     // Vercel's filesystem is read-only and per-invocation, so uploads cannot live on disk there.

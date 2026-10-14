@@ -7,8 +7,11 @@
 >
 > - **Built:** A1, A2 (with D1 as recommended: past games stay, without a host), B1–B4, C1, C2. Each
 >   was checked with the tests, a production build, and a browser on desktop and phone sizes.
-> - **Not started:** stage 0 (the owner's, in the Vercel dashboard), stages 4–7. Stage 4 waits on
->   D2 and D3 and an email API key.
+> - **Built since:** D1 email notifications, sent through Gmail (D2: Gmail SMTP with an App Password,
+>   `GMAIL_USER` / `GMAIL_APP_PASSWORD`), on by default with a switch on the profile (D3). Join
+>   confirmations carry the calendar file; changed times or venues and cancellations (a deleted game,
+>   or the upcoming games of a deleted account) go to everyone in the game.
+> - **Not started:** stage 0 (the owner's, in the Vercel dashboard), D2 rate limits, stages 5–7.
 > - **Where the build differs from the text below:**
 >   - A2 also clears the deleted host's contact number from the games that stay.
 >   - The default name stays "OyunaGəl istifadəçisi" (A2's optional wording was skipped).

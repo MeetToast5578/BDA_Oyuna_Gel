@@ -404,7 +404,8 @@ also hands the client `role`, `googleId`, `loginAttempts` and `lockUntil`.
 
 ### `PATCH /api/v1/me`
 
-Body may carry any of `fullName`, `phone`, `profilePictureId`; only the keys sent are changed, so a
+Body may carry any of `fullName`, `phone`, `profilePictureId`, `emailNotifications` (boolean: emails
+about games this user joined, on by default; else `400 INVALID_NOTIFICATIONS`); only the keys sent are changed, so a
 patch never blanks a field it did not mention. `null` (or `""`) clears `phone` / `profilePictureId`.
 Phones go through the same `normalizePhone` as everywhere else, so `055 987 65 43` is stored as
 `+994559876543` and matches numbers saved by the join form.

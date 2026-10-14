@@ -14,7 +14,18 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
    # Optional: "Continue with Google" (the button is hidden without these)
    GOOGLE_CLIENT_ID=<OAuth client id>
    GOOGLE_CLIENT_SECRET=<OAuth client secret>
+   # Optional: emails to players (join confirmation, changed or cancelled games). Without these,
+   # emails are only printed to the server log.
+   GMAIL_USER=<the Gmail address that sends them>
+   GMAIL_APP_PASSWORD=<an App Password for that account, not its normal password>
+   # Optional: the site's public address, used in shared links, the sitemap and emails
+   NEXT_PUBLIC_SITE_URL=https://bda-next-six.vercel.app
    ```
+
+   The App Password comes from the sending Google account: turn on 2-Step Verification, then
+   **Security → App passwords**. The Google sign-in keys above can't send mail. A normal Gmail
+   account sends to about 500 recipients a day, plenty for game notifications; use a dedicated
+   address (e.g. `oyunagel.bildiris@gmail.com`) rather than a personal one.
 
    Google sends users back to `/api/auth/google/callback` on the site they signed in from, so every
    origin you use must be listed under **Authorized redirect URIs** in the Google Cloud OAuth client, e.g.

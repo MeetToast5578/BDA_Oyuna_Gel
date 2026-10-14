@@ -136,6 +136,7 @@ export interface User {
   phoneNumber?: string | null;
   role?: ('user' | 'admin') | null;
   fullName: string;
+  emailNotifications?: boolean | null;
   profilePicture?: (number | null) | Media;
   avatarUrl?: string | null;
   googleId?: string | null;
@@ -437,6 +438,7 @@ export interface UsersSelect<T extends boolean = true> {
   phoneNumber?: T;
   role?: T;
   fullName?: T;
+  emailNotifications?: T;
   profilePicture?: T;
   avatarUrl?: T;
   googleId?: T;

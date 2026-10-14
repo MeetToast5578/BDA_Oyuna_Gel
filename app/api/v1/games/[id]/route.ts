@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api-response'
+import { gameCancelledEmail, gameChangedEmail } from '@/lib/emails'
 import { isUpcoming, parseEditGameBody } from '@/lib/game-backend'
 import { deleteGame, getGameDetail, getGameHostId, getPayloadClient, updateGame } from '@/lib/game-queries'
+import { afterResponse, notify, participantIds } from '@/lib/notify'
 
 /** "Oyun Detalı". Signing in is optional; it only affects `viewer` and whether the host's phone is shown. */
 export async function GET(
@@ -76,6 +78,15 @@ export async function PATCH(
     if (!result.ok && result.code === 'GAME_STARTED') return gameStarted()
     if (!result.ok) return apiError(result.code, result.message, result.code === 'GAME_NOT_FOUND' ? 404 : 400)
 
+    // A new time or place is news to everyone who planned around the old one.
+    const { game } = result
+    if (game.startsAt !== existing.startsAt || game.venue.id !== existing.venue.id) {
+      afterResponse(async () => {
+        const payload = await getPayloadClient()
+        await notify(payload, await participantIds(payload, auth.gameId, auth.userId), gameChangedEmail(game))
+      })
+    }
+
     return NextResponse.json({ game: result.game })
   } catch (error) {
     console.error(error)
@@ -92,13 +103,15 @@ export async function DELETE(
     const auth = await authorizeHost(request, (await params).id)
     if ('error' in auth) return auth.error
 
-    if (!auth.isAdmin) {
-      const game = await getGameDetail(auth.gameId, auth.userId)
-      if (!game) return apiError('GAME_NOT_FOUND', 'Oyun tapılmadı.', 404)
-      if (!isUpcoming(game.status)) return gameStarted()
-    }
+    const game = await getGameDetail(auth.gameId, auth.userId)
+    if (!game) return apiError('GAME_NOT_FOUND', 'Oyun tapılmadı.', 404)
+    if (!auth.isAdmin && !isUpcoming(game.status)) return gameStarted()
 
+    // Read before the delete takes the participant rows with it. Only a game still to come is news.
+    const payload = await getPayloadClient()
+    const players = isUpcoming(game.status) ? await participantIds(payload, auth.gameId, auth.userId) : []
     await deleteGame(auth.gameId)
+    if (players.length > 0) afterResponse(() => notify(payload, players, gameCancelledEmail(game)))
     return NextResponse.json({ ok: true, id: String(auth.gameId) })
   } catch (error) {
     console.error(error)

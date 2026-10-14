@@ -213,6 +213,8 @@ export async function getMyProfile(userId: number, now = new Date()) {
     initials: initialsOf(fullName),
     email: user.email,
     phoneNumber: user.phoneNumber ?? null,
+    /** Accounts from before the setting existed have no value, which means on. */
+    emailNotifications: user.emailNotifications !== false,
     avatarUrl: userAvatarUrl(user),
     memberSince: user.createdAt,
     memberSinceLabel: formatBakuMonthYear(user.createdAt),
@@ -340,6 +342,7 @@ export async function updateMyProfile(userId: number, update: ProfileUpdate): Pr
       ...(update.fullName !== undefined ? { fullName: update.fullName } : {}),
       ...(update.phone !== undefined ? { phoneNumber: update.phone } : {}),
       ...(update.profilePictureId !== undefined ? { profilePicture: update.profilePictureId } : {}),
+      ...(update.emailNotifications !== undefined ? { emailNotifications: update.emailNotifications } : {}),
     },
   })
   // The host's name and picture are shown on every card they host.

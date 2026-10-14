@@ -708,6 +708,8 @@ export type ProfileUpdate = {
   phone?: string | null
   /** null removes the uploaded picture. */
   profilePictureId?: number | null
+  /** Emails about the games this user joined (lib/notify.ts). */
+  emailNotifications?: boolean
 }
 
 /**
@@ -748,6 +750,11 @@ export function parseProfileUpdate(body: unknown): ParseOk<ProfileUpdate> {
       if (!Number.isSafeInteger(id) || id <= 0) return fail('INVALID_MEDIA', 'profilePictureId is not a valid upload.')
       update.profilePictureId = id
     }
+  }
+
+  if (data.emailNotifications !== undefined) {
+    if (typeof data.emailNotifications !== 'boolean') return fail('INVALID_NOTIFICATIONS', 'emailNotifications must be true or false.')
+    update.emailNotifications = data.emailNotifications
   }
 
   if (Object.keys(update).length === 0) return fail('NOTHING_TO_UPDATE', 'Dəyişdiriləcək heç nə göndərilmədi.')

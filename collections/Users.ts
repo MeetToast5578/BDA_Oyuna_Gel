@@ -105,6 +105,12 @@ export const Users: CollectionConfig = {
       required: true,
     },
     {
+      // "E-poçt bildirişləri" on the profile: emails about games this user joined (lib/notify.ts).
+      name: 'emailNotifications',
+      type: 'checkbox',
+      defaultValue: true,
+    },
+    {
       name: 'profilePicture',
       type: 'upload',
       relationTo: 'media',

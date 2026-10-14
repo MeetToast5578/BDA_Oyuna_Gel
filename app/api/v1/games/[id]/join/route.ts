@@ -1,11 +1,15 @@
 import { after, NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api-response'
+import { toIcs } from '@/lib/calendar'
+import { joinedEmail } from '@/lib/emails'
 import { invalidateGamesCache } from '@/lib/cache-tags'
 import { normalizePhone } from '@/lib/game-backend'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
 import { claimSpot, recordJoinAttempt, type JoinErrorCode } from '@/lib/join-game'
+import { afterResponse, notify } from '@/lib/notify'
 import { rememberPhone } from '@/lib/profile-queries'
+import { SITE_URL } from '@/lib/site-url'
 
 const JOIN_ERRORS: Record<JoinErrorCode, { status: number; message: string }> = {
   GAME_NOT_FOUND: { status: 404, message: 'Oyun tapılmadı.' },
@@ -72,6 +76,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       console.error(error)
       return null
     })
+    if (game) afterResponse(() => notify(payload, [userId], joinedEmail(game, toIcs(game, `${SITE_URL}/games/${game.id}`))))
     // A number typed in step 1 (not the profile's own fallback) is kept for the next form.
     const typedPhone = normalizePhone(body?.phone)
     const savedToProfile = typedPhone

@@ -7,6 +7,7 @@ import section from '@/components/games/GamesSection.module.css'
 import { ProfileSkeleton } from '@/components/games/skeletons'
 import { AccountSection } from '@/components/profile/AccountSection'
 import { DeleteAccount } from '@/components/profile/DeleteAccount'
+import { EmailNotifications } from '@/components/profile/EmailNotifications'
 import { EditProfile, EditProfileButton } from '@/components/profile/EditProfile'
 import styles from '@/components/profile/Profile.module.css'
 import { ProfileGames } from '@/components/profile/ProfileGames'
@@ -105,6 +106,7 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
       />
 
       <AccountSection email={profile.email}>
+        <EmailNotifications email={profile.email} enabled={profile.emailNotifications} />
         <DeleteAccount hostedGames={profile.counts.hostingUpcoming} />
       </AccountSection>
     </>
