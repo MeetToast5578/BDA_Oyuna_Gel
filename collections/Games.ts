@@ -1,15 +1,18 @@
 import type { CollectionConfig } from 'payload'
 
 import { invalidateGamesCache } from '../lib/cache-tags'
-import { isAdminOrHost } from './access'
+import { isAdmin } from './access'
 
 export const Games: CollectionConfig = {
   slug: 'games',
+  // Every write the site makes goes through /api/v1, which validates it and then writes with
+  // `overrideAccess`. Payload's own REST route (/api/games) is for the admin panel only: open to
+  // hosts, it let them set `status`, `availablePlayers` or a past `scheduledAt` past every rule.
   access: {
     read: () => true,
-    create: ({ req }) => Boolean(req.user),
-    update: isAdminOrHost,
-    delete: isAdminOrHost,
+    create: isAdmin,
+    update: isAdmin,
+    delete: isAdmin,
   },
   defaultPopulate: {
     host: true,
