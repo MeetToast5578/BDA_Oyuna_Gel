@@ -5,7 +5,9 @@ import { BackHomeLink, GamesSection } from '@/components/games/GamesSection'
 import { GamesSectionSkeleton } from '@/components/games/skeletons'
 import { SPORT_LABELS } from '@/components/games/sports'
 import { startOfBakuDay } from '@/lib/game-backend'
-import { loadGameList, sportFromSearchParams } from '@/lib/page-data'
+import { DEFAULT_CITY } from '@/lib/game-backend'
+import { listVenues } from '@/lib/game-queries'
+import { listFiltersFromSearchParams, loadGameList, sportFromSearchParams } from '@/lib/page-data'
 
 const PAGE_SIZE = 12
 /** "Bütün oyunlar" lists everything scheduled in the coming year, not just today and tomorrow. */
@@ -21,9 +23,14 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 /** The list depends on `?sport=`, which only exists at request time, so it streams in. */
 async function AllGames({ searchParams }: { searchParams: SearchParams }) {
-  const sport = sportFromSearchParams(await searchParams)
+  const params = await searchParams
+  const sport = sportFromSearchParams(params)
+  const filters = listFiltersFromSearchParams(params)
   const to = startOfBakuDay(new Date(), WINDOW_DAYS).toISOString()
-  const { list, sports } = await loadGameList({ sport, limit: PAGE_SIZE, to })
+  const [{ list, sports }, venues] = await Promise.all([
+    loadGameList({ sport, limit: PAGE_SIZE, to, filters }),
+    listVenues(DEFAULT_CITY, sport, null),
+  ])
 
   return (
     <GamesSection
@@ -35,6 +42,8 @@ async function AllGames({ searchParams }: { searchParams: SearchParams }) {
       list={list}
       to={to}
       when="upcoming"
+      filters={filters}
+      venues={venues}
     />
   )
 }

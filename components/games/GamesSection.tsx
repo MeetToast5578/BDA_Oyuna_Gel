@@ -4,9 +4,12 @@ import type { GameListResponse, SportTab } from '@/lib/api-types'
 import type { ProfileWindow } from '@/lib/game-backend'
 import { buttonClass } from '@/components/ui/button'
 import { SegmentedLinks } from '@/components/ui/SegmentedLinks'
+import type { ListFilters } from '@/lib/page-data'
 import { EmptyState } from './EmptyState'
+import { DATE_LABELS, GamesFilters } from './GamesFilters'
 import { GamesGrid } from './GamesGrid'
 import styles from './GamesSection.module.css'
+import { LEVEL_LABELS } from '@/lib/game-backend'
 import { SPORT_LABELS } from './sports'
 import { SportTabs } from './SportTabs'
 
@@ -51,6 +54,8 @@ export function GamesSection({
   to,
   seeAllHref,
   when,
+  filters,
+  venues = [],
 }: {
   id?: string
   eyebrow?: string
@@ -63,11 +68,22 @@ export function GamesSection({
   to?: string
   seeAllHref?: string
   when?: ProfileWindow
+  /** `/games` only: the date, level and venue filters, and the venues to choose from. */
+  filters?: ListFilters
+  venues?: Array<{ id: string | null; name: string }>
 }) {
   const Heading = titleLevel
   const standalone = titleLevel === 'h1'
   const past = when === 'past'
-  const filterLabel = sport ? SPORT_LABELS[sport] : 'Bütün idman növləri'
+  const filtered = Boolean(filters && (filters.date || filters.level || filters.venue))
+  const filterLabel = [
+    sport ? SPORT_LABELS[sport] : 'Bütün idman növləri',
+    filters?.date && DATE_LABELS[filters.date],
+    filters?.level && LEVEL_LABELS[filters.level],
+    filters?.venue && venues.find((venue) => venue.id === filters.venue)?.name,
+  ]
+    .filter(Boolean)
+    .join(' • ')
   const homeLink = <BackHomeLink />
 
   const head = (
@@ -90,7 +106,17 @@ export function GamesSection({
     </div>
   )
 
-  const empty = past
+  const empty = filtered
+    ? {
+        title: 'Bu filtrlərə uyğun oyun yoxdur',
+        text: 'Başqa tarix, səviyyə və ya meydança seçin, ya da filtrləri sıfırlayın.',
+        action: (
+          <Link href={sport ? `${basePath}?sport=${sport}` : basePath} className={buttonClass('primary', 'md')}>
+            Filtrləri sıfırla
+          </Link>
+        ),
+      }
+    : past
     ? {
         title: 'Hələ keçirilmiş oyun yoxdur',
         text: sport
@@ -125,7 +151,14 @@ export function GamesSection({
         // Keeps headings in order: on a page whose h1 is this section's title, the tabs need no heading.
         <h2 className="visually-hidden">Nə oynamaq istəyirsən?</h2>
       )}
-      <SportTabs sports={sports} active={sport} basePath={basePath} countLabel={past ? 'keçmiş oyun' : 'açıq oyun'} />
+      <SportTabs
+        sports={sports}
+        active={sport}
+        basePath={basePath}
+        query={filters}
+        countLabel={past ? 'keçmiş oyun' : 'açıq oyun'}
+      />
+      {filters && <GamesFilters basePath={basePath} sport={sport} filters={filters} venues={venues} />}
 
       <div className={styles.games}>
         {!standalone && head}
@@ -146,9 +179,10 @@ export function GamesSection({
           />
         ) : (
           <GamesGrid
-            key={`${when ?? 'upcoming'}-${sport ?? 'all'}`}
+            key={`${when ?? 'upcoming'}-${sport ?? 'all'}-${filters?.date}-${filters?.level}-${filters?.venue}`}
             initial={list}
-            query={{ sport, to, when: past ? 'past' : undefined }}
+            // "Daha çox" asks the API for the next page of this same filtered list.
+            query={{ sport, to, when: past ? 'past' : undefined, ...filters }}
             cardHeadingLevel={standalone ? 'h2' : 'h3'}
             cardContext={past ? 'past' : 'browse'}
           />

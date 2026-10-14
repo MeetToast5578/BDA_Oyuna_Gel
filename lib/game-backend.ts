@@ -534,8 +534,28 @@ export type GameListQuery = {
   from: Date
   to: Date
   onlyOpen: boolean
+  /** "Səviyyə" and "Meydança" on `/games`. The past list ignores them. */
+  level: string | null
+  venueId: number | null
   page: number
   limit: number
+}
+
+/** The "Tarix" filter on `/games`: `?date=` presets, each a window of whole Baku days. */
+export const DATE_PRESETS = ['today', 'tomorrow', 'weekend'] as const
+export type DatePreset = (typeof DATE_PRESETS)[number]
+
+/**
+ * The window a date preset covers. "Həftəsonu" is Saturday and Sunday in Baku; on a weekend day it
+ * runs from now until Monday, otherwise it is the coming weekend.
+ */
+export function datePresetWindow(preset: DatePreset, now = new Date()) {
+  if (preset === 'today') return { from: now, to: startOfBakuDay(now, 1) }
+  if (preset === 'tomorrow') return { from: startOfBakuDay(now, 1), to: startOfBakuDay(now, 2) }
+  const weekday = new Date(now.getTime() + BAKU_OFFSET_MS).getUTCDay() // 0 is Sunday, 6 Saturday
+  if (weekday === 0) return { from: now, to: startOfBakuDay(now, 1) }
+  if (weekday === 6) return { from: now, to: startOfBakuDay(now, 2) }
+  return { from: startOfBakuDay(now, 6 - weekday), to: startOfBakuDay(now, 8 - weekday) }
 }
 
 type ParseResult = { ok: true; query: GameListQuery } | { ok: false; code: string; message: string }
@@ -550,9 +570,25 @@ export function parseGameListParams(params: URLSearchParams, now = new Date()): 
   const city = normalizeCity(params.get('city'))
   if (!city) return { ok: false, code: 'UNKNOWN_CITY', message: 'Unknown city.' }
 
-  const from = parseDateParam(params.get('from'), now)
-  const to = parseDateParam(params.get('to'), startOfBakuDay(now, 2))
+  const date = params.get('date')
+  if (date && !DATE_PRESETS.includes(date as DatePreset)) {
+    return { ok: false, code: 'INVALID_DATE_FILTER', message: `date must be one of: ${DATE_PRESETS.join(', ')}` }
+  }
+  // A preset replaces `from`/`to`: it is the whole window the visitor asked for.
+  const preset = date ? datePresetWindow(date as DatePreset, now) : null
+  const from = preset?.from ?? parseDateParam(params.get('from'), now)
+  const to = preset?.to ?? parseDateParam(params.get('to'), startOfBakuDay(now, 2))
   if (!from || !to) return { ok: false, code: 'INVALID_DATE', message: 'from and to must be ISO 8601 timestamps.' }
+
+  const level = params.get('level')
+  if (level && !(level in LEVEL_LABELS)) {
+    return { ok: false, code: 'INVALID_LEVEL', message: `level must be one of: ${Object.keys(LEVEL_LABELS).join(', ')}` }
+  }
+  const venue = params.get('venue')
+  const venueId = venue ? Number(venue) : null
+  if (venueId !== null && (!Number.isSafeInteger(venueId) || venueId <= 0)) {
+    return { ok: false, code: 'INVALID_VENUE', message: 'venue must be a venue id.' }
+  }
 
   const status = params.get('status')
   if (status && status !== 'open') return { ok: false, code: 'INVALID_STATUS', message: 'status only accepts "open".' }
@@ -572,6 +608,8 @@ export function parseGameListParams(params: URLSearchParams, now = new Date()): 
       from: from < now ? now : from,
       to,
       onlyOpen: status === 'open',
+      level,
+      venueId,
       page: clampInt(params.get('page'), 1, 1, Number.MAX_SAFE_INTEGER),
       limit: clampInt(params.get('limit'), GAMES_DEFAULT_LIMIT, 1, GAMES_MAX_LIMIT),
     },

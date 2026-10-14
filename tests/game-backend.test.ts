@@ -16,6 +16,7 @@ import {
   parseCreateGameBody,
   parseEditGameBody,
   parseGameListParams,
+  datePresetWindow,
   parseMyGamesParams,
   parseProfileTabs,
   parseProfileUpdate,
@@ -502,10 +503,30 @@ describe('parseGameListParams', () => {
         from: new Date(NOW),
         to: new Date('2026-09-14T20:00:00.000Z'),
         onlyOpen: false,
+        level: null,
+        venueId: null,
         page: 1,
         limit: 12,
       },
     })
+  })
+
+  it('narrows by level, venue and a date preset, the preset replacing from/to', () => {
+    // NOW is Sunday 13 September, 14:00 in Baku.
+    expect(parse('level=high&venue=7&date=tomorrow&to=2027-01-01T00:00:00Z')).toMatchObject({
+      ok: true,
+      query: {
+        level: 'high',
+        venueId: 7,
+        from: new Date('2026-09-13T20:00:00.000Z'),
+        to: new Date('2026-09-14T20:00:00.000Z'),
+      },
+    })
+    expect(parse('date=today')).toMatchObject({ ok: true, query: { from: new Date(NOW), to: new Date('2026-09-13T20:00:00.000Z') } })
+    expect(parse('level=pro')).toMatchObject({ ok: false, code: 'INVALID_LEVEL' })
+    expect(parse('venue=abc')).toMatchObject({ ok: false, code: 'INVALID_VENUE' })
+    expect(parse('venue=-2')).toMatchObject({ ok: false, code: 'INVALID_VENUE' })
+    expect(parse('date=someday')).toMatchObject({ ok: false, code: 'INVALID_DATE_FILTER' })
   })
 
   it('clamps paging and never starts in the past', () => {
@@ -526,6 +547,25 @@ describe('parseGameListParams', () => {
       ok: true,
       query: { when: 'past', sport: 'football', page: 2, limit: 12 },
     })
+  })
+})
+
+describe('datePresetWindow', () => {
+  const at = (iso: string) => datePresetWindow('weekend', new Date(iso))
+
+  it('is the coming Saturday and Sunday on a weekday, in Baku days', () => {
+    // Wednesday 14 October, 13:00 in Baku.
+    expect(at('2026-10-14T09:00:00Z')).toEqual({
+      from: new Date('2026-10-16T20:00:00.000Z'),
+      to: new Date('2026-10-18T20:00:00.000Z'),
+    })
+  })
+
+  it('starts now on a weekend day and ends when Monday starts in Baku', () => {
+    expect(at('2026-10-17T09:00:00Z')).toEqual({ from: new Date('2026-10-17T09:00:00Z'), to: new Date('2026-10-18T20:00:00.000Z') })
+    // Sunday 23:30 in Baku is still the weekend; Monday 00:00 is not.
+    expect(at('2026-10-18T19:30:00Z')).toEqual({ from: new Date('2026-10-18T19:30:00Z'), to: new Date('2026-10-18T20:00:00.000Z') })
+    expect(at('2026-10-18T20:00:00Z').from).toEqual(new Date('2026-10-23T20:00:00.000Z'))
   })
 })
 

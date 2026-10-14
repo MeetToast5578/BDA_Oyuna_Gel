@@ -137,6 +137,8 @@ async function findGameDocs(
   fromIso: string,
   toIso: string,
   onlyOpen: boolean,
+  level: string | null,
+  venueId: number | null,
   page: number,
   limit: number,
 ) {
@@ -155,6 +157,8 @@ async function findGameDocs(
         cityWhere('arena.city', city),
         ...(sport ? [{ sport: { equals: sport } }] : []),
         ...(onlyOpen ? [{ availablePlayers: { greater_than: 0 } }] : []),
+        ...(level ? [{ level: { equals: level } }] : []),
+        ...(venueId ? [{ arena: { equals: venueId } }] : []),
       ],
     },
     select: CARD_SELECT,
@@ -187,6 +191,8 @@ export async function findGames(query: GameListQuery, now = new Date()) {
     fromIso,
     query.to.toISOString(),
     query.onlyOpen,
+    query.level,
+    query.venueId,
     query.page,
     query.limit,
   )

@@ -104,3 +104,29 @@
     font-size: 15px;
   }
 }
+
+/* "Tarix" segments, then "Səviyyə" and "Meydança"; on phones the row wraps under itself. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 24px;
+}
+
+.filterForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.filterForm select {
+  min-width: 160px;
+}
+
+/* The shared segments are two columns ("Qarşıdakı / Keçmiş"); the four dates fit one row once there's room. */
+@media (min-width: 600px) {
+  .filters nav ul {
+    grid-template-columns: repeat(4, minmax(0, 120px));
+  }
+}

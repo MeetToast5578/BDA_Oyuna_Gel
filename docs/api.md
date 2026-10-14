@@ -134,6 +134,9 @@ Cancelled games are left out of it (it lists games that happened; a player's own
 | `from`   | now                        | ISO 8601 with offset, e.g. `2026-09-14T00:00:00+04:00`. Clamped to now: started games are never listed |
 | `to`     | end of tomorrow, Baku time | ISO 8601, exclusive. Pass a later date for "Hamısına bax"    |
 | `status` | open and full              | `open` → only games with spots left                          |
+| `date`   | none                       | `today`, `tomorrow` or `weekend` (Saturday–Sunday in Baku; on a weekend day, from now to Monday). Replaces `from`/`to`. Else `400 INVALID_DATE_FILTER` |
+| `level`  | all                        | `beginner`, `medium`, `high`. Else `400 INVALID_LEVEL`. Ignored with `when=past` |
+| `venue`  | all                        | A venue id from `GET /api/v1/venues`. Else `400 INVALID_VENUE`. Ignored with `when=past` |
 | `page`   | `1`                        | 1-based                                                      |
 | `limit`  | `12`                       | 1–50                                                         |
 | `when`   | `upcoming`                 | `upcoming` or `past`. Else `400 INVALID_WINDOW`              |
