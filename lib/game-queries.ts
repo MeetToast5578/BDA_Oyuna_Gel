@@ -1,3 +1,4 @@
+import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import { cacheLife, cacheTag } from 'next/cache'
 import type { Payload, Where } from 'payload'
 
@@ -519,7 +520,14 @@ export async function getGameHostId(gameId: number) {
   return typeof host === 'object' ? (host?.id ?? null) : host
 }
 
-/** Applies an edited create-game form to an existing game. The host and its players never change. */
+/**
+ * Applies an edited create-game form to an existing game. The host and its players never change.
+ *
+ * The size is changed by Postgres on the locked row, not from the count the route read earlier: a
+ * join or leave landing between that read and this save would otherwise be overwritten, overbooking
+ * the game or losing a spot. `SET` sees the row as it was, so the free spots move by exactly the
+ * change in size, and the same statement refuses a game that has started or would end up too small.
+ */
 export async function updateGame(gameId: number, input: CreateGameInput): Promise<CreateGameResult> {
   const payload = await getPayloadClient()
   const venue = await payload.findByID({
@@ -535,27 +543,70 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
   }
   if (!input.contactPhone) return { ok: false, code: 'PHONE_REQUIRED', message: 'Host telefon nömrəsi tələb olunur.' }
 
-  await payload.update({
-    collection: 'games',
-    id: gameId,
-    overrideAccess: true,
-    data: {
-      title: input.title,
-      sport: input.sport as 'football' | 'basketball' | 'tennis',
-      level: input.level as 'beginner' | 'medium' | 'high',
-      arena: venue.id,
-      scheduledAt: input.scheduledAt.toISOString(),
-      maxPlayers: input.maxCount,
-      // currentCount is the players already in, so resizing the game only moves the free spots.
-      availablePlayers: input.maxCount - input.currentCount,
-      contactPhone: input.contactPhone,
-    },
-  })
+  const transactionID = (await payload.db.beginTransaction()) ?? undefined
+  const adapter = payload.db as unknown as PostgresAdapter
+  const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
+  try {
+    const resized = await db.execute(sql`
+      UPDATE games
+      SET max_players = ${input.maxCount},
+          available_players = available_players + (${input.maxCount} - max_players),
+          updated_at = now()
+      WHERE id = ${gameId}
+        AND status = 'scheduled'
+        AND scheduled_at > now()
+        AND available_players + (${input.maxCount} - max_players) >= 0
+      RETURNING id
+    `)
+    if (resized.rows.length === 0) {
+      if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+      return await editRejection(adapter.drizzle, gameId)
+    }
+
+    await payload.update({
+      collection: 'games',
+      id: gameId,
+      overrideAccess: true,
+      req: { transactionID },
+      data: {
+        title: input.title,
+        sport: input.sport as 'football' | 'basketball' | 'tennis',
+        level: input.level as 'beginner' | 'medium' | 'high',
+        arena: venue.id,
+        scheduledAt: input.scheduledAt.toISOString(),
+        contactPhone: input.contactPhone,
+      },
+    })
+    if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
+  } catch (error) {
+    if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+    throw error
+  }
+  // The collection hook already expired the cache, but before the commit; a read in between could refill it.
   invalidateGamesCache()
 
   const game = await getGameDetail(gameId, null)
   if (!game) return { ok: false, code: 'GAME_NOT_FOUND', message: 'Oyun tapılmadı.' }
   return { ok: true, game }
+}
+
+/** Why the resize in `updateGame` matched no row, read after its transaction was rolled back. */
+async function editRejection(db: PostgresAdapter['drizzle'], gameId: number): Promise<CreateGameResult> {
+  const { rows } = await db.execute<{ upcoming: boolean; status: string; taken: number }>(sql`
+    SELECT status, scheduled_at > now() AS upcoming, max_players - available_players AS taken
+    FROM games
+    WHERE id = ${gameId}
+  `)
+  const game = rows[0]
+  if (!game) return { ok: false, code: 'GAME_NOT_FOUND', message: 'Oyun tapılmadı.' }
+  if (game.status !== 'scheduled' || !game.upcoming) {
+    return { ok: false, code: 'GAME_STARTED', message: 'Oyun artıq başlayıb — onu dəyişmək və ya silmək mümkün deyil.' }
+  }
+  return {
+    ok: false,
+    code: 'MAX_COUNT_BELOW_PLAYERS',
+    message: `Oyunda artıq ${game.taken} oyunçu var, maksimum say bundan az ola bilməz.`,
+  }
 }
 
 /**

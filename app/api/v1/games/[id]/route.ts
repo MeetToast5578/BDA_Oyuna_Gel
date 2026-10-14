@@ -73,6 +73,7 @@ export async function PATCH(
     if (!parsed.ok) return apiError(parsed.code, parsed.message, 400)
 
     const result = await updateGame(auth.gameId, parsed.input)
+    if (!result.ok && result.code === 'GAME_STARTED') return gameStarted()
     if (!result.ok) return apiError(result.code, result.message, result.code === 'GAME_NOT_FOUND' ? 404 : 400)
 
     return NextResponse.json({ game: result.game })
