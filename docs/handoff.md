@@ -23,7 +23,7 @@ re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComp
 
 ---
 
-## 2. What's on the branch (12 commits ahead of `main` at `07828b2`)
+## 2. What's on the branch (ahead of `main` at `07828b2`)
 
 | Commit | What |
 | --- | --- |
@@ -39,40 +39,28 @@ re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComp
 | `51b4bd6` | `/venues` and `/venues/{id}` with "Xəritədə aç" and the venue's games |
 | `e579069` | Plan status update |
 | `49b4908` | Email notifications through Gmail SMTP, **dormant** until configured (§4). Migration `20261014_111042_user_email_notifications` |
+| `772faae` | **Rate limits:** join and leave answer 429 `RATE_LIMITED` after 10 requests a minute per user or IP, counted from `join-attempts`. Test: `tests/rate-limit.test.ts` |
+| `2c236f5` | **Teams phases 1–2:** migrations `20261014_114826_teams_sides_and_results` (sides backfilled and proved with `checkSides`; scores and games' clubs emptied) and `20261014_115147_join_outcome_side_codes`; sides picked in `claimSpot`; `SIDE_FULL` on edit; side picker and two-column players list |
+| `b6814be` | Polish: level/venue filters on the past list, "Silinmiş istifadəçi" for a deleted host, `/api/v1/me/games` no longer logs the prerender bail-out |
 
-**Tests:** 197 passing across 16 files (`npx vitest run` against a local Postgres; see §6).
+**Tests:** 206 passing across 17 files (`npx vitest run` against a local Postgres; see §6).
 
 ---
 
 ## 3. What to do next
 
-In the owner's suggested order. Nothing here needs a decision first, except where marked.
+Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are built. Next:
 
-1. **Rate limits** (fixes plan §7, D2). Count a user's and an IP's rows in `join-attempts` over the
-   last minute. Over 10, answer 429 `RATE_LIMITED` before touching the game. The log already
-   records user, IP and time, with indexes on `user_id` and `created_at`. Apply it to join and leave.
-2. **Teams, phases 1–2** (`docs/teams-and-stats-plan.md` §4). Decisions D1–D12 are unanswered; build
-   to the bold (recommended) options and say so. D10 is already built (A2).
-   - **Phase 1, schema:**
-     - Teams get `captain` (optional) and `inviteCode`.
-     - Participants get `side` (`home` | `away`). Backfill: the host gets `home`, the others
-       alternate. The migration runs `checkSides` on every game and fails if any game fails.
-     - Games: drop the scores' default of 0, and add `resultStatus`, `resultReportedAt` and
-       `resultConfirmedBy`.
-     - Update the seed and regenerate the types.
-   - **Phase 2, sides when joining:** inside `claimSpot` (`lib/join-game.ts`), after the `UPDATE`
-     that locks the row, call `occupancy`, then `pickSide`, then insert the row with its side.
-     Also: `checkSides` on edit (inside the A1 transaction in `updateGame`), the join panel's side
-     picker, and two columns on the game page.
-3. **Polish:**
-   - apply the C1 filters to the past list too (today `findPastGames` ignores level and venue);
-   - show "Silinmiş istifadəçi" for a game whose host is gone (`normalizeGameRecord`,
-     `DEFAULT_USER_NAME`);
-   - stop `app/api/v1/me/games/route.ts` from logging Next's prerender bail-out as an error. Its
-     `try/catch` catches the internal `NEXT_PRERENDER_INTERRUPTED`; the route is still dynamic.
+1. **Teams phase 3:** the host moves players between sides and "Balansla"
+   (`docs/teams-and-stats-plan.md` §4). `readSides` in `lib/join-game.ts` already reads a game's
+   sides under its row lock; `applyAssignments`, `autoBalance` and `checkSides` are ready.
+2. **Teams phases 4–7** in order (score report and confirm, clubs, club sides, stats).
+3. Left out of phase 2 on purpose: `hostSide` on create (the host is always `home`), and club
+   names on the side picker (no game has clubs until phase 6).
 4. **Blocked:**
    - the waitlist (stage 5) needs email, which is on hold;
-   - Russian and English (stage 7) need D5 (which languages, which URLs).
+   - Russian and English (stage 7) need D5 (which languages, which URLs);
+   - a `Branch-1` preview deploy needs the separate preview database (§5).
 
 ---
 
