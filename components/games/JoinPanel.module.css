@@ -200,3 +200,18 @@
   color: var(--color-muted);
   text-align: center;
 }
+
+/* The side picker: the create form's level choices, tall enough for the free spots under the name. */
+.sideChoice {
+  height: auto;
+  min-height: 52px;
+  gap: 2px;
+  padding: 6px 4px;
+  line-height: 1.2;
+}
+
+.sideFree {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.8;
+}

@@ -121,15 +121,32 @@ export const Games: CollectionConfig = {
       min: 0,
       required: true,
     },
+    // Empty until the host reports a score, so an unreported game can't pass for a 0–0 draw.
     {
       name: 'homeScore',
       type: 'number',
-      defaultValue: 0,
     },
     {
       name: 'awayScore',
       type: 'number',
-      defaultValue: 0,
+    },
+    {
+      name: 'resultStatus',
+      type: 'select',
+      options: [
+        { label: 'Reported', value: 'reported' },
+        { label: 'Confirmed', value: 'confirmed' },
+        { label: 'Disputed', value: 'disputed' },
+      ],
+    },
+    {
+      name: 'resultReportedAt',
+      type: 'date',
+    },
+    {
+      name: 'resultConfirmedBy',
+      type: 'relationship',
+      relationTo: 'users',
     },
     {
       name: 'status',

@@ -30,16 +30,32 @@
   outline-offset: 2px;
 }
 
-/* The list */
+/* The list: one column per side, stacked on phones */
+.sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 24px;
+  /* Room for the rows' negative margins, so the scroller doesn't clip their hover background. */
+  margin: 0 -12px;
+  padding: 0 12px;
+  max-height: min(440px, calc(100dvh - 240px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sideTitle {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
 .list {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: min(440px, calc(100dvh - 240px));
   margin: 0 -12px;
   padding: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   list-style: none;
 }
 

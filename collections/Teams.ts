@@ -1,10 +1,8 @@
 import type { CollectionConfig } from 'payload'
 
-import { isAdmin } from './access'
+import { isAdmin, isAdminField } from './access'
 
-// ponytail: unused by the app — nothing reads `teams`, and the Games fields that point at it
-// (homeTeam/awayTeam/homeScore/awayScore) are written only by scripts/seed.ts. Kept deliberately in
-// case league play lands later; delete this collection and those four fields to reclaim the tables.
+/** Clubs: a named team of members that can stand on a side of a game (docs/teams-and-stats-plan.md). */
 export const Teams: CollectionConfig = {
   slug: 'teams',
   // Without rules Payload lets any signed-in user edit or delete any team. Clubs will be written
@@ -43,6 +41,25 @@ export const Teams: CollectionConfig = {
       type: 'relationship',
       relationTo: 'users',
       hasMany: true,
+    },
+    {
+      name: 'captain',
+      type: 'relationship',
+      relationTo: 'users',
+      admin: {
+        description: 'Empty once the last member leaves; the club stays so its old games keep their record.',
+      },
+    },
+    {
+      name: 'inviteCode',
+      type: 'text',
+      unique: true,
+      access: {
+        read: isAdminField,
+      },
+      admin: {
+        description: 'Secret code in the invite link. Shown to the captain by the club endpoint, and here to admins only.',
+      },
     },
   ],
 }

@@ -22,6 +22,8 @@ import {
   type CreateGameInput,
   type GameListQuery,
 } from '@/lib/game-backend'
+import { readSides } from '@/lib/join-game'
+import { checkSides, occupancy, sideCapacity } from '@/lib/team-logic'
 
 /**
  * Cached reads refresh at least this often; game, venue and join writes expire them immediately.
@@ -358,7 +360,7 @@ export async function getGameDetail(
 
   // All three only need `gameId`, so they go out together: against a remote database each extra
   // sequential round trip costs a full network latency.
-  const [doc, previews, [resolvedViewerId, joined]] = await Promise.all([
+  const [doc, previews, [resolvedViewerId, joined], sides] = await Promise.all([
     payload.findByID({
       collection: 'games',
       id: gameId,
@@ -378,8 +380,13 @@ export async function getGameDetail(
       })
       return [id, totalDocs > 0] as const
     }),
+    readSides((payload.db as unknown as PostgresAdapter).drizzle, gameId),
   ])
   if (!doc) return null
+
+  // Free spots per side, for the join panel's side picker.
+  const taken = occupancy(sides.game.maxPlayers, sides.players.map((player) => player.side), sides.guests, sides.hostSide)
+  const cap = sideCapacity(sides.game.maxPlayers)
 
   const game = normalizeGameRecord(doc, now)
   const hostId = typeof doc.host === 'object' ? doc.host?.id : doc.host
@@ -390,6 +397,7 @@ export async function getGameDetail(
     host: { ...game.host, phone: joined || isHost ? doc.contactPhone ?? null : null },
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
     viewer: { joined, isHost },
+    freeBySide: { home: Math.max(cap - taken.home, 0), away: Math.max(cap - taken.away, 0) },
   }
 }
 
@@ -419,7 +427,7 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
     payload.find({
       collection: 'game-participants',
       where: { game: { equals: gameId } },
-      select: { user: true, name: true },
+      select: { user: true, name: true, side: true },
       populate: CARD_POPULATE,
       sort: 'createdAt',
       depth: 2,
@@ -431,6 +439,7 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
 
   const game = normalizeGameRecord(doc)
   const isViewer = (id: string | null) => id !== null && viewerId !== null && id === String(viewerId)
+  const hostSide = docs.map(toPlayer).find((player) => player.id !== null && player.id === game.host.id)?.side ?? 'home'
   const players = docs
     .map(toPlayer)
     // The host's spot is the game itself; a stray participant row for them would list them twice.
@@ -439,7 +448,7 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
 
   return {
     game: { id: game.id, title: game.title, currentCount: game.currentCount, maxCount: game.maxCount },
-    host: { ...game.host, you: isViewer(game.host.id) },
+    host: { ...game.host, side: hostSide, you: isViewer(game.host.id) },
     players,
     others: Math.max(0, game.currentCount - players.length - 1),
   }
@@ -495,7 +504,7 @@ export async function createGame(host: { id: number; phoneNumber?: string | null
       collection: 'game-participants',
       overrideAccess: true,
       req,
-      data: { game: created.id, user: host.id, phone: contactPhone },
+      data: { game: created.id, user: host.id, phone: contactPhone, side: 'home' },
     })
     if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
     gameId = created.id
@@ -568,6 +577,12 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
     if (resized.rows.length === 0) {
       if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
       return await editRejection(adapter.drizzle, gameId)
+    }
+    // The resize must leave neither side over half the game; the host moves players first.
+    const sides = await readSides(db, gameId)
+    if (!checkSides(sides.game, sides.players, sides.guests, sides.hostId).ok) {
+      if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+      return { ok: false, code: 'SIDE_FULL', message: 'Komandalardan birində bu saydan çox oyunçu var. Əvvəlcə oyunçuları köçürün.' }
     }
 
     await payload.update({

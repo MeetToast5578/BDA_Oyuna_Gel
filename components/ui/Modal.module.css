@@ -9,6 +9,10 @@
   color: inherit;
 }
 
+.wide {
+  width: min(600px, calc(100vw - 32px));
+}
+
 /*
  * Opening and closing both animate: `display` and `overlay` are held for the length of the
  * transition so the dialog stays in the top layer while it fades out, and @starting-style gives the

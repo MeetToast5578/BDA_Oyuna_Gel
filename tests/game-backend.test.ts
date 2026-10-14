@@ -464,9 +464,10 @@ describe('toPlayer', () => {
   it("names a player after their account, so the list matches the profile it opens", () => {
     const player = toPlayer({
       name: 'Rəşad (qapıçı)',
+      side: 'away',
       user: { id: 7, fullName: 'Rəşad Babayev', profilePicture: { url: '/api/media/file/resad.png' } },
     })
-    expect(player).toEqual({ id: '7', name: 'Rəşad Babayev', initials: 'RB', avatarUrl: '/api/media/file/resad.png' })
+    expect(player).toEqual({ id: '7', name: 'Rəşad Babayev', initials: 'RB', avatarUrl: '/api/media/file/resad.png', side: 'away' })
   })
 
   it('falls back to the name typed into the join form, then to a placeholder', () => {
@@ -488,6 +489,7 @@ describe('toPlayer', () => {
       name: 'Səbinə Əliyeva',
       initials: 'SƏ',
       avatarUrl: null,
+      side: 'home',
     })
   })
 })

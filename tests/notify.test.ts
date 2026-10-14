@@ -50,7 +50,7 @@ describe.skipIf(!process.env.DATABASE_URL)('notify (Postgres)', () => {
       })
     ).id
     for (const user of [ids.host, ids.on, ids.off]) {
-      await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: gameId, user } })
+      await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: gameId, user, side: 'away' } })
     }
   })
 

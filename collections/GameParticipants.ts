@@ -41,6 +41,18 @@ export const GameParticipants: CollectionConfig = {
       },
     },
     {
+      name: 'side',
+      type: 'select',
+      required: true,
+      options: [
+        { label: 'Home', value: 'home' },
+        { label: 'Away', value: 'away' },
+      ],
+      admin: {
+        description: 'Which half of the game the player is on. Each side holds half of maxPlayers (lib/team-logic.ts).',
+      },
+    },
+    {
       name: 'phone',
       type: 'text',
       access: {

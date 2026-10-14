@@ -355,8 +355,8 @@ describe.skipIf(!process.env.DATABASE_URL)('profile backend (Postgres)', () => {
       const upcoming = await makeGame({ owner: leavingHost.id, availablePlayers: 8 })
       await payload.update({ collection: 'games', id: past, overrideAccess: true, data: { contactPhone: '+994501112233' } })
       for (const game of [past, upcoming]) {
-        await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game, user: leavingHost.id } })
-        await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game, user: player } })
+        await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game, user: leavingHost.id, side: 'home' } })
+        await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game, user: player, side: 'away' } })
       }
       const playedBefore = (await getMyProfile(player))?.counts.played
 
@@ -393,7 +393,7 @@ describe.skipIf(!process.env.DATABASE_URL)('profile backend (Postgres)', () => {
       await payload.create({
         collection: 'game-participants',
         overrideAccess: true,
-        data: { game: past, user: leaving.id },
+        data: { game: past, user: leaving.id, side: 'away' },
       })
 
       await deleteMyAccount(leaving.id)

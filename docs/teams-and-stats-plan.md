@@ -7,8 +7,18 @@
 > - Payload's own REST API no longer lets a host write their game, or anyone write a team (§5,
 >   `tests/collection-access.test.ts`).
 >
-> Phases 1–7 are not started. Before Phase 1: answer the open decisions in §2 (the code follows the
-> bold options until then) and do the two prerequisites in §5.
+> - **Phases 1–2 built**, to the bold options in §2 (still unanswered):
+>   - migration `20261014_114826_teams_sides_and_results` adds clubs' `captain` and `inviteCode`,
+>     players' `side` and the games' result fields. It backfills sides (host home, the rest
+>     alternating), empties every score and every game's clubs (only the seed ever wrote them), and
+>     runs `checkSides` on every game, failing if any game fails;
+>   - joins pick a side under the game's row lock (`claimSpot`), an edit that leaves a side over
+>     half is refused (`SIDE_FULL`), the join modal has the side picker and the players list shows
+>     the two sides;
+>   - not built from Phase 2: `hostSide` on create (the host is always `home` until a form asks),
+>     and club names on the picker (no game has clubs until Phase 6).
+>
+> Phases 3–7 are not started.
 
 What was asked:
 

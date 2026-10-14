@@ -66,7 +66,7 @@ describe.skipIf(!process.env.DATABASE_URL)('editing a game while players join (P
         status: 'scheduled',
       },
     })
-    await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: game.id, user: userIds[0] } })
+    await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: game.id, user: userIds[0], side: 'home' } })
     gameIds.push(game.id)
     return game.id
   }
@@ -116,6 +116,18 @@ describe.skipIf(!process.env.DATABASE_URL)('editing a game while players join (P
 
     const result = await updateGame(gameId, edit(2, staleCount))
     expect(result).toMatchObject({ ok: false, code: 'MAX_COUNT_BELOW_PLAYERS' })
+    const game = await payload.findByID({ collection: 'games', id: gameId, depth: 0, overrideAccess: true })
+    expect([game.maxPlayers, game.availablePlayers, game.title]).toEqual([10, 7, `Edit Game ${suffix}`])
+  })
+
+  it('refuses shrinking a side below the players already on it, and changes nothing', async () => {
+    const gameId = await makeGame()
+    expect(await claimSpot(payload, gameId, userIds[1], null, null, 'home')).toMatchObject({ ok: true, side: 'home' })
+    expect(await claimSpot(payload, gameId, userIds[2], null, null, 'home')).toMatchObject({ ok: true, side: 'home' })
+
+    // Four players fit three, but not three on one side of two.
+    const result = await updateGame(gameId, edit(4, 3))
+    expect(result).toMatchObject({ ok: false, code: 'SIDE_FULL' })
     const game = await payload.findByID({ collection: 'games', id: gameId, depth: 0, overrideAccess: true })
     expect([game.maxPlayers, game.availablePlayers, game.title]).toEqual([10, 7, `Edit Game ${suffix}`])
   })

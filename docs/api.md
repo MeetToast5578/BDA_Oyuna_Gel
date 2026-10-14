@@ -193,9 +193,14 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
   "…": "game card",
   "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "phone": null },
   "participants": { "preview": [{ "id": "9", "name": "…", "initials": "RM", "avatarUrl": null }], "total": 11 },
-  "viewer": { "joined": false, "isHost": false }
+  "viewer": { "joined": false, "isHost": false },
+  "freeBySide": { "home": 2, "away": 3 }
 }
 ```
+
+`freeBySide` is the free spots on each half of the game ("A komandası" is `home`, "B komandası" is
+`away`), for the join modal's side picker. Each side holds half of `maxCount`; the host's guests
+stand with the host until that side is full.
 
 `host.phone` is `null` until the viewer has joined (or is the host), matching "Əlaqə oyuna qoşulduqdan sonra görünür". The button reads "Qoşul - {remainingSpots} yer qalıb" while `status` is `open`. `404 GAME_NOT_FOUND` for unknown IDs.
 
@@ -208,15 +213,16 @@ from a second ago.
 ```json
 {
   "game": { "id": "12", "title": "Cümə axşamı 5-ə-5", "currentCount": 11, "maxCount": 12 },
-  "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "you": false },
+  "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "side": "home", "you": false },
   "players": [
-    { "id": "7", "name": "Aysel Quliyeva", "initials": "AQ", "avatarUrl": "/api/media/file/aysel.png", "you": true },
-    { "id": null, "name": "Rəşad Babayev", "initials": "RB", "avatarUrl": null, "you": false }
+    { "id": "7", "name": "Aysel Quliyeva", "initials": "AQ", "avatarUrl": "/api/media/file/aysel.png", "side": "away", "you": true },
+    { "id": null, "name": "Rəşad Babayev", "initials": "RB", "avatarUrl": null, "side": "home", "you": false }
   ],
   "others": 2
 }
 ```
 
+- `side` is the half of the game each player is on; the page lists the two sides as columns.
 - The host comes first, then the players in the order they joined. Each row links to
   `/users/{id}`, and the viewer's own (`you`) to `/profile`.
 - Names are the accounts' names, like the avatar row. `id` is `null` for a player whose account is
@@ -246,6 +252,7 @@ spots move when `maxCount` changes.
 | 403    | `NOT_GAME_HOST`           | Signed in, but not this game's host                           |
 | 404    | `GAME_NOT_FOUND`          |                                                               |
 | 409    | `GAME_STARTED`            | The game has started (admins too: they correct it in `/admin`) |
+| 409    | `SIDE_FULL`               | The new `maxCount` leaves a side with more players than half  |
 
 ## `DELETE /api/v1/games/{id}`
 
@@ -264,6 +271,9 @@ Join attempts are kept: `join_attempts.gameId` is a plain number, so the audit l
 
 Body: `{ "name": "Kərim Məmmədov", "phone": "+994 50 210 34 56" }` — what step 1 of the join modal collected. Both are re-validated server-side; either one left out falls back to the profile's value, and a `400` follows if the profile has none.
 
+`side` is optional: `"home"`, `"away"` or `"random"` (the default). Random takes the emptier side,
+with a coin flip on a tie. A side that belongs to a club only admits its members.
+
 A `phone` sent is kept on the profile (see [Remembered phone number](#remembered-phone-number)) when the profile has none, or when `"saveToProfile": true` asks to replace it.
 
 **200** also returns the full game detail, now with `host.phone`:
@@ -275,6 +285,7 @@ A `phone` sent is kept on the profile (see [Remembered phone number](#remembered
   "remainingSpots": 0,
   "currentCount": 12,
   "maxCount": 12,
+  "side": "away",
   "game": { "…": "as GET /api/v1/games/{id}", "host": { "name": "Elvin Abbasov", "phone": "+994502103456" } },
   "savedToProfile": false
 }
@@ -287,14 +298,17 @@ The spot is taken when this request succeeds. The "Bir addım qaldı" modal then
 | 400    | `INVALID_GAME_ID`   | `id` is not a positive integer                            |
 | 400    | `INVALID_NAME`      | No name given and the profile has none                    |
 | 400    | `INVALID_PHONE`     | `phone` isn't an Azerbaijani number, or none is known     |
+| 400    | `INVALID_SIDE`      | `side` is something other than home, away or random       |
 | 401    | `UNAUTHENTICATED`   | Not signed in: send the user to "Daxil ol"                |
 | 404    | `GAME_NOT_FOUND`    |                                                           |
 | 409    | `GAME_FULL`         | No spots left, including losing a race for the last spot  |
 | 409    | `GAME_NOT_JOINABLE` | Cancelled, finished, live, or already started             |
 | 409    | `ALREADY_JOINED`    | This user already holds a spot                            |
+| 409    | `SIDE_FULL`         | The chosen side is full (the other may still have room)   |
+| 409    | `NOT_A_MEMBER`      | The chosen side is a club's, and this user isn't in it    |
 | 429    | `RATE_LIMITED`      | 10 join or leave requests in the last minute (user or IP) |
 
-**Concurrency.** The spot is claimed with one conditional `UPDATE … WHERE available_players > 0` inside a transaction (`lib/join-game.ts`). Postgres re-checks the condition after the row lock is released, so when two requests race for the last spot, exactly one succeeds and the other gets `409 GAME_FULL`, across any number of app instances. A unique `(game, user)` index prevents double joins, and a rejected join rolls the decrement back. Every attempt is written to the `join-attempts` collection (outcome, game, user, IP), readable by admins.
+**Concurrency.** The spot is claimed with one conditional `UPDATE … WHERE available_players > 0` inside a transaction (`lib/join-game.ts`). Postgres re-checks the condition after the row lock is released, so when two requests race for the last spot, exactly one succeeds and the other gets `409 GAME_FULL`, across any number of app instances. A unique `(game, user)` index prevents double joins, and a rejected join rolls the decrement back. The side is picked under the same row lock, so two joins can't both take a side's last spot. Every attempt is written to the `join-attempts` collection (outcome, game, user, IP), readable by admins.
 
 ## `GET /api/v1/venues`
 

@@ -388,6 +388,7 @@ export function toPlayer(participant: unknown) {
     name,
     initials: initialsOf(name),
     avatarUrl: userAvatarUrl(user),
+    side: row?.side === 'away' ? ('away' as const) : ('home' as const),
   }
 }
 

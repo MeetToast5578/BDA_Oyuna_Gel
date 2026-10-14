@@ -3,6 +3,8 @@ import * as migration_20260923_210137_arena_image_path from './20260923_210137_a
 import * as migration_20260925_065346_media_uploaded_by from './20260925_065346_media_uploaded_by';
 import * as migration_20261014_093046_keep_past_games_of_deleted_hosts from './20261014_093046_keep_past_games_of_deleted_hosts';
 import * as migration_20261014_111042_user_email_notifications from './20261014_111042_user_email_notifications';
+import * as migration_20261014_114826_teams_sides_and_results from './20261014_114826_teams_sides_and_results';
+import * as migration_20261014_115147_join_outcome_side_codes from './20261014_115147_join_outcome_side_codes';
 
 export const migrations = [
   {
@@ -28,6 +30,16 @@ export const migrations = [
   {
     up: migration_20261014_111042_user_email_notifications.up,
     down: migration_20261014_111042_user_email_notifications.down,
-    name: '20261014_111042_user_email_notifications'
+    name: '20261014_111042_user_email_notifications',
+  },
+  {
+    up: migration_20261014_114826_teams_sides_and_results.up,
+    down: migration_20261014_114826_teams_sides_and_results.down,
+    name: '20261014_114826_teams_sides_and_results',
+  },
+  {
+    up: migration_20261014_115147_join_outcome_side_codes.up,
+    down: migration_20261014_115147_join_outcome_side_codes.down,
+    name: '20261014_115147_join_outcome_side_codes',
   },
 ];

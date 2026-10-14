@@ -355,15 +355,13 @@ for (const venue of VENUES) {
 }
 
 log(`Creating ${TEAMS.length} teams…`)
-const teamsBySport = new Map<Sport, Id[]>()
 for (const team of TEAMS) {
   const members = shuffled(users).slice(0, pickInt(5, 9)).map((user) => user.id)
-  const created = await payload.create({
+  await payload.create({
     collection: 'teams',
     overrideAccess: true,
-    data: { name: team.name, shortName: team.shortName, sport: team.sport, members },
+    data: { name: team.name, shortName: team.shortName, sport: team.sport, members, captain: members[0] },
   })
-  teamsBySport.set(team.sport, [...(teamsBySport.get(team.sport) ?? []), created.id])
 }
 
 const planned = planGames()
@@ -376,7 +374,6 @@ for (const [index, game] of planned.entries()) {
   const host = users[index % users.length]
   // The host is the game itself and has no participant row; the rest of `currentCount` are joined players.
   const roster = shuffled(users.filter((user) => user.id !== host.id)).slice(0, game.currentCount - 1)
-  const teams = shuffled(teamsBySport.get(game.sport) ?? [])
 
   const created = await payload.create({
     collection: 'games',
@@ -393,18 +390,20 @@ for (const [index, game] of planned.entries()) {
       // The join endpoint keeps these two in step; the seed has to do the same (the host takes a spot).
       availablePlayers: game.maxPlayers - game.currentCount,
       status: game.status,
-      homeScore: game.homeScore,
-      awayScore: game.awayScore,
-      // Only matches that were actually played are recorded as team-vs-team.
-      ...(game.status === 'finished' && teams.length > 1 ? { homeTeam: teams[0], awayTeam: teams[1] } : {}),
+      // Only games played to the end have a score, entered and confirmed. Sides stay open (no clubs):
+      // the random roster below isn't made of any club's members.
+      ...(game.status === 'finished'
+        ? { homeScore: game.homeScore, awayScore: game.awayScore, resultStatus: 'confirmed' as const, resultReportedAt: game.scheduledAt.toISOString() }
+        : {}),
     },
   })
 
-  for (const player of roster) {
+  // The host counts as a guest on the home side, so the roster starts away and alternates.
+  for (const [position, player] of roster.entries()) {
     await payload.create({
       collection: 'game-participants',
       overrideAccess: true,
-      data: { game: created.id, user: player.id, phone: player.phoneNumber },
+      data: { game: created.id, user: player.id, phone: player.phoneNumber, side: position % 2 === 0 ? 'away' : 'home' },
     })
     participantCount++
   }

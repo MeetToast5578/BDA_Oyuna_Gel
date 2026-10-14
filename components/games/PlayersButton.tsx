@@ -103,7 +103,7 @@ export function PlayersButton({
 
       {mounted &&
         createPortal(
-          <Modal open={open} onClose={() => setOpen(false)} title="İştirakçılar" subtitle={gameTitle}>
+          <Modal open={open} onClose={() => setOpen(false)} title="İştirakçılar" subtitle={gameTitle} wide>
             {list ? (
               <PlayersList list={list} onPick={() => setOpen(false)} />
             ) : error ? (
@@ -134,23 +134,37 @@ export function PlayersButton({
 }
 
 function PlayersList({ list, onPick }: { list: GamePlayers; onPick: () => void }) {
+  // Same colors as the avatar row, which draws the players in join order.
+  const players = list.players.map((player, toneIndex) => ({ player, toneIndex }))
   return (
     <>
-      <ul className={styles.list}>
-        <li>
-          <PlayerRow person={list.host} host onPick={onPick} />
-        </li>
-        {list.players.map((player, index) => (
-          <li key={player.id ?? `gone-${index}`}>
-            {/* Same colors as the avatar row, which draws the players in this order. */}
-            <PlayerRow person={player} toneIndex={index} onPick={onPick} />
-          </li>
+      <div className={styles.sides}>
+        {(['home', 'away'] as const).map((side) => (
+          <section key={side} aria-label={SIDE_LABELS[side]}>
+            <h3 className={styles.sideTitle}>{SIDE_LABELS[side]}</h3>
+            <ul className={styles.list}>
+              {list.host.side === side && (
+                <li>
+                  <PlayerRow person={list.host} host onPick={onPick} />
+                </li>
+              )}
+              {players
+                .filter(({ player }) => player.side === side)
+                .map(({ player, toneIndex }) => (
+                  <li key={player.id ?? `gone-${toneIndex}`}>
+                    <PlayerRow person={player} toneIndex={toneIndex} onPick={onPick} />
+                  </li>
+                ))}
+            </ul>
+          </section>
         ))}
-      </ul>
+      </div>
       {list.others > 0 && <p className={styles.others}>+{list.others} nəfər hostla birlikdə gəlir</p>}
     </>
   )
 }
+
+const SIDE_LABELS = { home: 'A komandası', away: 'B komandası' }
 
 /** A row opens the player's profile — your own row, your own `/profile`. A deleted account's row opens nothing. */
 function PlayerRow({

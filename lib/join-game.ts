@@ -2,11 +2,12 @@ import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload, Where } from 'payload'
 
 import type { JoinOutcome } from '@/collections/JoinAttempts'
+import { occupancy, pickSide, type GameSides, type Side, type SideChoice, type SidePlayer } from '@/lib/team-logic'
 
-export type JoinErrorCode = 'GAME_NOT_FOUND' | 'GAME_NOT_JOINABLE' | 'GAME_FULL' | 'ALREADY_JOINED'
+export type JoinErrorCode = 'GAME_NOT_FOUND' | 'GAME_NOT_JOINABLE' | 'GAME_FULL' | 'ALREADY_JOINED' | 'SIDE_FULL' | 'NOT_A_MEMBER'
 
 export type JoinResult =
-  | { ok: true; remainingSpots: number; maxCount: number }
+  | { ok: true; remainingSpots: number; maxCount: number; side: Side }
   | { ok: false; code: JoinErrorCode }
 
 class JoinRejected extends Error {
@@ -22,6 +23,8 @@ class JoinRejected extends Error {
  * condition after waiting on the row lock, so two joins racing for the last spot can never both
  * succeed, however many app instances are running. The participant insert runs in the same
  * transaction, so a rejected join (including a duplicate) rolls the decrement back.
+ *
+ * The side is picked under the same row lock, so two joins can't both take a side's last spot.
  */
 export async function claimSpot(
   payload: Payload,
@@ -29,6 +32,7 @@ export async function claimSpot(
   userId: number,
   phone: string | null = null,
   name: string | null = null,
+  choice: SideChoice = 'random',
 ): Promise<JoinResult> {
   const db = (payload.db as unknown as PostgresAdapter).drizzle
 
@@ -46,15 +50,27 @@ export async function claimSpot(
       const game = claimed.rows[0]
       if (!game) throw new JoinRejected(await rejectionReason(tx, gameId, userId))
 
+      const sides = await readSides(tx, gameId)
+      if (sides.players.some((player) => player.userId === userId)) throw new JoinRejected('ALREADY_JOINED')
+      // The decrement above already counts the joiner, who isn't one of the guests.
+      const counts = occupancy(sides.game.maxPlayers, sides.players.map((player) => player.side), sides.guests - 1, sides.hostSide)
+      const picked = pickSide(sides.game, counts, choice, await clubsOf(tx, userId, sides.game))
+      if (!picked.ok) throw new JoinRejected(picked.code)
+
       const inserted = await tx.execute(sql`
-        INSERT INTO game_participants (game_id, user_id, phone, name, updated_at, created_at)
-        VALUES (${gameId}, ${userId}, ${phone}, ${name}, now(), now())
+        INSERT INTO game_participants (game_id, user_id, phone, name, side, updated_at, created_at)
+        VALUES (${gameId}, ${userId}, ${phone}, ${name}, ${picked.side}, now(), now())
         ON CONFLICT (game_id, user_id) DO NOTHING
         RETURNING id
       `)
       if (inserted.rows.length === 0) throw new JoinRejected('ALREADY_JOINED')
 
-      return { ok: true as const, remainingSpots: Number(game.available_players), maxCount: Number(game.max_players) }
+      return {
+        ok: true as const,
+        remainingSpots: Number(game.available_players),
+        maxCount: Number(game.max_players),
+        side: picked.side,
+      }
     })
   } catch (error) {
     if (error instanceof JoinRejected) return { ok: false, code: error.code }
@@ -63,6 +79,58 @@ export async function claimSpot(
 }
 
 type Tx = Parameters<Parameters<PostgresAdapter['drizzle']['transaction']>[0]>[0]
+type Db = Tx | PostgresAdapter['drizzle']
+
+/**
+ * A game's sides as `checkSides` and `occupancy` see them: its clubs, the players' rows with the
+ * clubs each belongs to, and the guests (spots taken without a row). Read it under the game's row lock.
+ */
+export async function readSides(db: Db, gameId: number) {
+  const { rows } = await db.execute<{
+    max_players: number
+    available_players: number
+    host_id: number | null
+    home_team_id: number | null
+    away_team_id: number | null
+    players: SidePlayer[] | null
+  }>(sql`
+    SELECT g.max_players, g.available_players, g.host_id, g.home_team_id, g.away_team_id,
+           (SELECT json_agg(json_build_object(
+                     'userId', p.user_id,
+                     'side', p.side,
+                     'memberOf', ARRAY(SELECT r.parent_id FROM teams_rels r
+                                       WHERE r.path = 'members' AND r.users_id = p.user_id
+                                         AND r.parent_id IN (g.home_team_id, g.away_team_id))))
+            FROM game_participants p WHERE p.game_id = g.id) AS players
+    FROM games g
+    WHERE g.id = ${gameId}
+  `)
+  const row = rows[0]
+  const players = row?.players ?? []
+  const game: GameSides = {
+    maxPlayers: Number(row?.max_players ?? 0),
+    homeTeamId: row?.home_team_id ?? null,
+    awayTeamId: row?.away_team_id ?? null,
+  }
+  const hostId = row?.host_id ?? null
+  return {
+    game,
+    players,
+    hostId,
+    hostSide: players.find((player) => player.userId === hostId)?.side ?? ('home' as Side),
+    guests: game.maxPlayers - Number(row?.available_players ?? 0) - players.length,
+  }
+}
+
+/** The game's clubs the user is a member of. */
+async function clubsOf(db: Db, userId: number, game: GameSides): Promise<number[]> {
+  if (game.homeTeamId === null && game.awayTeamId === null) return []
+  const { rows } = await db.execute<{ parent_id: number }>(sql`
+    SELECT parent_id FROM teams_rels
+    WHERE path = 'members' AND users_id = ${userId} AND parent_id IN (${game.homeTeamId}, ${game.awayTeamId})
+  `)
+  return rows.map((row) => row.parent_id)
+}
 
 async function rejectionReason(tx: Tx, gameId: number, userId: number): Promise<JoinErrorCode> {
   const { rows } = await tx.execute<{ status: string; upcoming: boolean; joined: boolean }>(sql`

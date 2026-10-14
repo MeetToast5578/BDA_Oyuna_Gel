@@ -8,8 +8,10 @@ import type { CurrentUser, GameDetail } from '@/lib/api-types'
 import { isUpcoming, normalizePhone } from '@/lib/game-backend'
 import { formatLocalPhone, PHONE_ERROR, PHONE_PREFIX } from '@/lib/phone'
 import { phoneSource, type PhoneSource } from '@/lib/profile-form'
+import type { SideChoice } from '@/lib/team-logic'
 import { loginHref } from '@/lib/safe-redirect'
 import { expireSession } from '@/lib/session-actions'
+import choices from '@/components/create/GameForm.module.css'
 import { buttonClass } from '@/components/ui/button'
 import form from '@/components/ui/form.module.css'
 import { Icon } from '@/components/ui/Icon'
@@ -22,11 +24,17 @@ import { LeaveGame } from './LeaveGame'
 import { STATUS_LABELS } from './sports'
 
 /** Errors after which the page data is stale (spot taken, already a player, game closed). */
-const REFRESH_ON = new Set(['ALREADY_JOINED', 'GAME_FULL', 'GAME_NOT_JOINABLE'])
+const REFRESH_ON = new Set(['ALREADY_JOINED', 'GAME_FULL', 'GAME_NOT_JOINABLE', 'SIDE_FULL'])
 
 const NAME_ERROR = 'Ad və soyadınızı daxil edin.'
 
 type Step = 'details' | 'confirm'
+
+const SIDE_OPTIONS: { value: SideChoice; label: string }[] = [
+  { value: 'home', label: 'A komandası' },
+  { value: 'away', label: 'B komandası' },
+  { value: 'random', label: 'Təsadüfi' },
+]
 
 /**
  * The join button and the two-step join modal.
@@ -49,6 +57,7 @@ export function JoinPanel({ game, user, autoOpen }: { game: GameDetail; user: Cu
   const [phone, setPhone] = useState(formatLocalPhone(user?.phoneNumber ?? ''))
   const phoneNote: PhoneSource = user ? phoneSource(user.phoneNumber, phone) : 'none'
   const [savePhone, setSavePhone] = useState(false)
+  const [side, setSide] = useState<SideChoice>('random')
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({})
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -102,6 +111,7 @@ export function JoinPanel({ game, user, autoOpen }: { game: GameDetail; user: Cu
       const joinedGame = await postJson<{ savedToProfile?: boolean }>(`/api/v1/games/${game.id}/join`, {
         name: name.trim(),
         phone: normalizePhone(`${PHONE_PREFIX}${phone}`),
+        side,
         ...(phoneNote === 'differs' && savePhone ? { saveToProfile: true } : {}),
       })
       setJustJoined(true)
@@ -265,6 +275,31 @@ export function JoinPanel({ game, user, autoOpen }: { game: GameDetail; user: Cu
               />
               {fieldError('phone')}
             </div>
+
+            <fieldset className={form.field}>
+              <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
+                Komanda
+              </legend>
+              <div className={`${choices.choices} ${choices.levels}`}>
+                {SIDE_OPTIONS.map((option) => {
+                  const free = option.value === 'random' ? null : game.freeBySide[option.value]
+                  return (
+                    <label key={option.value} className={`${choices.choice} ${choices.levelChoice} ${styles.sideChoice}`}>
+                      <input
+                        type="radio"
+                        name={`${id}-side`}
+                        value={option.value}
+                        checked={side === option.value}
+                        disabled={free === 0}
+                        onChange={() => setSide(option.value)}
+                      />
+                      {option.label}
+                      {free !== null && <span className={styles.sideFree}>{free === 0 ? 'dolu' : `${free} yer`}</span>}
+                    </label>
+                  )
+                })}
+              </div>
+            </fieldset>
 
             {error && (
               <p className={form.alert} role="alert">
