@@ -105,7 +105,7 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
       />
 
       <AccountSection email={profile.email}>
-        <DeleteAccount hostedGames={profile.counts.hostingUpcoming + profile.counts.hostedPast} />
+        <DeleteAccount hostedGames={profile.counts.hostingUpcoming} />
       </AccountSection>
     </>
   )

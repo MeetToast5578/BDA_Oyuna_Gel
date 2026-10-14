@@ -326,10 +326,10 @@ describe.skipIf(!process.env.DATABASE_URL)('profile backend (Postgres)', () => {
       expect(
         await payload.findByID({ collection: 'games', id: game.id, overrideAccess: true, disableErrors: true }),
       ).toBeFalsy()
-      // The real regression: a game left behind with no host at all.
+      // The real regression: an upcoming game left behind with no host to run it.
       const hostless = await payload.count({
         collection: 'games',
-        where: { host: { exists: false } },
+        where: { and: [{ host: { exists: false } }, { scheduledAt: { greater_than: new Date().toISOString() } }] },
         overrideAccess: true,
       })
       expect(hostless.totalDocs).toBe(0)
@@ -339,6 +339,39 @@ describe.skipIf(!process.env.DATABASE_URL)('profile backend (Postgres)', () => {
         overrideAccess: true,
       })
       expect(strays.totalDocs).toBe(0)
+    })
+
+    it("keeps the games it hosted that already happened, in the other players' history", async () => {
+      const leavingHost = await payload.create({
+        collection: 'users',
+        overrideAccess: true,
+        data: {
+          email: `profile-${suffix}-pasthost@oyunagel.test`,
+          password: 'profile-test-password',
+          fullName: 'Past Host',
+        },
+      })
+      const past = await makeGame({ owner: leavingHost.id, hoursFromNow: -30, availablePlayers: 8 })
+      const upcoming = await makeGame({ owner: leavingHost.id, availablePlayers: 8 })
+      await payload.update({ collection: 'games', id: past, overrideAccess: true, data: { contactPhone: '+994501112233' } })
+      for (const game of [past, upcoming]) {
+        await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game, user: leavingHost.id } })
+        await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game, user: player } })
+      }
+      const playedBefore = (await getMyProfile(player))?.counts.played
+
+      const { deletedGames } = await deleteMyAccount(leavingHost.id)
+
+      expect(deletedGames).toBe(1)
+      expect(await payload.findByID({ collection: 'games', id: upcoming, overrideAccess: true, disableErrors: true })).toBeFalsy()
+      const kept = await payload.findByID({ collection: 'games', id: past, depth: 0, overrideAccess: true })
+      expect(kept.host ?? null).toBeNull()
+      // The host's number goes with their account, even though the game stays.
+      expect(kept.contactPhone ?? null).toBeNull()
+      expect(kept.availablePlayers).toBe(8)
+      expect((await getMyProfile(player))?.counts.played).toBe(playedBefore)
+      const pastList = await findMyGames(player, { role: 'joined', when: 'past', page: 1, limit: 50 })
+      expect(pastList.games.map((game) => game.id)).toContain(String(past))
     })
 
     it("hands the spots it held in other people's upcoming games back, but not in past ones", async () => {

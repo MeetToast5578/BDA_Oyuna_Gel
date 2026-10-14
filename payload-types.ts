@@ -264,7 +264,7 @@ export interface Game {
   image?: string | null;
   arena: number | Arena;
   level: 'beginner' | 'medium' | 'high';
-  host: number | User;
+  host?: (number | null) | User;
   /**
    * Host's contact number. The API only shows it to players who joined and to the host.
    */

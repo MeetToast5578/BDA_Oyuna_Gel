@@ -11,7 +11,8 @@ import styles from './Profile.module.css'
 
 /**
  * "Hesabı sil", the same danger zone and confirm dialog as "Oyunu sil". `DELETE /api/v1/me` takes
- * the games this account hosts with it (see docs/api.md), so the text says how many.
+ * the upcoming games this account hosts with it (see docs/api.md), so the text says how many; the
+ * ones already played stay in the other players' history.
  */
 export function DeleteAccount({ hostedGames }: { hostedGames: number }) {
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -20,7 +21,7 @@ export function DeleteAccount({ hostedGames }: { hostedGames: number }) {
 
   const consequence =
     hostedGames > 0
-      ? `Hesabınız birdəfəlik silinir. Təşkil etdiyiniz ${hostedGames} oyun da silinir və həmin oyunlara qoşulan oyunçular yerini itirir. Bu əməliyyat geri qaytarıla bilməz.`
+      ? `Hesabınız birdəfəlik silinir. Təşkil etdiyiniz ${hostedGames} qarşıdakı oyun da silinir və həmin oyunlara qoşulan oyunçular yerini itirir. Keçirilmiş oyunlar digər oyunçuların tarixçəsində qalır. Bu əməliyyat geri qaytarıla bilməz.`
       : 'Hesabınız və bütün qoşulmalarınız birdəfəlik silinir. Bu əməliyyat geri qaytarıla bilməz.'
 
   async function remove() {

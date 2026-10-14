@@ -427,15 +427,17 @@ that `null` removes) is deleted, file and all, when this user uploaded it.
 
 ### `DELETE /api/v1/me`
 
-Deletes the account, **and the games it hosts**. That is not optional: `games.host_id` is
-ON DELETE SET NULL and `host` is a required field, so removing the user alone would leave hosted
-games with no host — records nobody can edit or delete, still listed and still carrying a contact
-number. Their participants go too, and so do this user's own participations. Each spot the user
-held in someone else's upcoming game is handed back, as if they had left it; past games keep their
-numbers. One transaction. The pictures the user uploaded are deleted after it commits (files can't
-be rolled back).
+Deletes the account, **and the upcoming games it hosts** (scheduled, not started yet), with their
+participants: nobody would be left to run them. Games it hosted that have already started stay,
+because they are part of the other players' history and stats: `games.host_id` is ON DELETE SET
+NULL, so they are left with no host (shown under the default name, without a profile link), and
+their contact number is cleared. This user's own participations go too. Each spot the user held in
+someone else's upcoming game is handed back, as if they had left it; past games keep their numbers.
+One transaction. The pictures the user uploaded are deleted after it commits (files can't be rolled
+back); a kept game whose cover was one of them falls back to the venue or sport picture.
 
-Returns `{ "ok": true, "deletedGames": 1 }` and clears both session cookies.
+Returns `{ "ok": true, "deletedGames": 1 }`, the number of upcoming games deleted, and clears both
+session cookies.
 
 ### `GET /api/v1/me/games`
 

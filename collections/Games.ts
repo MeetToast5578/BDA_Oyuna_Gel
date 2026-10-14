@@ -68,10 +68,12 @@ export const Games: CollectionConfig = {
       ],
     },
     {
+      // Every new game gets one (createGame, and the beforeValidate hook below). It is only ever empty
+      // on a game that already happened when its host deleted their account: that game stays in the
+      // other players' history (deleteMyAccount).
       name: 'host',
       type: 'relationship',
       relationTo: 'users',
-      required: true,
       admin: {
         readOnly: true,
       },
