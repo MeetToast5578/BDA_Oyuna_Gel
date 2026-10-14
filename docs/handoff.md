@@ -1,0 +1,183 @@
+# Handoff: teams, fixes and UX work on `Branch-1`
+
+Written at the end of the session of 14 October 2026, so the next session can pick up without
+re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComponents`; read
+`node_modules/next/dist/docs/` before using a Next API).
+
+---
+
+## 1. Ground rules from the owner
+
+- **Work only on `Branch-1`.** Never push to `main`, merge, or rebase it. The owner merges when ready.
+- PR [MeetToast5578/BDA_Oyuna_Gel#14](https://github.com/MeetToast5578/BDA_Oyuna_Gel/pull/14) is the
+  draft PR for `Branch-1`. Keep it a draft and its description current.
+- **Nothing on this branch may touch the live database.** See §5: the live database URL is shared
+  with Vercel previews today, so don't add it anywhere new.
+- **Never commit secrets.** The owner shared a `.env` with the live values in the previous session;
+  don't copy them into files, commits, PR text or logs. `.env*` is git-ignored.
+- **Gmail is on hold** until the product owner approves it (§4). Don't ask for or add Gmail
+  credentials.
+- Each change gets a test that fails on the old code, then passes; and the full check in §6 runs
+  before every push.
+- Azerbaijani UI strings need a native speaker's read. List new ones in the commit or plan.
+
+---
+
+## 2. What's on the branch (12 commits ahead of `main` at `07828b2`)
+
+| Commit | What |
+| --- | --- |
+| `7e60647` | Teams plan (`docs/teams-and-stats-plan.md`) and the pure team rules (`lib/team-logic.ts`) |
+| `e7754b3` | **Security:** Payload's own `/api/games` and `/api/teams` take writes from admins only (hosts could set `status`, `availablePlayers`, a past date). Test: `tests/collection-access.test.ts` |
+| `4c2a3fc` | Deeper team rules: `checkSides` (the one invariant every side change must pass), parsers, club hand-over. Plan §5: every existing path the feature touches, with its guard |
+| `0d8fe4e` | `docs/fixes-and-ux-plan.md`: staged plan for fixes and UX (its status block is current) |
+| `5691543` | **Bug A1:** editing a game resizes it on the locked row, so a join or leave during an edit isn't lost; an edit after kick-off is refused. Test: `tests/edit-game.test.ts` |
+| `0072945` | **Bug A2:** deleting an account keeps the past games that person hosted (host becomes null, contact phone cleared). Migration `20261014_093046_keep_past_games_of_deleted_hosts` |
+| `b79f259` | Share button and WhatsApp link, link-preview images (`opengraph-image.tsx`), calendar file with a 2-hour reminder (`/api/v1/games/{id}/calendar`, `lib/calendar.ts`) |
+| `22efd06` | `sitemap.xml`, `robots.txt`, web app manifest and icons |
+| `c295457` | `/games` filters: `date=today|tomorrow|weekend`, `level`, `venue` (API and page) |
+| `51b4bd6` | `/venues` and `/venues/{id}` with "Xəritədə aç" and the venue's games |
+| `e579069` | Plan status update |
+| `49b4908` | Email notifications through Gmail SMTP, **dormant** until configured (§4). Migration `20261014_111042_user_email_notifications` |
+
+**Tests:** 197 passing across 16 files (`npx vitest run` against a local Postgres; see §6).
+
+---
+
+## 3. What to do next
+
+In the owner's suggested order. Nothing here needs a decision first, except where marked.
+
+1. **Rate limits** (fixes plan §7, D2). Count a user's and an IP's rows in `join-attempts` over the
+   last minute. Over 10, answer 429 `RATE_LIMITED` before touching the game. The log already
+   records user, IP and time, with indexes on `user_id` and `created_at`. Apply it to join and leave.
+2. **Teams, phases 1–2** (`docs/teams-and-stats-plan.md` §4). Decisions D1–D12 are unanswered; build
+   to the bold (recommended) options and say so. D10 is already built (A2).
+   - **Phase 1, schema:**
+     - Teams get `captain` (optional) and `inviteCode`.
+     - Participants get `side` (`home` | `away`). Backfill: the host gets `home`, the others
+       alternate. The migration runs `checkSides` on every game and fails if any game fails.
+     - Games: drop the scores' default of 0, and add `resultStatus`, `resultReportedAt` and
+       `resultConfirmedBy`.
+     - Update the seed and regenerate the types.
+   - **Phase 2, sides when joining:** inside `claimSpot` (`lib/join-game.ts`), after the `UPDATE`
+     that locks the row, call `occupancy`, then `pickSide`, then insert the row with its side.
+     Also: `checkSides` on edit (inside the A1 transaction in `updateGame`), the join panel's side
+     picker, and two columns on the game page.
+3. **Polish:**
+   - apply the C1 filters to the past list too (today `findPastGames` ignores level and venue);
+   - show "Silinmiş istifadəçi" for a game whose host is gone (`normalizeGameRecord`,
+     `DEFAULT_USER_NAME`);
+   - stop `app/api/v1/me/games/route.ts` from logging Next's prerender bail-out as an error. Its
+     `try/catch` catches the internal `NEXT_PRERENDER_INTERRUPTED`; the route is still dynamic.
+4. **Blocked:**
+   - the waitlist (stage 5) needs email, which is on hold;
+   - Russian and English (stage 7) need D5 (which languages, which URLs).
+
+---
+
+## 4. Email (built, on hold)
+
+- **How it's wired:**
+  - `payload.config.ts` uses `@payloadcms/email-nodemailer` (3.89.0) with Gmail SMTP **only when**
+    `GMAIL_USER` and `GMAIL_APP_PASSWORD` are both set. Otherwise Payload just logs
+    "Email attempted without being configured".
+  - `lib/emails.ts` holds the texts (titles escaped).
+  - `lib/notify.ts` has `notify`, which skips users who opted out and never throws; `afterResponse`,
+    which uses `after()` and runs the task immediately outside a request; and `participantIds`.
+- **What sends:**
+  - a join confirmation, with the `.ics` file;
+  - when a host changes the time or venue, an email to everyone in the game;
+  - when a host deletes an upcoming game, or deletes their account, an email to everyone who joined.
+- **Users** have `emailNotifications` (default on) and a switch under "Hesab" on `/profile`.
+- **To turn it on later:** use a dedicated free Gmail account. Turn on 2-Step Verification, create an
+  App Password, and set both variables in Vercel. The Google sign-in keys can't send mail. A free
+  account sends to about 500 people a day.
+
+---
+
+## 5. Vercel and the database (owner's to fix; affects testing)
+
+- **`bda-next`** (`prj_0jNsSRGI6zJYapdyk6MSLjkbxnhn`, team `redoze`) is the live site. It deploys
+  `main` to production.
+  - Its `DATABASE_URL`, `PAYLOAD_SECRET`, `GOOGLE_*` and `BLOB_*` targets are **production and
+    preview**, so any `bda-next` preview would run `Branch-1`'s migrations against the live database.
+  - It built one `Branch-1` preview, at `07828b2`, before this work. Nothing from this branch has run
+    there.
+- **`bda-oyuna-gel`** is a duplicate project connected to the same repo, with no variables. It's the
+  red `Vercel` check on PR #14 (fails in about 25 seconds: `payload migrate` has no secret). The
+  Vercel connector can't see it (404), so it can't be fixed or re-run from a session.
+  - An explanatory comment is on the PR:
+    [#14 comment](https://github.com/MeetToast5578/BDA_Oyuna_Gel/pull/14#issuecomment-6163802072).
+    Don't post another for the same failure.
+- **What the owner was asked to do:**
+  1. Create a separate Postgres database for previews.
+  2. Delete or disconnect `bda-oyuna-gel`.
+  3. Send the new database URL. The session can then split `bda-next`'s `DATABASE_URL`: the existing
+     one to Production only, the new one to Preview. Do that only with the owner's go-ahead, since
+     it changes the live project's settings.
+- The owner was also advised to rotate the database password and the Google client secret at some
+  point, since they were pasted into the chat.
+- `npm run vercel-build` passes locally with the variables set. `lib/site-url.ts` points previews at
+  their branch URL and production at `VERCEL_PROJECT_PRODUCTION_URL`. `NEXT_PUBLIC_SITE_URL`
+  overrides both.
+
+---
+
+## 6. Working setup in a fresh container
+
+```bash
+npm ci                                   # works again: the lock file was fixed in 49b4908
+pg_ctlcluster 16 main start              # Postgres 16 is installed; start it in every new container
+su postgres -c "psql -c \"CREATE USER oyuna WITH PASSWORD 'oyuna' SUPERUSER;\" -c 'CREATE DATABASE oyuna OWNER oyuna;'"   # first time only
+export DATABASE_URL=postgres://oyuna:oyuna@localhost:5432/oyuna PAYLOAD_SECRET=local-test-secret
+npx payload migrate
+npm run seed                             # sample data, local database only
+npx tsc --noEmit && npx eslint . && npx vitest run && npm run vercel-build
+```
+
+- **Lint:** `npx eslint .` shows 0 errors. The ~20 warnings are unused `payload`/`req` arguments in
+  Payload-generated migrations; leave them as generated.
+- **Browser checks:**
+  - Start the build with `npx next start -p 3100`.
+  - Playwright lives at `/opt/node22/lib/node_modules/playwright`. Use
+    `chromium.launch({ executablePath: '/opt/pw-browsers/chromium' })`. Don't run
+    `playwright install`.
+  - To sign in, `POST /api/users/login` with a local test user; the site accepts `payload-token`.
+
+**Gotchas that cost time in the last session:**
+
+- **Stopping servers.** `pkill -f "next start"` (or any pattern that also appears in the same command
+  line) kills your own shell. Stop servers in a separate command:
+  `ps -eo pid,cmd | awk '$2 ~ /^next-server/ {print $1}' | xargs -r kill`. Then confirm none are
+  left before starting a new one. An old server on port 3100 makes the new one fail with
+  `EADDRINUSE`, and you end up testing the old build: stale CSS returns 500s, and new routes are
+  missing.
+- **Turbopack and symlinks.** It refuses a symlinked `node_modules`, so a `git worktree` with a
+  linked `node_modules` can't build. To build an older commit: `git stash -u`, build, then
+  `git stash pop`.
+- **Next's cache in tests.** Functions with `'use cache'` (`findGames`, `findVenues`, …) can't run in
+  Vitest. Check them against the running build with `curl` instead.
+- **Hidden pages in the DOM.** Next 16 keeps the previous page hidden in the DOM after client
+  navigation. In Playwright, count `article:visible`, not `article`, and wait for a heading unique to
+  the new page.
+- **One-off scripts.** Scripts that need Payload must live inside the repo and run with
+  `npx payload run scripts/<file>.ts`. Delete the file afterwards.
+- **`after()` outside a request.** It throws when a test calls a route handler directly; use
+  `afterResponse` from `lib/notify.ts`.
+
+---
+
+## 7. Map of the new code
+
+| Area | Files |
+| --- | --- |
+| Team rules (pure) | `lib/team-logic.ts`, `tests/team-logic.test.ts` |
+| Edit race fix | `lib/game-queries.ts` (`updateGame`, `editRejection`), `app/api/v1/games/[id]/route.ts` |
+| Account deletion | `lib/profile-queries.ts` (`deleteMyAccount`), `components/profile/DeleteAccount.tsx`, `collections/Games.ts` (`host` optional) |
+| Sharing and calendar | `components/games/ShareButton.tsx`, `lib/calendar.ts`, `app/api/v1/games/[id]/calendar/route.ts`, `lib/game-backend.ts` (`shareText`), `app/(frontend)/**/opengraph-image.tsx`, `lib/site-url.ts` |
+| SEO and app | `app/sitemap.ts`, `app/robots.ts`, `app/manifest.ts`, `public/icons/`, `app/apple-icon.png` |
+| Filters | `lib/game-backend.ts` (`parseGameListParams`, `datePresetWindow`), `lib/page-data.ts` (`listFiltersFromSearchParams`), `components/games/GamesFilters.tsx`, `SportTabs.tsx`, `GamesSection.tsx` |
+| Venues | `app/(frontend)/venues/`, `lib/game-queries.ts` (`listVenuePages`, `getVenuePage`), `lib/game-backend.ts` (`mapsUrl`, `venueImageUrl`) |
+| Email | `payload.config.ts`, `lib/emails.ts`, `lib/notify.ts`, `components/profile/EmailNotifications.tsx`, `collections/Users.ts` |
+| Docs | `docs/teams-and-stats-plan.md`, `docs/fixes-and-ux-plan.md`, `docs/api.md`, `README.md` |
