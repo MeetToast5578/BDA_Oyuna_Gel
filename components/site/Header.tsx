@@ -11,6 +11,7 @@ import { NavLink } from './NavLink'
 
 const MENU_LINKS = [
   { href: '/games', label: 'Açıq oyunlar' },
+  { href: '/venues', label: 'Meydançalar' },
   { href: '/about', label: 'Haqqımızda' },
   { href: '/rules', label: 'Qaydalar' },
   { href: '/contact', label: 'Əlaqə' },

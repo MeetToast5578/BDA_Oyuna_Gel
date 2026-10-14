@@ -400,6 +400,23 @@ function mediaSizes(value: unknown) {
   return full ? { full, thumbnail: mediaUrl(asDoc(sizes?.thumbnail)?.url) ?? full } : null
 }
 
+/** A venue's own photo: the uploaded one, else its `imagePath`; null when it has neither. */
+export function venueImageUrl(arena: unknown) {
+  const doc = asDoc(arena)
+  return mediaSizes(doc?.image)?.thumbnail ?? nonEmptyString(doc?.imagePath)
+}
+
+/**
+ * "Xəritədə aç": a Google Maps search, which opens the maps app on phones and needs no API key.
+ * The coordinates pin the exact pitch; without them the name and address usually find it.
+ */
+export function mapsUrl(venue: { name: string; address: string | null; cityLabel: string; coordinates: { lat: number; lng: number } | null }) {
+  const query = venue.coordinates
+    ? `${venue.coordinates.lat},${venue.coordinates.lng}`
+    : [venue.name, venue.address, venue.cityLabel].filter(Boolean).join(', ')
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+}
+
 /**
  * Cover for a game card, most specific source first: the game's own uploaded cover, then its
  * `image` path, then the venue's uploaded photo or `imagePath`, then the sport's default picture. The venue photo means a

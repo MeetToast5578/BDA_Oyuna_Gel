@@ -284,3 +284,18 @@ a.phone:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* "Xəritədə aç" on a venue page, under the address. */
+.mapLink {
+  align-self: flex-start;
+}
+
+/* The venue in a game's facts links to its page. */
+.venueLink {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.venueLink:hover {
+  color: var(--color-primary);
+}

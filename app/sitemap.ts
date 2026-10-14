@@ -5,7 +5,7 @@ import { parseGameListParams } from '@/lib/game-backend'
 import { findGames } from '@/lib/game-queries'
 import { SITE_URL } from '@/lib/site-url'
 
-const STATIC_PATHS = ['/', '/games', '/games/past', '/about', '/rules', '/privacy', '/contact']
+const STATIC_PATHS = ['/', '/games', '/games/past', '/venues', '/about', '/rules', '/privacy', '/contact']
 // shortcut: lists at most 20 pages of 50 upcoming games; page the sitemap (generateSitemaps) past 1,000.
 const MAX_PAGES = 20
 

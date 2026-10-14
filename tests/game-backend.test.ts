@@ -17,6 +17,8 @@ import {
   parseEditGameBody,
   parseGameListParams,
   datePresetWindow,
+  mapsUrl,
+  venueImageUrl,
   parseMyGamesParams,
   parseProfileTabs,
   parseProfileUpdate,
@@ -547,6 +549,27 @@ describe('parseGameListParams', () => {
       ok: true,
       query: { when: 'past', sport: 'football', page: 2, limit: 12 },
     })
+  })
+})
+
+describe('mapsUrl', () => {
+  const venue = { name: 'Aku Arena', address: 'Nizami küç. 5', cityLabel: 'Bakı', coordinates: null }
+  it('pins the coordinates when the venue has them, else searches its name and address', () => {
+    expect(mapsUrl({ ...venue, coordinates: { lat: 40.3755, lng: 49.8335 } })).toBe(
+      'https://www.google.com/maps/search/?api=1&query=40.3755%2C49.8335',
+    )
+    expect(new URL(mapsUrl(venue)).searchParams.get('query')).toBe('Aku Arena, Nizami küç. 5, Bakı')
+    expect(new URL(mapsUrl({ ...venue, address: null })).searchParams.get('query')).toBe('Aku Arena, Bakı')
+  })
+})
+
+describe('venueImageUrl', () => {
+  it('prefers the uploaded photo, then the image path', () => {
+    expect(venueImageUrl({ image: { url: '/api/media/file/a.webp', sizes: { thumbnail: { url: '/api/media/file/a-t.webp' } } } })).toBe(
+      '/api/media/file/a-t.webp',
+    )
+    expect(venueImageUrl({ image: null, imagePath: '/images/arenas/x.jpg' })).toBe('/images/arenas/x.jpg')
+    expect(venueImageUrl({})).toBeNull()
   })
 })
 

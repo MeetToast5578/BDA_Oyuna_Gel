@@ -122,7 +122,14 @@ async function GameDetailContent({ params, searchParams }: Props) {
               {location && (
                 <li>
                   <Icon name="pin" />
-                  <span className="visually-hidden">Məkan:</span> {location}
+                  <span className="visually-hidden">Məkan:</span>{' '}
+                  {game.venue.id ? (
+                    <Link href={`/venues/${game.venue.id}`} className={styles.venueLink}>
+                      {location}
+                    </Link>
+                  ) : (
+                    location
+                  )}
                 </li>
               )}
             </ul>

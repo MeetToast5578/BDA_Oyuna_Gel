@@ -15,6 +15,7 @@ import {
   normalizeGameRecord,
   normalizePhone,
   normalizeVenue,
+  venueImageUrl,
   rankFeatured,
   toGameCard,
   toPlayer,
@@ -652,13 +653,39 @@ async function findVenues(city: string) {
   const { docs } = await payload.find({
     collection: 'arenas',
     where: cityWhere('city', city),
-    select: { name: true, location: true, city: true, district: true, address: true, coordinates: true, sportTypes: true },
+    select: {
+      name: true,
+      location: true,
+      city: true,
+      district: true,
+      address: true,
+      coordinates: true,
+      sportTypes: true,
+      image: true,
+      imagePath: true,
+      description: true,
+    },
     sort: 'name',
-    depth: 0,
+    // The photo, for the venue pages; the picker only reads the other fields.
+    depth: 1,
     pagination: false,
     overrideAccess: true,
   })
   return docs
+}
+
+/** "Meydançalar": every venue in the city with its photo and description, for `/venues`. */
+export async function listVenuePages(city: string) {
+  return (await findVenues(city)).map((doc) => ({
+    ...normalizeVenue(doc),
+    imageUrl: venueImageUrl(doc),
+    description: typeof doc.description === 'string' && doc.description.trim() ? doc.description.trim() : null,
+  }))
+}
+
+/** One venue's page; null when there is no such venue in the city. Read from the same cached list. */
+export async function getVenuePage(id: number, city = DEFAULT_CITY) {
+  return (await listVenuePages(city)).find((venue) => venue.id === String(id)) ?? null
 }
 
 /** Venue picker options. Venues without sport types listed are offered for every sport. */
