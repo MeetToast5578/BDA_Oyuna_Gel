@@ -60,7 +60,6 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
 4. **Blocked:**
    - the waitlist (stage 5) needs email, which is on hold;
    - Russian and English (stage 7) need D5 (which languages, which URLs);
-   - a `Branch-1` preview deploy needs the separate preview database (§5).
 
 ---
 
@@ -84,31 +83,25 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
 
 ---
 
-## 5. Vercel and the database (owner's to fix; affects testing)
+## 5. Vercel and the database
 
-- **`bda-next`** (`prj_0jNsSRGI6zJYapdyk6MSLjkbxnhn`, team `redoze`) is the live site. It deploys
-  `main` to production.
-  - Its `DATABASE_URL`, `PAYLOAD_SECRET`, `GOOGLE_*` and `BLOB_*` targets are **production and
-    preview**, so any `bda-next` preview would run `Branch-1`'s migrations against the live database.
-  - It built one `Branch-1` preview, at `07828b2`, before this work. Nothing from this branch has run
-    there.
-- **`bda-oyuna-gel`** is a duplicate project connected to the same repo, with no variables. It's the
-  red `Vercel` check on PR #14 (fails in about 25 seconds: `payload migrate` has no secret). The
-  Vercel connector can't see it (404), so it can't be fixed or re-run from a session.
-  - An explanatory comment is on the PR:
-    [#14 comment](https://github.com/MeetToast5578/BDA_Oyuna_Gel/pull/14#issuecomment-6163802072).
-    Don't post another for the same failure.
-- **What the owner was asked to do:**
-  1. Create a separate Postgres database for previews.
-  2. Delete or disconnect `bda-oyuna-gel`.
-  3. Send the new database URL. The session can then split `bda-next`'s `DATABASE_URL`: the existing
-     one to Production only, the new one to Preview. Do that only with the owner's go-ahead, since
-     it changes the live project's settings.
-- The owner was also advised to rotate the database password and the Google client secret at some
-  point, since they were pasted into the chat.
-- `npm run vercel-build` passes locally with the variables set. `lib/site-url.ts` points previews at
-  their branch URL and production at `VERCEL_PROJECT_PRODUCTION_URL`. `NEXT_PUBLIC_SITE_URL`
-  overrides both.
+- **`bda-next`** (`prj_0jNsSRGI6zJYapdyk6MSLjkbxnhn`, team `redoze`) is the live site.
+  - It has **no Git connection**: it is deployed by hand, so pushes never build there.
+  - Its `DATABASE_URL` and other variables target production and preview, so a `bda-next` preview
+    would still use the live database. **Don't deploy `Branch-1` there.** Its settings were left
+    exactly as they were.
+- **`bda-oyuna-gel`** (`prj_XhiPU2mjlB97OjJ5GYlGPgfHJ799`, same team) is the **copy for `Branch-1`**:
+  - connected to GitHub, so every push to `Branch-1` builds a preview there automatically;
+  - `DATABASE_URL` (Preview only) is the Neon `preview` branch (`ep-old-haze-aeykpqkm`), which
+    was empty: the first build (`5b0409c`) ran every migration from the baseline;
+    `PAYLOAD_SECRET` (Preview only) is its own random value;
+  - no Google keys or Blob token, so sign-in with Google and uploads don't work there;
+  - its production builds of `main` fail (no production variables), which is harmless.
+- Preview links are behind Vercel's login (deployment protection), so only team members open them.
+- The owner was advised to rotate the database password and the Google client secret at some
+  point, since they were pasted into an earlier chat.
+- `lib/site-url.ts` points previews at their branch URL and production at
+  `VERCEL_PROJECT_PRODUCTION_URL`. `NEXT_PUBLIC_SITE_URL` overrides both.
 
 ---
 
