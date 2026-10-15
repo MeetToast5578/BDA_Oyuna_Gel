@@ -51,6 +51,8 @@ export const GAMES_MAX_LIMIT = 50
 
 /** Shown for an account with no name, the host's or a player's. */
 const DEFAULT_USER_NAME = 'OyunaGəl istifadəçisi'
+/** Shown for the host of a past game whose account was deleted (the game stays, with no host). */
+const DELETED_USER_NAME = 'Silinmiş istifadəçi'
 const HOUR_MS = 60 * 60 * 1000
 const DAY_MS = 24 * HOUR_MS
 const BAKU_OFFSET_MS = 4 * HOUR_MS
@@ -388,6 +390,7 @@ export function toPlayer(participant: unknown) {
     name,
     initials: initialsOf(name),
     avatarUrl: userAvatarUrl(user),
+    side: row?.side === 'away' ? ('away' as const) : ('home' as const),
   }
 }
 
@@ -398,6 +401,23 @@ function mediaSizes(value: unknown) {
   const sizes = asDoc(media.sizes)
   const full = mediaUrl(asDoc(sizes?.full)?.url) ?? mediaUrl(media.url)
   return full ? { full, thumbnail: mediaUrl(asDoc(sizes?.thumbnail)?.url) ?? full } : null
+}
+
+/** A venue's own photo: the uploaded one, else its `imagePath`; null when it has neither. */
+export function venueImageUrl(arena: unknown) {
+  const doc = asDoc(arena)
+  return mediaSizes(doc?.image)?.thumbnail ?? nonEmptyString(doc?.imagePath)
+}
+
+/**
+ * "Xəritədə aç": a Google Maps search, which opens the maps app on phones and needs no API key.
+ * The coordinates pin the exact pitch; without them the name and address usually find it.
+ */
+export function mapsUrl(venue: { name: string; address: string | null; cityLabel: string; coordinates: { lat: number; lng: number } | null }) {
+  const query = venue.coordinates
+    ? `${venue.coordinates.lat},${venue.coordinates.lng}`
+    : [venue.name, venue.address, venue.cityLabel].filter(Boolean).join(', ')
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
 }
 
 /**
@@ -429,7 +449,7 @@ export function normalizeGameRecord(raw: unknown, now = Date.now()) {
   const sportMeta = SPORT_META[sport] ?? SPORT_META.football
   const level = String(game.level ?? 'medium')
   const host = asDoc(game.host)
-  const hostName = nonEmptyString(host?.fullName) ?? DEFAULT_USER_NAME
+  const hostName = game.host == null ? DELETED_USER_NAME : (nonEmptyString(host?.fullName) ?? DEFAULT_USER_NAME)
   // Populated or not, the relationship still names the host, which is what a profile link needs.
   const hostId = host ? host.id : game.host
   const startsAt = game.scheduledAt ? String(game.scheduledAt) : null
@@ -534,8 +554,28 @@ export type GameListQuery = {
   from: Date
   to: Date
   onlyOpen: boolean
+  /** "Səviyyə" and "Meydança" on `/games`. The past list ignores them. */
+  level: string | null
+  venueId: number | null
   page: number
   limit: number
+}
+
+/** The "Tarix" filter on `/games`: `?date=` presets, each a window of whole Baku days. */
+export const DATE_PRESETS = ['today', 'tomorrow', 'weekend'] as const
+export type DatePreset = (typeof DATE_PRESETS)[number]
+
+/**
+ * The window a date preset covers. "Həftəsonu" is Saturday and Sunday in Baku; on a weekend day it
+ * runs from now until Monday, otherwise it is the coming weekend.
+ */
+export function datePresetWindow(preset: DatePreset, now = new Date()) {
+  if (preset === 'today') return { from: now, to: startOfBakuDay(now, 1) }
+  if (preset === 'tomorrow') return { from: startOfBakuDay(now, 1), to: startOfBakuDay(now, 2) }
+  const weekday = new Date(now.getTime() + BAKU_OFFSET_MS).getUTCDay() // 0 is Sunday, 6 Saturday
+  if (weekday === 0) return { from: now, to: startOfBakuDay(now, 1) }
+  if (weekday === 6) return { from: now, to: startOfBakuDay(now, 2) }
+  return { from: startOfBakuDay(now, 6 - weekday), to: startOfBakuDay(now, 8 - weekday) }
 }
 
 type ParseResult = { ok: true; query: GameListQuery } | { ok: false; code: string; message: string }
@@ -550,9 +590,25 @@ export function parseGameListParams(params: URLSearchParams, now = new Date()): 
   const city = normalizeCity(params.get('city'))
   if (!city) return { ok: false, code: 'UNKNOWN_CITY', message: 'Unknown city.' }
 
-  const from = parseDateParam(params.get('from'), now)
-  const to = parseDateParam(params.get('to'), startOfBakuDay(now, 2))
+  const date = params.get('date')
+  if (date && !DATE_PRESETS.includes(date as DatePreset)) {
+    return { ok: false, code: 'INVALID_DATE_FILTER', message: `date must be one of: ${DATE_PRESETS.join(', ')}` }
+  }
+  // A preset replaces `from`/`to`: it is the whole window the visitor asked for.
+  const preset = date ? datePresetWindow(date as DatePreset, now) : null
+  const from = preset?.from ?? parseDateParam(params.get('from'), now)
+  const to = preset?.to ?? parseDateParam(params.get('to'), startOfBakuDay(now, 2))
   if (!from || !to) return { ok: false, code: 'INVALID_DATE', message: 'from and to must be ISO 8601 timestamps.' }
+
+  const level = params.get('level')
+  if (level && !(level in LEVEL_LABELS)) {
+    return { ok: false, code: 'INVALID_LEVEL', message: `level must be one of: ${Object.keys(LEVEL_LABELS).join(', ')}` }
+  }
+  const venue = params.get('venue')
+  const venueId = venue ? Number(venue) : null
+  if (venueId !== null && (!Number.isSafeInteger(venueId) || venueId <= 0)) {
+    return { ok: false, code: 'INVALID_VENUE', message: 'venue must be a venue id.' }
+  }
 
   const status = params.get('status')
   if (status && status !== 'open') return { ok: false, code: 'INVALID_STATUS', message: 'status only accepts "open".' }
@@ -572,6 +628,8 @@ export function parseGameListParams(params: URLSearchParams, now = new Date()): 
       from: from < now ? now : from,
       to,
       onlyOpen: status === 'open',
+      level,
+      venueId,
       page: clampInt(params.get('page'), 1, 1, Number.MAX_SAFE_INTEGER),
       limit: clampInt(params.get('limit'), GAMES_DEFAULT_LIMIT, 1, GAMES_MAX_LIMIT),
     },
@@ -653,6 +711,8 @@ export type ProfileUpdate = {
   phone?: string | null
   /** null removes the uploaded picture. */
   profilePictureId?: number | null
+  /** Emails about the games this user joined (lib/notify.ts). */
+  emailNotifications?: boolean
 }
 
 /**
@@ -695,6 +755,28 @@ export function parseProfileUpdate(body: unknown): ParseOk<ProfileUpdate> {
     }
   }
 
+  if (data.emailNotifications !== undefined) {
+    if (typeof data.emailNotifications !== 'boolean') return fail('INVALID_NOTIFICATIONS', 'emailNotifications must be true or false.')
+    update.emailNotifications = data.emailNotifications
+  }
+
   if (Object.keys(update).length === 0) return fail('NOTHING_TO_UPDATE', 'Dəyişdiriləcək heç nə göndərilmədi.')
   return { ok: true, value: update }
+}
+
+/**
+ * What "Paylaş" sends along with the link: enough to decide from a WhatsApp message alone.
+ * "Axşam futbolu · Şən, 18 Okt, 19:00 · Aku Arena · 3 yer qalıb".
+ */
+export function shareText(game: {
+  title: string
+  dateLabel: string | null
+  timeLabel: string | null
+  venue: { name: string }
+  status: AvailabilityStatus
+  remainingSpots: number
+}) {
+  const spots = game.status === 'open' ? `${game.remainingSpots} yer qalıb` : game.status === 'full' ? 'Oyun doludur' : null
+  const when = [game.dateLabel, game.timeLabel].filter(Boolean).join(', ')
+  return [game.title, when, game.venue.name, spots].filter(Boolean).join(' · ')
 }

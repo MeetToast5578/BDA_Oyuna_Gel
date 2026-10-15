@@ -213,6 +213,8 @@ export async function getMyProfile(userId: number, now = new Date()) {
     initials: initialsOf(fullName),
     email: user.email,
     phoneNumber: user.phoneNumber ?? null,
+    /** Accounts from before the setting existed have no value, which means on. */
+    emailNotifications: user.emailNotifications !== false,
     avatarUrl: userAvatarUrl(user),
     memberSince: user.createdAt,
     memberSinceLabel: formatBakuMonthYear(user.createdAt),
@@ -340,6 +342,7 @@ export async function updateMyProfile(userId: number, update: ProfileUpdate): Pr
       ...(update.fullName !== undefined ? { fullName: update.fullName } : {}),
       ...(update.phone !== undefined ? { phoneNumber: update.phone } : {}),
       ...(update.profilePictureId !== undefined ? { profilePicture: update.profilePictureId } : {}),
+      ...(update.emailNotifications !== undefined ? { emailNotifications: update.emailNotifications } : {}),
     },
   })
   // The host's name and picture are shown on every card they host.
@@ -358,18 +361,26 @@ export async function updateMyProfile(userId: number, update: ProfileUpdate): Pr
 /**
  * Deletes an account and everything that would otherwise point at nothing.
  *
- * `games.host_id` and `game_participants.user_id` are both ON DELETE SET NULL, so removing the user
- * alone would leave hosted games with no host — a required field — which nobody could then edit or
- * delete, still listed and still carrying a contact number. Their games go with them, and so do the
- * participant rows of those games and this user's own participations, whose spots in upcoming games
- * are handed back. One transaction, all or nothing. Their uploaded pictures are deleted afterwards.
+ * The games this user hosts that haven't started go with them, with their participant rows: nobody
+ * would be left to run them. Games that already started stay, because they are part of the other
+ * players' history and stats; `games.host_id` is ON DELETE SET NULL, so they simply lose their host,
+ * and the host's contact number is cleared from them. This user's own participations go too, and
+ * their spots in upcoming games are handed back. One transaction, all or nothing. Their uploaded
+ * pictures are deleted afterwards.
  */
 export async function deleteMyAccount(userId: number) {
   const payload = await getPayloadClient()
 
+  // Exactly the "Qarşıdakı" hosting list (hostingUpcoming), which the confirm dialog counts.
   const hosted = await payload.find({
     collection: 'games',
-    where: { host: { equals: userId } },
+    where: {
+      and: [
+        { host: { equals: userId } },
+        { status: { equals: 'scheduled' } },
+        { scheduledAt: { greater_than: new Date().toISOString() } },
+      ],
+    },
     select: { title: true },
     depth: 0,
     pagination: false,
@@ -404,6 +415,8 @@ export async function deleteMyAccount(userId: number) {
     // game from ever showing more free spots than it has places.
     const adapter = payload.db as unknown as PostgresAdapter
     const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
+    // The games that stay keep no trace of how to reach the person who deleted their account.
+    await db.execute(sql`UPDATE games SET contact_phone = NULL, updated_at = now() WHERE host_id = ${userId}`)
     await db.execute(sql`
       UPDATE games
       SET available_players = LEAST(games.available_players + 1, games.max_players), updated_at = now()

@@ -136,6 +136,7 @@ export interface User {
   phoneNumber?: string | null;
   role?: ('user' | 'admin') | null;
   fullName: string;
+  emailNotifications?: boolean | null;
   profilePicture?: (number | null) | Media;
   avatarUrl?: string | null;
   googleId?: string | null;
@@ -243,6 +244,14 @@ export interface Team {
   shortName?: string | null;
   sport: 'football' | 'basketball' | 'tennis';
   members?: (number | User)[] | null;
+  /**
+   * Empty once the last member leaves; the club stays so its old games keep their record.
+   */
+  captain?: (number | null) | User;
+  /**
+   * Secret code in the invite link. Shown to the captain by the club endpoint, and here to admins only.
+   */
+  inviteCode?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -264,7 +273,7 @@ export interface Game {
   image?: string | null;
   arena: number | Arena;
   level: 'beginner' | 'medium' | 'high';
-  host: number | User;
+  host?: (number | null) | User;
   /**
    * Host's contact number. The API only shows it to players who joined and to the host.
    */
@@ -276,6 +285,9 @@ export interface Game {
   availablePlayers: number;
   homeScore?: number | null;
   awayScore?: number | null;
+  resultStatus?: ('reported' | 'confirmed' | 'disputed') | null;
+  resultReportedAt?: string | null;
+  resultConfirmedBy?: (number | null) | User;
   status?: ('scheduled' | 'live' | 'finished' | 'cancelled') | null;
   updatedAt: string;
   createdAt: string;
@@ -294,6 +306,10 @@ export interface GameParticipant {
    * Name the player gave in step 1 of the join form. The site shows the account's name, and this one only once the account is gone.
    */
   name?: string | null;
+  /**
+   * Which half of the game the player is on. Each side holds half of maxPlayers (lib/team-logic.ts).
+   */
+  side: 'home' | 'away';
   /**
    * Number the player gave in the join form. Visible to admins only.
    */
@@ -315,6 +331,8 @@ export interface JoinAttempt {
     | 'GAME_NOT_JOINABLE'
     | 'GAME_NOT_FOUND'
     | 'ALREADY_JOINED'
+    | 'SIDE_FULL'
+    | 'NOT_A_MEMBER'
     | 'UNAUTHENTICATED'
     | 'INVALID_REQUEST'
     | 'ERROR'
@@ -437,6 +455,7 @@ export interface UsersSelect<T extends boolean = true> {
   phoneNumber?: T;
   role?: T;
   fullName?: T;
+  emailNotifications?: T;
   profilePicture?: T;
   avatarUrl?: T;
   googleId?: T;
@@ -527,6 +546,8 @@ export interface TeamsSelect<T extends boolean = true> {
   shortName?: T;
   sport?: T;
   members?: T;
+  captain?: T;
+  inviteCode?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -550,6 +571,9 @@ export interface GamesSelect<T extends boolean = true> {
   availablePlayers?: T;
   homeScore?: T;
   awayScore?: T;
+  resultStatus?: T;
+  resultReportedAt?: T;
+  resultConfirmedBy?: T;
   status?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -562,6 +586,7 @@ export interface GameParticipantsSelect<T extends boolean = true> {
   game?: T;
   user?: T;
   name?: T;
+  side?: T;
   phone?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -16,6 +16,9 @@ import {
   parseCreateGameBody,
   parseEditGameBody,
   parseGameListParams,
+  datePresetWindow,
+  mapsUrl,
+  venueImageUrl,
   parseMyGamesParams,
   parseProfileTabs,
   parseProfileUpdate,
@@ -461,9 +464,10 @@ describe('toPlayer', () => {
   it("names a player after their account, so the list matches the profile it opens", () => {
     const player = toPlayer({
       name: 'Rəşad (qapıçı)',
+      side: 'away',
       user: { id: 7, fullName: 'Rəşad Babayev', profilePicture: { url: '/api/media/file/resad.png' } },
     })
-    expect(player).toEqual({ id: '7', name: 'Rəşad Babayev', initials: 'RB', avatarUrl: '/api/media/file/resad.png' })
+    expect(player).toEqual({ id: '7', name: 'Rəşad Babayev', initials: 'RB', avatarUrl: '/api/media/file/resad.png', side: 'away' })
   })
 
   it('falls back to the name typed into the join form, then to a placeholder', () => {
@@ -485,6 +489,7 @@ describe('toPlayer', () => {
       name: 'Səbinə Əliyeva',
       initials: 'SƏ',
       avatarUrl: null,
+      side: 'home',
     })
   })
 })
@@ -502,10 +507,30 @@ describe('parseGameListParams', () => {
         from: new Date(NOW),
         to: new Date('2026-09-14T20:00:00.000Z'),
         onlyOpen: false,
+        level: null,
+        venueId: null,
         page: 1,
         limit: 12,
       },
     })
+  })
+
+  it('narrows by level, venue and a date preset, the preset replacing from/to', () => {
+    // NOW is Sunday 13 September, 14:00 in Baku.
+    expect(parse('level=high&venue=7&date=tomorrow&to=2027-01-01T00:00:00Z')).toMatchObject({
+      ok: true,
+      query: {
+        level: 'high',
+        venueId: 7,
+        from: new Date('2026-09-13T20:00:00.000Z'),
+        to: new Date('2026-09-14T20:00:00.000Z'),
+      },
+    })
+    expect(parse('date=today')).toMatchObject({ ok: true, query: { from: new Date(NOW), to: new Date('2026-09-13T20:00:00.000Z') } })
+    expect(parse('level=pro')).toMatchObject({ ok: false, code: 'INVALID_LEVEL' })
+    expect(parse('venue=abc')).toMatchObject({ ok: false, code: 'INVALID_VENUE' })
+    expect(parse('venue=-2')).toMatchObject({ ok: false, code: 'INVALID_VENUE' })
+    expect(parse('date=someday')).toMatchObject({ ok: false, code: 'INVALID_DATE_FILTER' })
   })
 
   it('clamps paging and never starts in the past', () => {
@@ -526,6 +551,46 @@ describe('parseGameListParams', () => {
       ok: true,
       query: { when: 'past', sport: 'football', page: 2, limit: 12 },
     })
+  })
+})
+
+describe('mapsUrl', () => {
+  const venue = { name: 'Aku Arena', address: 'Nizami küç. 5', cityLabel: 'Bakı', coordinates: null }
+  it('pins the coordinates when the venue has them, else searches its name and address', () => {
+    expect(mapsUrl({ ...venue, coordinates: { lat: 40.3755, lng: 49.8335 } })).toBe(
+      'https://www.google.com/maps/search/?api=1&query=40.3755%2C49.8335',
+    )
+    expect(new URL(mapsUrl(venue)).searchParams.get('query')).toBe('Aku Arena, Nizami küç. 5, Bakı')
+    expect(new URL(mapsUrl({ ...venue, address: null })).searchParams.get('query')).toBe('Aku Arena, Bakı')
+  })
+})
+
+describe('venueImageUrl', () => {
+  it('prefers the uploaded photo, then the image path', () => {
+    expect(venueImageUrl({ image: { url: '/api/media/file/a.webp', sizes: { thumbnail: { url: '/api/media/file/a-t.webp' } } } })).toBe(
+      '/api/media/file/a-t.webp',
+    )
+    expect(venueImageUrl({ image: null, imagePath: '/images/arenas/x.jpg' })).toBe('/images/arenas/x.jpg')
+    expect(venueImageUrl({})).toBeNull()
+  })
+})
+
+describe('datePresetWindow', () => {
+  const at = (iso: string) => datePresetWindow('weekend', new Date(iso))
+
+  it('is the coming Saturday and Sunday on a weekday, in Baku days', () => {
+    // Wednesday 14 October, 13:00 in Baku.
+    expect(at('2026-10-14T09:00:00Z')).toEqual({
+      from: new Date('2026-10-16T20:00:00.000Z'),
+      to: new Date('2026-10-18T20:00:00.000Z'),
+    })
+  })
+
+  it('starts now on a weekend day and ends when Monday starts in Baku', () => {
+    expect(at('2026-10-17T09:00:00Z')).toEqual({ from: new Date('2026-10-17T09:00:00Z'), to: new Date('2026-10-18T20:00:00.000Z') })
+    // Sunday 23:30 in Baku is still the weekend; Monday 00:00 is not.
+    expect(at('2026-10-18T19:30:00Z')).toEqual({ from: new Date('2026-10-18T19:30:00Z'), to: new Date('2026-10-18T20:00:00.000Z') })
+    expect(at('2026-10-18T20:00:00Z').from).toEqual(new Date('2026-10-23T20:00:00.000Z'))
   })
 })
 
@@ -783,7 +848,7 @@ describe('normalizeGameRecord / toGameCard', () => {
   it("carries the host's id for the profile link, populated or not", () => {
     expect(normalizeGameRecord({ ...raw, host: 12 }, NOW).host).toMatchObject({ id: '12', name: 'OyunaGəl istifadəçisi' })
     // ON DELETE SET NULL: a game whose host account is gone has nobody to link to.
-    expect(normalizeGameRecord({ ...raw, host: null }, NOW).host.id).toBeNull()
+    expect(normalizeGameRecord({ ...raw, host: null }, NOW).host).toMatchObject({ id: null, name: 'Silinmiş istifadəçi', initials: 'Sİ' })
   })
 
   it('never exposes the host email as their name', () => {

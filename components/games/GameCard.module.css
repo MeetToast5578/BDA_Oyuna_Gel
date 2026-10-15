@@ -198,3 +198,8 @@
   z-index: 2;
   flex-shrink: 0;
 }
+
+/* The venue sits above the card-wide title link, like the host. */
+.venueLink {
+  composes: hostLink;
+}

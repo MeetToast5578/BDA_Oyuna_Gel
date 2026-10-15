@@ -1,15 +1,18 @@
 import type { CollectionConfig } from 'payload'
 
 import { invalidateGamesCache } from '../lib/cache-tags'
-import { isAdminOrHost } from './access'
+import { isAdmin } from './access'
 
 export const Games: CollectionConfig = {
   slug: 'games',
+  // Every write the site makes goes through /api/v1, which validates it and then writes with
+  // `overrideAccess`. Payload's own REST route (/api/games) is for the admin panel only: open to
+  // hosts, it let them set `status`, `availablePlayers` or a past `scheduledAt` past every rule.
   access: {
     read: () => true,
-    create: ({ req }) => Boolean(req.user),
-    update: isAdminOrHost,
-    delete: isAdminOrHost,
+    create: isAdmin,
+    update: isAdmin,
+    delete: isAdmin,
   },
   defaultPopulate: {
     host: true,
@@ -65,10 +68,12 @@ export const Games: CollectionConfig = {
       ],
     },
     {
+      // Every new game gets one (createGame, and the beforeValidate hook below). It is only ever empty
+      // on a game that already happened when its host deleted their account: that game stays in the
+      // other players' history (deleteMyAccount).
       name: 'host',
       type: 'relationship',
       relationTo: 'users',
-      required: true,
       admin: {
         readOnly: true,
       },
@@ -116,15 +121,32 @@ export const Games: CollectionConfig = {
       min: 0,
       required: true,
     },
+    // Empty until the host reports a score, so an unreported game can't pass for a 0–0 draw.
     {
       name: 'homeScore',
       type: 'number',
-      defaultValue: 0,
     },
     {
       name: 'awayScore',
       type: 'number',
-      defaultValue: 0,
+    },
+    {
+      name: 'resultStatus',
+      type: 'select',
+      options: [
+        { label: 'Reported', value: 'reported' },
+        { label: 'Confirmed', value: 'confirmed' },
+        { label: 'Disputed', value: 'disputed' },
+      ],
+    },
+    {
+      name: 'resultReportedAt',
+      type: 'date',
+    },
+    {
+      name: 'resultConfirmedBy',
+      type: 'relationship',
+      relationTo: 'users',
     },
     {
       name: 'status',

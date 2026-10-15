@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useOptimistic, useTransition } from 'react'
 
+import { withQuery } from '@/lib/api-client'
 import type { SportTab } from '@/lib/api-types'
 import { sortSports, SPORT_EMOJI } from './sports'
 import styles from './SportTabs.module.css'
@@ -20,11 +21,14 @@ export function SportTabs({
   sports,
   active,
   basePath,
+  query,
   countLabel = 'açıq oyun',
 }: {
   sports: SportTab[]
   active: string | null
   basePath: string
+  /** The page's other filters (`/games`' date, level, venue), kept when the sport changes. */
+  query?: Record<string, string | null>
   /** What each tab's count is of: "açıq oyun" above the open games, "keçmiş oyun" above past ones. */
   countLabel?: string
 }) {
@@ -49,7 +53,7 @@ export function SportTabs({
           const isActive = sport.sport === shownActive
           // Tapping the active tab clears the filter.
           const target = sport.sport === active ? null : sport.sport
-          const href = target ? `${basePath}?sport=${target}` : basePath
+          const href = withQuery(basePath, { sport: target, ...query })
           return (
             <li key={sport.sport}>
               <Link

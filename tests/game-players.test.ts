@@ -72,7 +72,7 @@ describe.skipIf(!process.env.DATABASE_URL)('the players list (Postgres)', () => 
       await payload.create({
         collection: 'game-participants',
         overrideAccess: true,
-        data: { game: gameId, user: users[key].id, name: typed, phone: '+994551112233' },
+        data: { game: gameId, user: users[key].id, name: typed, phone: '+994551112233', side: 'away' },
       })
     }
   })

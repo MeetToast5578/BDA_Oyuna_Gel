@@ -116,6 +116,12 @@
   background: linear-gradient(var(--color-primary-tint), var(--color-primary-tint)), var(--color-surface);
 }
 
+.choice:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .choice:has(input:focus-visible) {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;

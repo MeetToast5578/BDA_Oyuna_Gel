@@ -1,3 +1,4 @@
+import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import { cacheLife, cacheTag } from 'next/cache'
 import type { Payload, Where } from 'payload'
 
@@ -14,12 +15,15 @@ import {
   normalizeGameRecord,
   normalizePhone,
   normalizeVenue,
+  venueImageUrl,
   rankFeatured,
   toGameCard,
   toPlayer,
   type CreateGameInput,
   type GameListQuery,
 } from '@/lib/game-backend'
+import { readSides } from '@/lib/join-game'
+import { checkSides, occupancy, sideCapacity } from '@/lib/team-logic'
 
 /**
  * Cached reads refresh at least this often; game, venue and join writes expire them immediately.
@@ -136,6 +140,8 @@ async function findGameDocs(
   fromIso: string,
   toIso: string,
   onlyOpen: boolean,
+  level: string | null,
+  venueId: number | null,
   page: number,
   limit: number,
 ) {
@@ -154,6 +160,8 @@ async function findGameDocs(
         cityWhere('arena.city', city),
         ...(sport ? [{ sport: { equals: sport } }] : []),
         ...(onlyOpen ? [{ availablePlayers: { greater_than: 0 } }] : []),
+        ...(level ? [{ level: { equals: level } }] : []),
+        ...(venueId ? [{ arena: { equals: venueId } }] : []),
       ],
     },
     select: CARD_SELECT,
@@ -186,6 +194,8 @@ export async function findGames(query: GameListQuery, now = new Date()) {
     fromIso,
     query.to.toISOString(),
     query.onlyOpen,
+    query.level,
+    query.venueId,
     query.page,
     query.limit,
   )
@@ -207,7 +217,15 @@ export async function findGames(query: GameListQuery, now = new Date()) {
 }
 
 /** Games that have started, not cancelled, most recent first. Cached like the upcoming list. */
-async function findPastGameDocs(sport: string | null, city: string, beforeIso: string, page: number, limit: number) {
+async function findPastGameDocs(
+  sport: string | null,
+  city: string,
+  beforeIso: string,
+  level: string | null,
+  venueId: number | null,
+  page: number,
+  limit: number,
+) {
   'use cache'
   cacheLife(CACHE_PROFILE)
   cacheTag(GAMES_CACHE_TAG)
@@ -221,6 +239,8 @@ async function findPastGameDocs(sport: string | null, city: string, beforeIso: s
         { scheduledAt: { less_than_equal: beforeIso } },
         cityWhere('arena.city', city),
         ...(sport ? [{ sport: { equals: sport } }] : []),
+        ...(level ? [{ level: { equals: level } }] : []),
+        ...(venueId ? [{ arena: { equals: venueId } }] : []),
       ],
     },
     select: CARD_SELECT,
@@ -251,7 +271,7 @@ function bucketed(now: Date) {
  */
 async function findPastGames(query: GameListQuery, now: Date) {
   // A game that started inside the current minute joins the list with the next bucket.
-  const result = await findPastGameDocs(query.sport, query.city, bucketed(now), query.page, query.limit)
+  const result = await findPastGameDocs(query.sport, query.city, bucketed(now), query.level, query.venueId, query.page, query.limit)
   return {
     games: result.docs.map((doc) => toGameCard(normalizeGameRecord(doc, now.getTime()))),
     pagination: {
@@ -350,7 +370,7 @@ export async function getGameDetail(
 
   // All three only need `gameId`, so they go out together: against a remote database each extra
   // sequential round trip costs a full network latency.
-  const [doc, previews, [resolvedViewerId, joined]] = await Promise.all([
+  const [doc, previews, [resolvedViewerId, joined], sides] = await Promise.all([
     payload.findByID({
       collection: 'games',
       id: gameId,
@@ -370,8 +390,13 @@ export async function getGameDetail(
       })
       return [id, totalDocs > 0] as const
     }),
+    readSides((payload.db as unknown as PostgresAdapter).drizzle, gameId),
   ])
   if (!doc) return null
+
+  // Free spots per side, for the join panel's side picker.
+  const taken = occupancy(sides.game.maxPlayers, sides.players.map((player) => player.side), sides.guests, sides.hostSide)
+  const cap = sideCapacity(sides.game.maxPlayers)
 
   const game = normalizeGameRecord(doc, now)
   const hostId = typeof doc.host === 'object' ? doc.host?.id : doc.host
@@ -382,6 +407,7 @@ export async function getGameDetail(
     host: { ...game.host, phone: joined || isHost ? doc.contactPhone ?? null : null },
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
     viewer: { joined, isHost },
+    freeBySide: { home: Math.max(cap - taken.home, 0), away: Math.max(cap - taken.away, 0) },
   }
 }
 
@@ -411,7 +437,7 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
     payload.find({
       collection: 'game-participants',
       where: { game: { equals: gameId } },
-      select: { user: true, name: true },
+      select: { user: true, name: true, side: true },
       populate: CARD_POPULATE,
       sort: 'createdAt',
       depth: 2,
@@ -423,6 +449,7 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
 
   const game = normalizeGameRecord(doc)
   const isViewer = (id: string | null) => id !== null && viewerId !== null && id === String(viewerId)
+  const hostSide = docs.map(toPlayer).find((player) => player.id !== null && player.id === game.host.id)?.side ?? 'home'
   const players = docs
     .map(toPlayer)
     // The host's spot is the game itself; a stray participant row for them would list them twice.
@@ -431,7 +458,7 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
 
   return {
     game: { id: game.id, title: game.title, currentCount: game.currentCount, maxCount: game.maxCount },
-    host: { ...game.host, you: isViewer(game.host.id) },
+    host: { ...game.host, side: hostSide, you: isViewer(game.host.id) },
     players,
     others: Math.max(0, game.currentCount - players.length - 1),
   }
@@ -487,7 +514,7 @@ export async function createGame(host: { id: number; phoneNumber?: string | null
       collection: 'game-participants',
       overrideAccess: true,
       req,
-      data: { game: created.id, user: host.id, phone: contactPhone },
+      data: { game: created.id, user: host.id, phone: contactPhone, side: 'home' },
     })
     if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
     gameId = created.id
@@ -519,7 +546,14 @@ export async function getGameHostId(gameId: number) {
   return typeof host === 'object' ? (host?.id ?? null) : host
 }
 
-/** Applies an edited create-game form to an existing game. The host and its players never change. */
+/**
+ * Applies an edited create-game form to an existing game. The host and its players never change.
+ *
+ * The size is changed by Postgres on the locked row, not from the count the route read earlier: a
+ * join or leave landing between that read and this save would otherwise be overwritten, overbooking
+ * the game or losing a spot. `SET` sees the row as it was, so the free spots move by exactly the
+ * change in size, and the same statement refuses a game that has started or would end up too small.
+ */
 export async function updateGame(gameId: number, input: CreateGameInput): Promise<CreateGameResult> {
   const payload = await getPayloadClient()
   const venue = await payload.findByID({
@@ -535,27 +569,76 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
   }
   if (!input.contactPhone) return { ok: false, code: 'PHONE_REQUIRED', message: 'Host telefon nömrəsi tələb olunur.' }
 
-  await payload.update({
-    collection: 'games',
-    id: gameId,
-    overrideAccess: true,
-    data: {
-      title: input.title,
-      sport: input.sport as 'football' | 'basketball' | 'tennis',
-      level: input.level as 'beginner' | 'medium' | 'high',
-      arena: venue.id,
-      scheduledAt: input.scheduledAt.toISOString(),
-      maxPlayers: input.maxCount,
-      // currentCount is the players already in, so resizing the game only moves the free spots.
-      availablePlayers: input.maxCount - input.currentCount,
-      contactPhone: input.contactPhone,
-    },
-  })
+  const transactionID = (await payload.db.beginTransaction()) ?? undefined
+  const adapter = payload.db as unknown as PostgresAdapter
+  const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
+  try {
+    const resized = await db.execute(sql`
+      UPDATE games
+      SET max_players = ${input.maxCount},
+          available_players = available_players + (${input.maxCount} - max_players),
+          updated_at = now()
+      WHERE id = ${gameId}
+        AND status = 'scheduled'
+        AND scheduled_at > now()
+        AND available_players + (${input.maxCount} - max_players) >= 0
+      RETURNING id
+    `)
+    if (resized.rows.length === 0) {
+      if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+      return await editRejection(adapter.drizzle, gameId)
+    }
+    // The resize must leave neither side over half the game; the host moves players first.
+    const sides = await readSides(db, gameId)
+    if (!checkSides(sides.game, sides.players, sides.guests, sides.hostId).ok) {
+      if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+      return { ok: false, code: 'SIDE_FULL', message: 'Komandalardan birində bu saydan çox oyunçu var. Əvvəlcə oyunçuları köçürün.' }
+    }
+
+    await payload.update({
+      collection: 'games',
+      id: gameId,
+      overrideAccess: true,
+      req: { transactionID },
+      data: {
+        title: input.title,
+        sport: input.sport as 'football' | 'basketball' | 'tennis',
+        level: input.level as 'beginner' | 'medium' | 'high',
+        arena: venue.id,
+        scheduledAt: input.scheduledAt.toISOString(),
+        contactPhone: input.contactPhone,
+      },
+    })
+    if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
+  } catch (error) {
+    if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+    throw error
+  }
+  // The collection hook already expired the cache, but before the commit; a read in between could refill it.
   invalidateGamesCache()
 
   const game = await getGameDetail(gameId, null)
   if (!game) return { ok: false, code: 'GAME_NOT_FOUND', message: 'Oyun tapılmadı.' }
   return { ok: true, game }
+}
+
+/** Why the resize in `updateGame` matched no row, read after its transaction was rolled back. */
+async function editRejection(db: PostgresAdapter['drizzle'], gameId: number): Promise<CreateGameResult> {
+  const { rows } = await db.execute<{ upcoming: boolean; status: string; taken: number }>(sql`
+    SELECT status, scheduled_at > now() AS upcoming, max_players - available_players AS taken
+    FROM games
+    WHERE id = ${gameId}
+  `)
+  const game = rows[0]
+  if (!game) return { ok: false, code: 'GAME_NOT_FOUND', message: 'Oyun tapılmadı.' }
+  if (game.status !== 'scheduled' || !game.upcoming) {
+    return { ok: false, code: 'GAME_STARTED', message: 'Oyun artıq başlayıb — onu dəyişmək və ya silmək mümkün deyil.' }
+  }
+  return {
+    ok: false,
+    code: 'MAX_COUNT_BELOW_PLAYERS',
+    message: `Oyunda artıq ${game.taken} oyunçu var, maksimum say bundan az ola bilməz.`,
+  }
 }
 
 /**
@@ -595,13 +678,39 @@ async function findVenues(city: string) {
   const { docs } = await payload.find({
     collection: 'arenas',
     where: cityWhere('city', city),
-    select: { name: true, location: true, city: true, district: true, address: true, coordinates: true, sportTypes: true },
+    select: {
+      name: true,
+      location: true,
+      city: true,
+      district: true,
+      address: true,
+      coordinates: true,
+      sportTypes: true,
+      image: true,
+      imagePath: true,
+      description: true,
+    },
     sort: 'name',
-    depth: 0,
+    // The photo, for the venue pages; the picker only reads the other fields.
+    depth: 1,
     pagination: false,
     overrideAccess: true,
   })
   return docs
+}
+
+/** "Meydançalar": every venue in the city with its photo and description, for `/venues`. */
+export async function listVenuePages(city: string) {
+  return (await findVenues(city)).map((doc) => ({
+    ...normalizeVenue(doc),
+    imageUrl: venueImageUrl(doc),
+    description: typeof doc.description === 'string' && doc.description.trim() ? doc.description.trim() : null,
+  }))
+}
+
+/** One venue's page; null when there is no such venue in the city. Read from the same cached list. */
+export async function getVenuePage(id: number, city = DEFAULT_CITY) {
+  return (await listVenuePages(city)).find((venue) => venue.id === String(id)) ?? null
 }
 
 /** Venue picker options. Venues without sport types listed are offered for every sport. */

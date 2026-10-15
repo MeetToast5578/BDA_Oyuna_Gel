@@ -14,14 +14,6 @@ export const isAdminOrSelf: Access = ({ req }) => {
   return { id: { equals: user.id } }
 }
 
-/** Admins can touch every game; other signed-in users only games they host. */
-export const isAdminOrHost: Access = ({ req }) => {
-  const user = req.user as RoleUser
-  if (!user) return false
-  if (user.role === 'admin') return true
-  return { host: { equals: user.id } }
-}
-
 /**
  * Participation rows say who is playing where, so they are not public: a user reads their own,
  * admins read all. Everything the app itself needs (avatar stacks, counts) runs with

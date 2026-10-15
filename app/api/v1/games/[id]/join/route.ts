@@ -1,23 +1,31 @@
 import { after, NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api-response'
+import { toIcs } from '@/lib/calendar'
+import { joinedEmail } from '@/lib/emails'
 import { invalidateGamesCache } from '@/lib/cache-tags'
 import { normalizePhone } from '@/lib/game-backend'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
-import { claimSpot, recordJoinAttempt, type JoinErrorCode } from '@/lib/join-game'
+import { claimSpot, recordJoinAttempt, tooManyRecentAttempts, type JoinErrorCode } from '@/lib/join-game'
+import { afterResponse, notify } from '@/lib/notify'
 import { rememberPhone } from '@/lib/profile-queries'
+import { SITE_URL } from '@/lib/site-url'
+import { parseSideChoice } from '@/lib/team-logic'
 
 const JOIN_ERRORS: Record<JoinErrorCode, { status: number; message: string }> = {
   GAME_NOT_FOUND: { status: 404, message: 'Oyun tapılmadı.' },
   GAME_NOT_JOINABLE: { status: 409, message: 'Bu oyuna artıq qoşulmaq mümkün deyil.' },
   GAME_FULL: { status: 409, message: 'Oyunda boş yer qalmayıb.' },
   ALREADY_JOINED: { status: 409, message: 'Siz artıq bu oyuna qoşulmusunuz.' },
+  SIDE_FULL: { status: 409, message: 'Bu komandada boş yer qalmayıb. Digər komandanı seçin.' },
+  NOT_A_MEMBER: { status: 409, message: 'Bu komandanın tərəfində yalnız onun üzvləri oynaya bilər.' },
 }
 
 /**
  * "Oyuna qoşul". Requires a signed-in user. The JSON body `{ name, phone }` is what step 1 of the join
  * modal collected; both are required and re-validated here, since the client's checks are only a
- * convenience. The response carries the game with the host's phone for the "Bir addım qaldı" step.
+ * convenience. `side` is `home`, `away` or `random` (the default), the half of the game to join.
+ * The response carries the game with the host's phone for the "Bir addım qaldı" step.
  * The number given is kept on the profile when it has none (or when `saveToProfile` asks), so the
  * next join or create form starts with it; `savedToProfile` says whether it was.
  */
@@ -38,7 +46,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const userId = Number(user.id)
 
-  const body = (await request.json().catch(() => null)) as { name?: unknown; phone?: unknown; saveToProfile?: unknown } | null
+  if (await tooManyRecentAttempts(payload, userId, ip)) {
+    return apiError('RATE_LIMITED', 'Çox tez-tez cəhd edirsiniz. Bir dəqiqə sonra yenidən yoxlayın.', 429)
+  }
+
+  const body = (await request.json().catch(() => null)) as { name?: unknown; phone?: unknown; saveToProfile?: unknown; side?: unknown } | null
 
   // Falls back to the profile so a name or number left out still identifies the player to the host.
   const name = (typeof body?.name === 'string' ? body.name : '').trim() || (user.fullName ?? '').trim()
@@ -53,8 +65,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return apiError('INVALID_PHONE', 'Telefon nömrəsi yanlışdır, məsələn +994 50 210 34 56.', 400)
   }
 
+  const side = parseSideChoice(body?.side)
+  if (!side) {
+    after(() => recordJoinAttempt(payload, { outcome: 'INVALID_REQUEST', gameId, userId, ip }))
+    return apiError('INVALID_SIDE', 'Komanda yanlış seçilib.', 400)
+  }
+
   try {
-    const result = await claimSpot(payload, gameId, userId, phone, name)
+    const result = await claimSpot(payload, gameId, userId, phone, name, side)
 
     if (!result.ok) {
       after(() => recordJoinAttempt(payload, { outcome: result.code, gameId, userId, ip }))
@@ -72,6 +90,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       console.error(error)
       return null
     })
+    if (game) afterResponse(() => notify(payload, [userId], joinedEmail(game, toIcs(game, `${SITE_URL}/games/${game.id}`))))
     // A number typed in step 1 (not the profile's own fallback) is kept for the next form.
     const typedPhone = normalizePhone(body?.phone)
     const savedToProfile = typedPhone
@@ -84,6 +103,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       remainingSpots: result.remainingSpots,
       currentCount: result.maxCount - result.remainingSpots,
       maxCount: result.maxCount,
+      side: result.side,
       game,
       savedToProfile,
     })

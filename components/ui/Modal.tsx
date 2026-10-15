@@ -15,6 +15,7 @@ export function Modal({
   title,
   subtitle,
   focusKey,
+  wide = false,
   children,
 }: {
   open: boolean
@@ -23,6 +24,8 @@ export function Modal({
   subtitle?: string
   /** Change it to re-run the `data-autofocus` focus, e.g. when a wizard swaps step. */
   focusKey?: string | number
+  /** Room for two columns, e.g. a game's two sides. */
+  wide?: boolean
   children: React.ReactNode
 }) {
   const ref = useRef<HTMLDialogElement>(null)
@@ -44,7 +47,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={styles.dialog}
+      className={`${styles.dialog} ${wide ? styles.wide : ''}`}
       aria-labelledby={titleId}
       onClose={() => {
         if (open) onClose()

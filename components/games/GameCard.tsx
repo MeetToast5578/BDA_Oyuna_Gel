@@ -65,7 +65,13 @@ export function GameCard({
               <span className={styles.metaItem}>
                 <Icon name="pin" />
                 <span className="visually-hidden">Məkan:</span>
-                {location}
+                {game.venue.id ? (
+                  <Link href={`/venues/${game.venue.id}`} className={styles.venueLink}>
+                    {location}
+                  </Link>
+                ) : (
+                  location
+                )}
               </span>
             </p>
           )}

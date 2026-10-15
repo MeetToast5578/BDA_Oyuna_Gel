@@ -5,6 +5,7 @@ import React, { Suspense } from 'react'
 import { Footer } from '@/components/site/Footer'
 import { Header } from '@/components/site/Header'
 import { NavigationProgress } from '@/components/site/NavigationProgress'
+import { SITE_URL } from '@/lib/site-url'
 import './globals.css'
 
 const spaceGrotesk = Space_Grotesk({
@@ -20,6 +21,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
+  // Shared previews need absolute image URLs; on a Vercel preview this is the preview's own address.
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'OyunaGəl — Bakıda açıq oyunlar',
     template: '%s · OyunaGəl',

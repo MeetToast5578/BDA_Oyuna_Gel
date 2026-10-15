@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@payloadcms/db-postgres": "^3.89.0",
+    "@payloadcms/email-nodemailer": "^3.89.0",
     "@payloadcms/next": "^3.89.0",
     "@payloadcms/storage-vercel-blob": "^3.89.0",
     "graphql": "^16.14.2",
