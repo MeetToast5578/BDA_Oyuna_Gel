@@ -1,5 +1,8 @@
 # Teams (clubs), sides in a game, and stats: plan
 
+> Still to do on the create form (naming players, inviting, removing, the away club's say):
+> `docs/game-setup-teams-and-players-plan.md`.
+
 > **Status: Phase 0 built, plus one security fix.**
 > - The rules every later phase depends on are in `lib/team-logic.ts`, with 28 tests in
 >   `tests/team-logic.test.ts`: sides, auto-balance, the side invariant, request parsing, the score's
