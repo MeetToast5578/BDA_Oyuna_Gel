@@ -123,13 +123,59 @@ export async function readSides(db: Db, gameId: number) {
 }
 
 /** The game's clubs the user is a member of. */
-async function clubsOf(db: Db, userId: number, game: GameSides): Promise<number[]> {
+export async function clubsOf(db: Db, userId: number, game: GameSides): Promise<number[]> {
   if (game.homeTeamId === null && game.awayTeamId === null) return []
   const { rows } = await db.execute<{ parent_id: number }>(sql`
     SELECT parent_id FROM teams_rels
     WHERE path = 'members' AND users_id = ${userId} AND parent_id IN (${game.homeTeamId}, ${game.awayTeamId})
   `)
   return rows.map((row) => row.parent_id)
+}
+
+/**
+ * Gives the spots a game has free to the people waiting for it, oldest first: each takes a side the
+ * way a "random" join would (`pickSide`), so a club's side stays for its members and neither side goes
+ * over half. Someone who can't stand on any side with room is passed over and keeps their place.
+ * Returns who got in. The caller holds the game's row lock, and the game must not have started
+ * (every caller checks), so a spot changes hands without ever showing as free.
+ */
+export async function promoteWaiting(tx: Db, gameId: number): Promise<number[]> {
+  const promoted: number[] = []
+  for (;;) {
+    const state = await tx.execute<{ available_players: number }>(sql`SELECT available_players FROM games WHERE id = ${gameId}`)
+    if (!(Number(state.rows[0]?.available_players) > 0)) break
+    const waiting = await tx.execute<{ id: number; user_id: number; name: string; phone: string }>(sql`
+      SELECT id, user_id, name, phone FROM game_waitlist WHERE game_id = ${gameId} ORDER BY created_at, id
+    `)
+    if (waiting.rows.length === 0) break
+
+    const sides = await readSides(tx, gameId)
+    const counts = occupancy(sides.game.maxPlayers, sides.players.map((player) => player.side), sides.guests, sides.hostSide)
+    let placed = false
+    for (const person of waiting.rows) {
+      const picked = pickSide(sides.game, counts, 'random', await clubsOf(tx, person.user_id, sides.game))
+      if (!picked.ok) continue
+      await tx.execute(sql`UPDATE games SET available_players = available_players - 1, updated_at = now() WHERE id = ${gameId}`)
+      const inserted = await tx.execute(sql`
+        INSERT INTO game_participants (game_id, user_id, phone, name, side, promoted_at, updated_at, created_at)
+        VALUES (${gameId}, ${person.user_id}, ${person.phone}, ${person.name}, ${picked.side}, now(), now(), now())
+        ON CONFLICT (game_id, user_id) DO NOTHING
+        RETURNING id
+      `)
+      // Already playing (it can't happen through the endpoints): drop the stale row and give the spot back.
+      if (inserted.rows.length === 0) {
+        await tx.execute(sql`UPDATE games SET available_players = available_players + 1, updated_at = now() WHERE id = ${gameId}`)
+      } else {
+        promoted.push(person.user_id)
+        await tx.execute(sql`UPDATE game_invites SET status = 'accepted', updated_at = now() WHERE game_id = ${gameId} AND user_id = ${person.user_id} AND status = 'pending'`)
+      }
+      await tx.execute(sql`DELETE FROM game_waitlist WHERE id = ${person.id}`)
+      placed = true
+      break
+    }
+    if (!placed) break
+  }
+  return promoted
 }
 
 async function rejectionReason(tx: Tx, gameId: number, userId: number): Promise<JoinErrorCode> {
@@ -193,7 +239,7 @@ export async function recordJoinAttempt(
 export type LeaveErrorCode = 'GAME_NOT_FOUND' | 'GAME_STARTED' | 'HOST_CANNOT_LEAVE' | 'NOT_JOINED'
 
 export type LeaveResult =
-  | { ok: true; remainingSpots: number; maxCount: number }
+  | { ok: true; remainingSpots: number; maxCount: number; /** People from the waitlist who took the spot, to be told. */ promoted: number[] }
   | { ok: false; code: LeaveErrorCode }
 
 class LeaveRejected extends Error {
@@ -241,8 +287,12 @@ export async function releaseSpot(payload: Payload, gameId: number, userId: numb
         WHERE id = ${gameId}
         RETURNING available_players, max_players
       `)
-      const row = freed.rows[0]
-      return { ok: true as const, remainingSpots: Number(row.available_players), maxCount: Number(row.max_players) }
+      // The spot goes straight to the first person waiting who can take it, so it is never up for grabs.
+      const promoted = await promoteWaiting(tx, gameId)
+      const row = promoted.length > 0
+        ? (await tx.execute<{ available_players: string; max_players: string }>(sql`SELECT available_players, max_players FROM games WHERE id = ${gameId}`)).rows[0]
+        : freed.rows[0]
+      return { ok: true as const, remainingSpots: Number(row.available_players), maxCount: Number(row.max_players), promoted }
     })
   } catch (error) {
     if (error instanceof LeaveRejected) return { ok: false, code: error.code }

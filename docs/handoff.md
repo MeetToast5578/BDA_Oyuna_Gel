@@ -3,7 +3,8 @@
 > **Update:** PR #14 (everything in §2 below) was merged into `main`. `Branch-1` was restarted from `main`
 > and carries the teams phases 3–7 in draft PR #15; §3 says what each added. The game-setup phases 8–10
 > (`docs/game-setup-teams-and-players-plan.md`: clubs on the form, remove a player, side links, invites by
-> name) are on it too, with migration `20261019_185819_game_invites`.
+> name) are on it too, with migration `20261019_185819_game_invites`. The waitlist for full games (stage 5) is built too, in-app:
+> migration `20261019_192039_game_waitlist`, `lib/waitlist.ts`, `promoteWaiting` in `lib/join-game.ts`.
 
 Written at the end of the session of 14 October 2026, so the next session can pick up without
 re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComponents`; read

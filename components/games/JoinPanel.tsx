@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useId, useState, useTransition } from 'react'
 
-import { ApiError, postJson } from '@/lib/api-client'
+import { ApiError, apiFetch, postJson } from '@/lib/api-client'
 import type { CurrentUser, GameDetail } from '@/lib/api-types'
 import { isUpcoming, normalizePhone } from '@/lib/game-backend'
 import { formatLocalPhone, PHONE_ERROR, PHONE_PREFIX } from '@/lib/phone'
@@ -63,6 +63,8 @@ export function JoinPanel({
   const canJoin = game.status === 'open' && !game.viewer.joined && !game.viewer.isHost
   const [open, setOpen] = useState(autoOpen && canJoin && Boolean(user))
   const [step, setStep] = useState<Step>('details')
+  // The same name-and-phone form serves "Qoşul" and, for a full game, "Gözləmə siyahısına yaz".
+  const [mode, setMode] = useState<'join' | 'waitlist'>('join')
   // Prefilled from the profile, but the player can give a different name or number for this game.
   const [name, setName] = useState(user?.fullName ?? '')
   const [phone, setPhone] = useState(formatLocalPhone(user?.phoneNumber ?? ''))
@@ -86,11 +88,12 @@ export function JoinPanel({
 
   const joinUrl = `${pathname}?join=1${initialSide ? `&side=${initialSide}` : ''}`
 
-  function openModal() {
+  function openModal(next: 'join' | 'waitlist' = 'join') {
     if (!user) {
       router.push(loginHref(joinUrl))
       return
     }
+    setMode(next)
     setStep('details')
     setErrors({})
     setError(null)
@@ -112,7 +115,42 @@ export function JoinPanel({
       return
     }
     setError(null)
-    setStep('confirm')
+    if (mode === 'waitlist') void signUpForWaitlist()
+    else setStep('confirm')
+  }
+
+  /** Full game: the details go straight to the waitlist; there is no host step, since no spot is taken yet. */
+  async function signUpForWaitlist() {
+    setPending(true)
+    try {
+      await postJson(`/api/v1/games/${game.id}/waitlist`, { name: name.trim(), phone: normalizePhone(`${PHONE_PREFIX}${phone}`) })
+      setOpen(false)
+      startRefresh(() => router.refresh())
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'UNAUTHENTICATED') {
+        router.push(loginHref(joinUrl))
+      } else {
+        setError(err instanceof Error ? err.message : 'Gözləmə siyahısına yazılmaq mümkün olmadı.')
+        // A spot may have opened (or the list changed) since the page was drawn.
+        router.refresh()
+      }
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function leaveWaitlist() {
+    setPending(true)
+    setError(null)
+    try {
+      await apiFetch(`/api/v1/games/${game.id}/waitlist`, { method: 'DELETE' })
+      startRefresh(() => router.refresh())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Siyahıdan çıxmaq mümkün olmadı.')
+      router.refresh()
+    } finally {
+      setPending(false)
+    }
   }
 
   async function confirm() {
@@ -202,6 +240,35 @@ export function JoinPanel({
             />
           )}
         </>
+      ) : game.status === 'full' ? (
+        <>
+          <button type="button" className={buttonClass('muted', 'lg', { block: true, className: styles.cta })} disabled>
+            {STATUS_LABELS.full}
+          </button>
+          {game.waitlist.yourPosition !== null ? (
+            <>
+              <p className={styles.state} role="status">
+                Gözləmə siyahısında {game.waitlist.yourPosition}-cisiniz
+              </p>
+              <p className={styles.pastNote}>Yer boşalanda avtomatik sizə veriləcək və bildiriş görəcəksiniz.</p>
+              <button type="button" className={buttonClass('outlinePrimary', 'lg', { block: true })} disabled={pending} onClick={leaveWaitlist}>
+                Siyahıdan çıx
+              </button>
+              {error && (
+                <p className={form.alert} role="alert">
+                  {error}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <button type="button" className={buttonClass('outlinePrimary', 'lg', { block: true })} onClick={() => openModal('waitlist')} aria-haspopup="dialog">
+                Gözləmə siyahısına yaz
+              </button>
+              {game.waitlist.count > 0 && <p className={styles.pastNote}>{game.waitlist.count} nəfər gözləyir</p>}
+            </>
+          )}
+        </>
       ) : game.status !== 'open' ? (
         <button type="button" className={buttonClass('muted', 'lg', { block: true, className: styles.cta })} disabled>
           {STATUS_LABELS[game.status]}
@@ -212,7 +279,7 @@ export function JoinPanel({
           <button
             type="button"
             className={buttonClass('primary', 'lg', { block: true, className: styles.cta })}
-            onClick={openModal}
+            onClick={() => openModal('join')}
             aria-haspopup="dialog"
           >
             Qoşul - {game.remainingSpots} yer qalıb
@@ -228,14 +295,16 @@ export function JoinPanel({
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={step === 'details' ? 'Oyuna qoşul' : 'Bir addım qaldı'}
+        title={step === 'details' ? (mode === 'waitlist' ? 'Gözləmə siyahısına yaz' : 'Oyuna qoşul') : 'Bir addım qaldı'}
         focusKey={step}
       >
         {step === 'details' ? (
           <form className={styles.body} onSubmit={submitDetails} noValidate>
             <hr className={styles.divider} />
             <p className={styles.note}>
-              Host sizi tanıya bilməsi üçün ad və əlaqə nömrənizi qeyd edin.
+              {mode === 'waitlist'
+                ? 'Yer boşalanda ilk növbədəkinə avtomatik verilir. Host sizi tanıya bilməsi üçün ad və əlaqə nömrənizi qeyd edin.'
+                : 'Host sizi tanıya bilməsi üçün ad və əlaqə nömrənizi qeyd edin.'}
             </p>
 
             <div className={form.field}>
@@ -287,32 +356,34 @@ export function JoinPanel({
               {fieldError('phone')}
             </div>
 
-            <fieldset className={form.field}>
-              <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
-                Komanda
-              </legend>
-              <div className={`${choices.choices} ${choices.levels}`}>
-                {SIDE_OPTIONS.map((fixed) => {
-                  // A side with a club is named after it.
-                  const option = fixed.value === 'random' ? fixed : { ...fixed, label: game.teams[fixed.value]?.name ?? fixed.label }
-                  const free = option.value === 'random' ? null : game.freeBySide[option.value]
-                  return (
-                    <label key={option.value} className={`${choices.choice} ${choices.levelChoice} ${styles.sideChoice}`}>
-                      <input
-                        type="radio"
-                        name={`${id}-side`}
-                        value={option.value}
-                        checked={side === option.value}
-                        disabled={free === 0}
-                        onChange={() => setSide(option.value)}
-                      />
-                      {option.label}
-                      {free !== null && <span className={styles.sideFree}>{free === 0 ? 'dolu' : `${free} yer`}</span>}
-                    </label>
-                  )
-                })}
-              </div>
-            </fieldset>
+            {mode === 'join' && (
+              <fieldset className={form.field}>
+                <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
+                  Komanda
+                </legend>
+                <div className={`${choices.choices} ${choices.levels}`}>
+                  {SIDE_OPTIONS.map((fixed) => {
+                    // A side with a club is named after it.
+                    const option = fixed.value === 'random' ? fixed : { ...fixed, label: game.teams[fixed.value]?.name ?? fixed.label }
+                    const free = option.value === 'random' ? null : game.freeBySide[option.value]
+                    return (
+                      <label key={option.value} className={`${choices.choice} ${choices.levelChoice} ${styles.sideChoice}`}>
+                        <input
+                          type="radio"
+                          name={`${id}-side`}
+                          value={option.value}
+                          checked={side === option.value}
+                          disabled={free === 0}
+                          onChange={() => setSide(option.value)}
+                        />
+                        {option.label}
+                        {free !== null && <span className={styles.sideFree}>{free === 0 ? 'dolu' : `${free} yer`}</span>}
+                      </label>
+                    )
+                  })}
+                </div>
+              </fieldset>
+            )}
 
             {error && (
               <p className={form.alert} role="alert">
@@ -320,8 +391,8 @@ export function JoinPanel({
               </p>
             )}
 
-            <button type="submit" className={buttonClass('primary', 'xl', { block: true })}>
-              Qoşul
+            <button type="submit" className={buttonClass('primary', 'xl', { block: true })} disabled={pending} aria-busy={pending}>
+              {mode === 'waitlist' ? 'Siyahıya yaz' : 'Qoşul'}
             </button>
           </form>
         ) : (

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 
-import { getCurrentUser, getPendingInvites } from '@/lib/session'
+import { getCurrentUser, getNoticeCount } from '@/lib/session'
 import { Avatar } from '@/components/games/bits'
 import { buttonClass } from '@/components/ui/button'
 import styles from './Header.module.css'
@@ -34,7 +34,7 @@ function Logo({ className }: { className?: string }) {
 async function SessionActions() {
   const user = await getCurrentUser()
   // A broken count must not take the header down with it.
-  const invites = user ? await getPendingInvites(user.id).catch(() => 0) : 0
+  const notices = user ? await getNoticeCount(user.id).catch(() => 0) : 0
 
   if (!user) {
     return (
@@ -50,7 +50,7 @@ async function SessionActions() {
       <NavLink
         href="/profile"
         className={styles.user}
-        ariaLabel={`Profilim — ${user.fullName}${invites > 0 ? `, ${invites} dəvət` : ''}`}
+        ariaLabel={`Profilim — ${user.fullName}${notices > 0 ? `, ${notices} bildiriş` : ''}`}
       >
         <Avatar
           person={{ name: user.fullName, initials: user.initials, avatarUrl: user.avatarUrl }}
@@ -59,9 +59,9 @@ async function SessionActions() {
           className={styles.avatar}
         />
         <span className={styles.userName}>{user.firstName}</span>
-        {invites > 0 && (
+        {notices > 0 && (
           <span className={styles.badge} aria-hidden="true">
-            {invites}
+            {notices}
           </span>
         )}
       </NavLink>

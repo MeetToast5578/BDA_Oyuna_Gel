@@ -12,6 +12,7 @@ import { EmailNotifications } from '@/components/profile/EmailNotifications'
 import { EditProfile, EditProfileButton } from '@/components/profile/EditProfile'
 import styles from '@/components/profile/Profile.module.css'
 import { PendingInvites } from '@/components/profile/PendingInvites'
+import { WaitlistPanel } from '@/components/profile/WaitlistPanel'
 import { ProfileGames } from '@/components/profile/ProfileGames'
 import { ProfileIdentity } from '@/components/profile/ProfileIdentity'
 import { ProfileStats } from '@/components/profile/ProfileStats'
@@ -23,6 +24,7 @@ import { myInvites } from '@/lib/invites'
 import { findMyGames, getMyProfile } from '@/lib/profile-queries'
 import { loginHref } from '@/lib/safe-redirect'
 import { getCurrentUser } from '@/lib/session'
+import { myWaitlist } from '@/lib/waitlist'
 
 export const metadata: Metadata = { title: 'Profilim' }
 
@@ -61,10 +63,11 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
   // proxy.ts already sends visitors without a session cookie to /login; this catches an expired one.
   if (!user) redirect(loginHref(`/profile${profileTabsQuery(tabs)}`))
 
-  const [profile, list, invites] = await Promise.all([
+  const [profile, list, invites, waitlist] = await Promise.all([
     getMyProfile(user.id),
     findMyGames(user.id, { ...tabs, page: 1, limit: PAGE_SIZE }),
     getPayloadClient().then((payload) => myInvites(payload, user.id)),
+    getPayloadClient().then((payload) => myWaitlist(payload, user.id)),
   ])
   // A session that outlived its account (deleted elsewhere) is as good as signed out.
   if (!profile) redirect(loginHref('/profile'))
@@ -105,6 +108,7 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
       </div>
 
       <PendingInvites invites={invites} />
+      <WaitlistPanel waitlist={waitlist} />
 
       <RecordPanel
         record={profile.record}

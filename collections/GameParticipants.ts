@@ -53,6 +53,14 @@ export const GameParticipants: CollectionConfig = {
       },
     },
     {
+      name: 'promotedAt',
+      type: 'date',
+      admin: {
+        readOnly: true,
+        description: 'Set when the player took a spot that came back to a full game from its waitlist, not by joining.',
+      },
+    },
+    {
       name: 'phone',
       type: 'text',
       access: {

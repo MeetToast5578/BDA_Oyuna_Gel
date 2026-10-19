@@ -100,7 +100,7 @@ describe.skipIf(!process.env.DATABASE_URL)('profile backend (Postgres)', () => {
       await claimSpot(payload, gameId, player, null, 'Player')
       expect(await spotsLeft(gameId)).toBe(4)
 
-      expect(await releaseSpot(payload, gameId, player)).toEqual({ ok: true, remainingSpots: 5, maxCount: 10 })
+      expect(await releaseSpot(payload, gameId, player)).toEqual({ ok: true, remainingSpots: 5, maxCount: 10, promoted: [] })
       expect(await spotsLeft(gameId)).toBe(5)
 
       // The exploit this guards: a second leave must not invent another spot.

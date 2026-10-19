@@ -8,6 +8,7 @@ import type { CurrentUser } from '@/lib/api-types'
 import { initialsOf, userAvatarUrl } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
 import { pendingInviteCount } from '@/lib/invites'
+import { promotionCount } from '@/lib/waitlist'
 
 /**
  * The signed-in user (Payload session or Google session cookie), or null.
@@ -50,5 +51,12 @@ export function sessionTag(userId: number) {
   return `session-${userId}`
 }
 
-/** Invitations waiting for the person, for the header's badge. Once per request: the header renders it twice. */
-export const getPendingInvites = cache(async (userId: number) => pendingInviteCount(await getPayloadClient(), userId))
+/**
+ * What is waiting for the person to look at, for the header's badge: invitations to games, and spots
+ * handed to them from a waitlist in the last few days. Once per request: the header renders it twice.
+ */
+export const getNoticeCount = cache(async (userId: number) => {
+  const payload = await getPayloadClient()
+  const [invites, promotions] = await Promise.all([pendingInviteCount(payload, userId), promotionCount(payload, userId)])
+  return invites + promotions
+})

@@ -45,6 +45,11 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 - [x] `hostSide` on game create.
 - [x] Club names on the side picker (needs phase 6).
 
+### Waitlist for full games (`docs/fixes-and-ux-plan.md` stage 5, built in-app; the email goes out once Gmail is on)
+- [x] `game_waitlist` + `promoted_at` (migration `20261019_192039_game_waitlist`), `POST/DELETE /games/{id}/waitlist`,
+      `promoteWaiting` on leave, host removal, a bigger game and account deletion, the join panel's full state,
+      the profile panel and the header count.
+
 ### Game setup: clubs and players (`docs/game-setup-teams-and-players-plan.md`; decisions D13–D18 open, built to the bold options)
 - [x] Phase 8: always show "Komandalar" on the form, member counts on the options, the away captain
       can decline, club page lists upcoming games.
@@ -54,7 +59,6 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 
 ## B. Blocked on the owner
 
-- [ ] **Waitlist for full games** (`docs/fixes-and-ux-plan.md` stage 5): needs email approved.
 - [ ] **Turn on email:** dedicated Gmail account, App Password, `GMAIL_USER` / `GMAIL_APP_PASSWORD`
       in Vercel.
 - [ ] **Russian and English** (stage 7): needs decision D5 (languages and URLs).

@@ -6,6 +6,7 @@ import { gameCancelledEmail, gameChangedEmail } from '@/lib/emails'
 import { isUpcoming, parseEditGameBody } from '@/lib/game-backend'
 import { deleteGame, getGameDetail, getPayloadClient, updateGame } from '@/lib/game-queries'
 import { afterResponse, notify, participantIds } from '@/lib/notify'
+import { notifyPromoted } from '@/lib/promotions'
 
 /** "Oyun Detalı". Signing in is optional; it only affects `viewer` and whether the host's phone is shown. */
 export async function GET(
@@ -62,6 +63,10 @@ export async function PATCH(
         const payload = await getPayloadClient()
         await notify(payload, await participantIds(payload, auth.gameId, auth.userId), gameChangedEmail(game))
       })
+    }
+
+    if (result.promoted?.length) {
+      afterResponse(async () => notifyPromoted(await getPayloadClient(), [{ gameId: auth.gameId, userIds: result.promoted ?? [] }]))
     }
 
     return NextResponse.json({ game: result.game })

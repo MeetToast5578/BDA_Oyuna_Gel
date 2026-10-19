@@ -3,6 +3,8 @@ import { after, NextResponse } from 'next/server'
 import { apiError } from '@/lib/api-response'
 import { invalidateGamesCache } from '@/lib/cache-tags'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
+import { afterResponse } from '@/lib/notify'
+import { notifyPromoted } from '@/lib/promotions'
 import { recordJoinAttempt, releaseSpot, tooManyRecentAttempts, type LeaveErrorCode } from '@/lib/join-game'
 
 const LEAVE_ERRORS: Record<LeaveErrorCode, { status: number; message: string }> = {
@@ -47,6 +49,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     invalidateGamesCache()
+    // The spot went to the first person waiting, if there was one.
+    if (result.promoted.length > 0) afterResponse(() => notifyPromoted(payload, [{ gameId, userIds: result.promoted }]))
     after(() =>
       recordJoinAttempt(payload, { outcome: 'LEFT', gameId, userId, remainingSpots: result.remainingSpots, ip }),
     )

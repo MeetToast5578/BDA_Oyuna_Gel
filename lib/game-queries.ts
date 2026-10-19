@@ -23,7 +23,8 @@ import {
   type GameListQuery,
 } from '@/lib/game-backend'
 import { addInvites, INVITE_ERRORS } from '@/lib/invites'
-import { readSides } from '@/lib/join-game'
+import { promoteWaiting, readSides } from '@/lib/join-game'
+import { waitlistInfo } from '@/lib/waitlist'
 import {
   checkSides,
   clubSidesError,
@@ -382,7 +383,7 @@ export async function getGameDetail(
 
   // All three only need `gameId`, so they go out together: against a remote database each extra
   // sequential round trip costs a full network latency.
-  const [doc, previews, [resolvedViewerId, joined], sides] = await Promise.all([
+  const [doc, previews, [resolvedViewerId, joined], sides, waiting] = await Promise.all([
     payload.findByID({
       collection: 'games',
       id: gameId,
@@ -403,6 +404,7 @@ export async function getGameDetail(
       return [id, totalDocs > 0] as const
     }),
     readSides((payload.db as unknown as PostgresAdapter).drizzle, gameId),
+    viewer.then((id) => waitlistInfo((payload.db as unknown as PostgresAdapter).drizzle, gameId, id)),
   ])
   if (!doc) return null
 
@@ -441,6 +443,8 @@ export async function getGameDetail(
     host: { ...game.host, phone: joined || isHost ? doc.contactPhone ?? null : null },
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
     viewer: { joined, isHost, canDeclineClub },
+    /** People waiting for a spot in a full game, and the viewer's place on that list (1 is next). */
+    waitlist: waiting,
     freeBySide: { home: Math.max(cap - taken.home, 0), away: Math.max(cap - taken.away, 0) },
     /** The side the host stands on, where their guests stand too. */
     hostSide: sides.hostSide,
@@ -510,7 +514,7 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
 }
 
 type CreateGameResult =
-  | { ok: true; game: NonNullable<Awaited<ReturnType<typeof getGameDetail>>> }
+  | { ok: true; game: NonNullable<Awaited<ReturnType<typeof getGameDetail>>>; /** Waiting players who took the spots a bigger game opened. */ promoted?: number[] }
   | { ok: false; code: string; message: string }
 
 /** Why a game's clubs were refused, as the message the form shows. */
@@ -663,6 +667,7 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
   const transactionID = (await payload.db.beginTransaction()) ?? undefined
   const adapter = payload.db as unknown as PostgresAdapter
   const db = transactionDb(payload, transactionID)
+  let promoted: number[] = []
   try {
     // The clubs are written with the size, so the side check below sees them as they would stand.
     const resized = await db.execute(sql`
@@ -693,6 +698,9 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
         : { ok: false, code: 'SIDE_FULL', message: 'Komandalardan birində bu saydan çox oyunçu var. Əvvəlcə oyunçuları köçürün.' }
     }
 
+    // A bigger game has spots the waitlist is waiting for.
+    promoted = await promoteWaiting(db, gameId)
+
     await payload.update({
       collection: 'games',
       id: gameId,
@@ -717,7 +725,7 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
 
   const game = await getGameDetail(gameId, null)
   if (!game) return { ok: false, code: 'GAME_NOT_FOUND', message: 'Oyun tapılmadı.' }
-  return { ok: true, game }
+  return { ok: true, game, promoted }
 }
 
 /** Why the resize in `updateGame` matched no row, read after its transaction was rolled back. */

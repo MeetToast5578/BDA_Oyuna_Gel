@@ -91,3 +91,17 @@ export function invitedEmail(game: EmailGame & { hostName: string }, side: 'home
     { href: `${SITE_URL}/games/${game.id}?join=1&side=${side}`, label: 'Bax və qoşul' },
   )
 }
+
+/** To the first person waiting for a full game when a spot came back and was handed to them. */
+export function promotedEmail(game: EmailGame): Email {
+  return build(
+    `Oyunda yer qazandınız: ${game.title}`,
+    [
+      `Gözləmə siyahısından "${game.title}" oyununda sizə yer verildi.`,
+      `Vaxt: ${when(game)}`,
+      `Yer: ${where(game)}`,
+      'Gələ bilmirsinizsə, oyun səhifəsindən çıxın ki, yer növbədəkinə keçsin.',
+    ],
+    { href: `${SITE_URL}/games/${game.id}`, label: 'Oyuna bax' },
+  )
+}

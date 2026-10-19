@@ -7,6 +7,7 @@ import { removedFromGameEmail } from '@/lib/emails'
 import { getGameDetail, getGamePlayers, getPayloadClient } from '@/lib/game-queries'
 import { releaseSpot, type LeaveErrorCode } from '@/lib/join-game'
 import { afterResponse, notify } from '@/lib/notify'
+import { notifyPromoted } from '@/lib/promotions'
 
 const REMOVE_ERRORS: Record<LeaveErrorCode, { status: number; message: string }> = {
   GAME_NOT_FOUND: { status: 404, message: 'Oyun tapılmadı.' },
@@ -39,6 +40,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     invalidateGamesCache()
     const [players, game] = await Promise.all([getGamePlayers(auth.gameId, auth.userId), getGameDetail(auth.gameId, auth.userId)])
     if (game) afterResponse(() => notify(payload, [playerId], removedFromGameEmail(game)))
+    // Their spot went to the first person waiting, if there was one.
+    if (result.promoted.length > 0) afterResponse(() => notifyPromoted(payload, [{ gameId: auth.gameId, userIds: result.promoted }]))
     return players ? NextResponse.json(players) : apiError('GAME_NOT_FOUND', 'Oyun tapılmadı.', 404)
   } catch (error) {
     console.error(error)

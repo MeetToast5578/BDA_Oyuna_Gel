@@ -14,6 +14,8 @@ import {
   type ProfileUpdate,
 } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
+import { promoteWaiting } from '@/lib/join-game'
+import type { Promotions } from '@/lib/promotions'
 import { playerRecords } from '@/lib/records'
 import { leaveAllClubs, userClubs } from '@/lib/teams'
 import { summarize, summarizeBySport } from '@/lib/team-logic'
@@ -418,6 +420,7 @@ export async function deleteMyAccount(userId: number) {
 
   const transactionID = (await payload.db.beginTransaction()) ?? undefined
   const req = { transactionID }
+  const promotions: Promotions = []
   try {
     if (hostedIds.length > 0) {
       await payload.delete({
@@ -434,6 +437,13 @@ export async function deleteMyAccount(userId: number) {
     // game from ever showing more free spots than it has places.
     const adapter = payload.db as unknown as PostgresAdapter
     const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
+    // The games where their leaving frees a spot, read before their rows go: whoever is waiting for each
+    // takes it once the rows are gone.
+    const freeing = await db.execute<{ id: number }>(sql`
+      SELECT g.id FROM games g JOIN game_participants p ON p.game_id = g.id
+      WHERE p.user_id = ${userId} AND g.host_id IS DISTINCT FROM ${userId} AND g.status = 'scheduled' AND g.scheduled_at > now()
+      ORDER BY g.id
+    `)
     // The games that stay keep no trace of how to reach the person who deleted their account.
     await db.execute(sql`UPDATE games SET contact_phone = NULL, updated_at = now() WHERE host_id = ${userId}`)
     await db.execute(sql`
@@ -452,6 +462,7 @@ export async function deleteMyAccount(userId: number) {
       overrideAccess: true,
       req,
     })
+    for (const { id } of freeing.rows) promotions.push({ gameId: id, userIds: await promoteWaiting(db, id) })
     // Each club they captain goes to its longest-standing member first: once the account is gone the
     // captain column only empties, which would leave a club with members and nobody in charge.
     await leaveAllClubs(db, userId)
@@ -467,7 +478,7 @@ export async function deleteMyAccount(userId: number) {
   // collected before.
   if (uploadIds.length > 0) await deleteUploads(payload, { id: { in: uploadIds } })
 
-  return { deletedGames: hostedIds.length }
+  return { deletedGames: hostedIds.length, promotions }
 }
 
 /**

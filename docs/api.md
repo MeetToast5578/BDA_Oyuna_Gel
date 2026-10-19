@@ -206,6 +206,7 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
   "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "phone": null },
   "participants": { "preview": [{ "id": "9", "name": "…", "initials": "RM", "avatarUrl": null }], "total": 11 },
   "viewer": { "joined": false, "isHost": false, "canDeclineClub": false },
+  "waitlist": { "count": 2, "yourPosition": null },
   "freeBySide": { "home": 2, "away": 3 },
   "hostSide": "home",
   "result": { "homeScore": 3, "awayScore": 1, "status": "reported" },
@@ -218,7 +219,9 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
 the other side), `confirmed` (final) or `disputed` (the host must report again); a report left
 unanswered for 48 hours reads as `confirmed`. `canReport` and `canConfirm` are what this viewer may
 do now, decided by the same rules the [score routes](#post-apiv1gamesidresult) enforce, so a page
-never re-derives them. `viewer.canDeclineClub` is true for the captain of the club the host put
+never re-derives them. `waitlist` is how many are waiting for a spot in this (full) game, and the viewer's place on that list
+(`1` is next, `null` when they aren't on it); see [the waitlist](#post-apiv1gamesidwaitlist).
+`viewer.canDeclineClub` is true for the captain of the club the host put
 against their own side, while the game hasn't started: it shows "Oyundan çəkil", see
 [`POST /api/v1/games/{id}/decline-club`](#post-apiv1gamesiddecline-club).
 
@@ -302,6 +305,40 @@ list, the same shape as `GET /participants`.
 | 409    | `NOT_JOINED`        | That user isn't in the game (also a second removal) |
 | 409    | `HOST_CANNOT_LEAVE` | The host can't be removed; delete the game     |
 | 409    | `GAME_STARTED`      | Already kicked off, cancelled or finished      |
+
+## `POST /api/v1/games/{id}/waitlist`
+
+"Gözləmə siyahısına yaz". A full game is not a dead end: signed-in players can wait for a spot. The body
+is the join form's `{ "name", "phone" }` (a missing one falls back to the profile; a `400` follows if
+the profile has none). Only while the game is upcoming and has **no free spot**, and not for the host
+or someone already playing. Runs under the game's row lock, so a spot freeing up at the same moment is
+either seen (`GAME_NOT_FULL`) or promoted right after. At most 30 wait for one game. Counted with joins
+and leaves for the rate limit. **200** returns `{ "position": 2, "waitlist": { "count": 2, "yourPosition": 2 } }`.
+
+**When a spot comes back, it goes to the first person waiting, with no further step**: the same
+transaction that frees it (a player leaving, the host removing someone, a bigger game after an edit, a
+deleted account) takes the oldest sign-up that can stand on a side with room (`pickSide`: a club's side
+only takes its members, neither side passes half), so the spot never shows as free. Someone who can't
+stand on any side with room is passed over and keeps their place. The newcomer's participant row has
+`promotedAt` set, they are emailed (when email is on), and for three days the profile shows the spot
+under "Gözləmə siyahısı" and the header's count includes it. Nothing is promoted into a game that has
+started. A direct join (a spot on a side nobody waiting could take) removes the person's sign-up.
+
+| Status | `code`              | When                                                       |
+| ------ | ------------------- | ---------------------------------------------------------- |
+| 400    | `INVALID_NAME` / `INVALID_PHONE` | As for join                                   |
+| 401    | `UNAUTHENTICATED`   | Not signed in                                              |
+| 404    | `GAME_NOT_FOUND`    |                                                            |
+| 409    | `GAME_NOT_JOINABLE` | Started, finished or cancelled                             |
+| 409    | `GAME_NOT_FULL`     | There is a free spot: join instead                         |
+| 409    | `ALREADY_JOINED`    | The person already holds a spot                            |
+| 409    | `ALREADY_WAITING`   | Already on this game's list                                |
+| 409    | `HOST_CANNOT_WAIT`  | The host                                                   |
+| 409    | `WAITLIST_FULL`     | 30 people are waiting already                              |
+| 429    | `RATE_LIMITED`      | As for join                                                |
+
+`DELETE /api/v1/games/{id}/waitlist` ("Siyahıdan çıx") takes the caller off the list and answers
+`{ "waitlist": { … } }`; `409 NOT_WAITING` when they weren't on it.
 
 ## Invitations
 

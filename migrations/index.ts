@@ -6,6 +6,7 @@ import * as migration_20261014_111042_user_email_notifications from './20261014_
 import * as migration_20261014_114826_teams_sides_and_results from './20261014_114826_teams_sides_and_results';
 import * as migration_20261014_115147_join_outcome_side_codes from './20261014_115147_join_outcome_side_codes';
 import * as migration_20261019_185819_game_invites from './20261019_185819_game_invites';
+import * as migration_20261019_192039_game_waitlist from './20261019_192039_game_waitlist';
 
 export const migrations = [
   {
@@ -46,6 +47,11 @@ export const migrations = [
   {
     up: migration_20261019_185819_game_invites.up,
     down: migration_20261019_185819_game_invites.down,
-    name: '20261019_185819_game_invites'
+    name: '20261019_185819_game_invites',
+  },
+  {
+    up: migration_20261019_192039_game_waitlist.up,
+    down: migration_20261019_192039_game_waitlist.down,
+    name: '20261019_192039_game_waitlist'
   },
 ];

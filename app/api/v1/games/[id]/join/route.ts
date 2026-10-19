@@ -7,6 +7,7 @@ import { invalidateGamesCache } from '@/lib/cache-tags'
 import { normalizePhone } from '@/lib/game-backend'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
 import { markInviteAccepted } from '@/lib/invites'
+import { dropWaitlistEntry } from '@/lib/waitlist'
 import { claimSpot, recordJoinAttempt, tooManyRecentAttempts, type JoinErrorCode } from '@/lib/join-game'
 import { afterResponse, notify } from '@/lib/notify'
 import { rememberPhone } from '@/lib/profile-queries'
@@ -84,6 +85,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     invalidateGamesCache()
     // Joining answers an invitation to this game, however the player got here.
     await markInviteAccepted(payload, gameId, userId)
+    await dropWaitlistEntry(payload, gameId, userId)
     after(() =>
       recordJoinAttempt(payload, { outcome: 'JOINED', gameId, userId, remainingSpots: result.remainingSpots, ip }),
     )
