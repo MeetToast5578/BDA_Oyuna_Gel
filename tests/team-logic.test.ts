@@ -313,10 +313,16 @@ describe('invite requests', () => {
     expect(parseInviteEntries(Array.from({ length: 21 }, (_, i) => ({ userId: i + 1, side: 'home' }))).ok).toBe(true)
   })
 
-  it('tells one player from a whole club', () => {
-    expect(parseInviteRequest({ userId: 4, side: 'away' })).toEqual({ ok: true, club: false, entry: { userId: 4, side: 'away' } })
+  it('tells one player, several, and a whole club apart', () => {
+    expect(parseInviteRequest({ userId: 4, side: 'away' })).toEqual({ ok: true, club: false, entries: [{ userId: 4, side: 'away' }] })
+    expect(parseInviteRequest({ invites: [{ userId: 4, side: 'away' }, { userId: 5, side: 'home' }] })).toEqual({
+      ok: true,
+      club: false,
+      entries: [{ userId: 4, side: 'away' }, { userId: 5, side: 'home' }],
+    })
     expect(parseInviteRequest({ clubSide: 'home' })).toEqual({ ok: true, club: true, side: 'home' })
-    for (const body of [null, {}, { clubSide: 'both' }, { userId: 4 }, { userId: 4, side: 'x' }]) {
+    const bad: unknown[] = [null, {}, { clubSide: 'both' }, { userId: 4 }, { userId: 4, side: 'x' }, { invites: [] }, { invites: [{ userId: 4, side: 'x' }] }, { invites: [{ userId: 4, side: 'home' }, { userId: 4, side: 'away' }] }]
+    for (const body of bad) {
       expect(parseInviteRequest(body), JSON.stringify(body)).toEqual({ ok: false })
     }
   })

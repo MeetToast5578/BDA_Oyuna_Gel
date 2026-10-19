@@ -19,6 +19,13 @@
 >   keystroke against joining). It is signed-in only, 2 characters, 8 results, public fields only.
 > - **Declining is final** for that game: the host can't invite the same player again; a player who
 >   accepted and then left can be.
+> - **Player picker (added after Phase 10):** "+ Oyunçu əlavə et" opens a window listing every player, with
+>   a search bar, filters ("Hamısı", "Komandam", "Son oynadıqlarım"), checkboxes and a team choice,
+>   then "Əlavə et" adds all ticked people at once. The create form shows the lineup as two team columns
+>   with slots (move with ⇄, remove with ✕ before publishing); the game page's invite panel uses the
+>   same window. `GET /users` became a paged list (no minimum search length) and `POST /invites` takes
+>   `{ invites: [...] }`. People are still invited, not placed in the game; adding club members
+>   straight in is not built.
 > - **New in Phase 8, not planned:** the host-side choice wraps on a phone, and `?join=1&side=` also
 >   works signed out (sign in, then back to the join form).
 >

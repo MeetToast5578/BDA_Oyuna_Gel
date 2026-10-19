@@ -129,14 +129,17 @@ export function parseInviteEntries(value: unknown): { ok: true; entries: InviteE
   return { ok: true, entries }
 }
 
-/** `POST /invites` body: `{ userId, side }` for one player, or `{ clubSide }` for everyone in that side's club. */
+/**
+ * `POST /invites` body: `{ userId, side }` for one player, `{ invites: [{ userId, side }] }` for several
+ * (the player picker adds a few at once), or `{ clubSide }` for everyone in that side's club.
+ */
 export function parseInviteRequest(
   body: unknown,
-): { ok: true; club: false; entry: InviteEntry } | { ok: true; club: true; side: Side } | { ok: false } {
+): { ok: true; club: false; entries: InviteEntry[] } | { ok: true; club: true; side: Side } | { ok: false } {
   const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
   if (doc.clubSide !== undefined) return doc.clubSide === 'home' || doc.clubSide === 'away' ? { ok: true, club: true, side: doc.clubSide } : { ok: false }
-  const parsed = parseInviteEntries([doc])
-  return parsed.ok && parsed.entries.length === 1 ? { ok: true, club: false, entry: parsed.entries[0] } : { ok: false }
+  const parsed = parseInviteEntries(Array.isArray(doc.invites) ? doc.invites : [doc])
+  return parsed.ok && parsed.entries.length > 0 ? { ok: true, club: false, entries: parsed.entries } : { ok: false }
 }
 
 export type PickSideResult = { ok: true; side: Side } | { ok: false; code: 'NOT_A_MEMBER' | 'SIDE_FULL' }

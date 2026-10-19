@@ -35,9 +35,11 @@ export const INVITE_ERRORS: Record<InviteErrorCode, { status: number; message: s
 
 /** One host can send this many invites an hour, across all their games. */
 export const HOURLY_INVITE_LIMIT = 60
-/** Search results, and the shortest search worth running. */
-export const SEARCH_LIMIT = 8
-export const SEARCH_MIN_CHARS = 2
+/** A page of the player list, and the most one request may ask for. */
+export const USER_PAGE_SIZE = 20
+export const USER_PAGE_MAX = 50
+export type UserFilter = 'all' | 'clubs' | 'recent'
+export const USER_FILTERS: UserFilter[] = ['all', 'clubs', 'recent']
 
 const drizzle = (payload: Payload) => (payload.db as unknown as PostgresAdapter).drizzle
 const idList = (ids: number[]) => sql.join(ids.map((id) => sql`${id}`), sql`, `)
@@ -94,7 +96,7 @@ export async function addInvites(db: Db, gameId: number, game: GameSides, hostId
   return null
 }
 
-export type InviteRequest = { club: false; entry: InviteEntry } | { club: true; side: Side }
+export type InviteRequest = { club: false; entries: InviteEntry[] } | { club: true; side: Side }
 export type InviteResult = { ok: true; invited: number[] } | InviteFailure
 
 /**
@@ -113,7 +115,7 @@ export async function inviteToGame(payload: Payload, gameId: number, hostId: num
     const sides = await readSides(tx, gameId)
     let entries: InviteEntry[]
     if (!request.club) {
-      entries = [request.entry]
+      entries = request.entries
     } else {
       const clubId = request.side === 'home' ? sides.game.homeTeamId : sides.game.awayTeamId
       if (clubId === null) return { ok: false, code: 'NO_CLUB' }
@@ -184,43 +186,62 @@ export async function listGameInvites(payload: Payload, gameId: number) {
 }
 
 /**
- * People whose name contains `query`, ignoring case and Azerbaijani letters ("eli" finds "Əli"), for
- * the host's search box. Public profile fields only. With a game, those already in it or invited to
- * it are left out. Never the caller.
+ * The player list behind "Oyunçu əlavə et": everyone but the caller, a page at a time, narrowed by a
+ * name (a substring, ignoring case and Azerbaijani letters, so "eli" finds "Əli") and by `filter`:
+ * `clubs` is members of the clubs the caller is in, `recent` is people they have shared a game with,
+ * latest first. With a game, those already in it or invited to it are left out. Public profile fields
+ * only (id, name, initials, picture): never an email or a number.
  */
 // shortcut: a scan over users with a folded-name match; add a trigram index when accounts pass tens of thousands.
-export async function searchUsers(payload: Payload, query: string, viewerId: number, gameId: number | null) {
+export async function listUsers(
+  payload: Payload,
+  { query, filter, page, limit, viewerId, gameId }: { query: string; filter: UserFilter; page: number; limit: number; viewerId: number; gameId: number | null },
+) {
   const folded = foldForSearch(query.trim())
-  if (folded.length < SEARCH_MIN_CHARS) return []
+  const byName = folded ? sql`AND position(${folded} in lower(translate(u.full_name, 'əıİöüçşğƏÖÜÇŞĞ', 'eiioucsgeoucsg'))) > 0` : sql``
   const notInGame =
     gameId === null
       ? sql``
       : sql`AND NOT EXISTS (SELECT 1 FROM game_participants p WHERE p.game_id = ${gameId} AND p.user_id = u.id)
             AND NOT EXISTS (SELECT 1 FROM game_invites i WHERE i.game_id = ${gameId} AND i.user_id = u.id AND i.status <> 'accepted')`
+  const sharedGame = sql`
+    FROM game_participants a JOIN game_participants b ON b.game_id = a.game_id JOIN games g ON g.id = a.game_id
+    WHERE a.user_id = ${viewerId} AND b.user_id = u.id AND g.status <> 'cancelled'`
+  const narrowed =
+    filter === 'clubs'
+      ? sql`AND EXISTS (SELECT 1 FROM teams_rels mine JOIN teams_rels theirs ON theirs.parent_id = mine.parent_id AND theirs.path = 'members'
+                        WHERE mine.path = 'members' AND mine.users_id = ${viewerId} AND theirs.users_id = u.id)`
+      : filter === 'recent'
+        ? sql`AND EXISTS (SELECT 1 ${sharedGame})`
+        : sql``
+  const order = filter === 'recent' ? sql`(SELECT max(g.scheduled_at) ${sharedGame}) DESC, u.full_name, u.id` : sql`u.full_name, u.id`
+
   const { rows } = await drizzle(payload).execute<{ id: number }>(sql`
     SELECT u.id FROM users u
-    WHERE u.id <> ${viewerId}
-      AND position(${folded} in lower(translate(u.full_name, 'əıİöüçşğƏÖÜÇŞĞ', 'eiioucsgeoucsg'))) > 0
-      ${notInGame}
-    ORDER BY u.full_name, u.id
-    LIMIT ${SEARCH_LIMIT}
+    WHERE u.id <> ${viewerId} ${byName} ${notInGame} ${narrowed}
+    ORDER BY ${order}
+    LIMIT ${limit + 1} OFFSET ${(page - 1) * limit}
   `)
-  if (rows.length === 0) return []
+  const hasMore = rows.length > limit
+  const ids = rows.slice(0, limit).map((row) => row.id)
+  if (ids.length === 0) return { users: [], hasMore: false }
+
   const { docs } = await payload.find({
     collection: 'users',
-    where: { id: { in: rows.map((row) => row.id) } },
+    where: { id: { in: ids } },
     select: { fullName: true, profilePicture: true, avatarUrl: true },
     depth: 1,
     pagination: false,
     overrideAccess: true,
   })
   const byId = new Map(docs.map((doc) => [doc.id, doc]))
-  return rows.flatMap((row) => {
-    const doc = byId.get(row.id)
+  const users = ids.flatMap((id) => {
+    const doc = byId.get(id)
     if (!doc) return []
-    const { id, name, initials, avatarUrl } = toPlayer({ user: doc })
-    return [{ id, name, initials, avatarUrl }]
+    const { name, initials, avatarUrl } = toPlayer({ user: doc })
+    return [{ id: String(id), name, initials, avatarUrl }]
   })
+  return { users, hasMore }
 }
 
 /** An invite to a game that hasn't started, which the person hasn't joined (joining answers it). */

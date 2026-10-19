@@ -23,8 +23,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 /**
- * "Dəvət et". The host (or an admin) invites one player to a side, `{ userId, side }`, or everyone in
- * a side's club, `{ clubSide }`, before kick-off. An invite holds no spot: the player takes one by
+ * "Dəvət et". The host (or an admin) invites one player to a side, `{ userId, side }`, several at once,
+ * `{ invites: [{ userId, side }] }`, or everyone in a side's club, `{ clubSide }`, before kick-off. An invite holds no spot: the player takes one by
  * joining. Answers with the game's invitations, as `GET` does.
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -36,16 +36,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!body.ok) return apiError('INVALID_INVITE', 'Dəvət sorğusu yanlışdır.', 400)
 
     const payload = await getPayloadClient()
-    const result = await inviteToGame(payload, auth.gameId, auth.userId, body.club ? { club: true, side: body.side } : { club: false, entry: body.entry })
+    const result = await inviteToGame(payload, auth.gameId, auth.userId, body.club ? { club: true, side: body.side } : { club: false, entries: body.entries })
     if (!result.ok) {
       const { status, message } = INVITE_ERRORS[result.code]
-      return apiError(result.code, message, status)
+      // Several can be invited at once, so say whom a refusal is about.
+      const who = result.userId === undefined ? null : await payload.findByID({ collection: 'users', id: result.userId, select: { fullName: true }, depth: 0, overrideAccess: true, disableErrors: true })
+      return apiError(result.code, who?.fullName ? `${message} (${who.fullName})` : message, status)
     }
 
     if (result.invited.length > 0) {
-      const side = body.club ? body.side : body.entry.side
+      const entries = body.club ? result.invited.map((userId) => ({ userId, side: body.side })) : body.entries
       const game = await getGameDetail(auth.gameId, auth.userId)
-      if (game) afterResponse(() => notifyInvited(payload, { ...game, hostName: game.host.name }, result.invited.map((userId) => ({ userId, side }))))
+      if (game) afterResponse(() => notifyInvited(payload, { ...game, hostName: game.host.name }, entries))
     }
     return NextResponse.json({ invited: result.invited.length, invites: await listGameInvites(payload, auth.gameId) })
   } catch (error) {

@@ -31,7 +31,6 @@ import { phoneSource, type PhoneSource } from '@/lib/profile-form'
 import { loginHref } from '@/lib/safe-redirect'
 import type { ClubOption } from '@/lib/teams'
 import { expireSession } from '@/lib/session-actions'
-import { Avatar } from '@/components/games/bits'
 import { LEVEL_OPTIONS, SPORT_EMOJI, SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 import { buttonClass } from '@/components/ui/button'
 import form from '@/components/ui/form.module.css'
@@ -39,11 +38,12 @@ import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { PhoneProfileNote } from '@/components/ui/PhoneProfileNote'
-import { PlayerSearch, type FoundPlayer } from '@/components/games/PlayerSearch'
+import { PlayerPicker, type FoundPlayer } from '@/components/games/PlayerPicker'
 import invitesStyles from '@/components/games/Invites.module.css'
 import danger from '@/components/ui/danger.module.css'
 import styles from './GameForm.module.css'
 import { CalendarPopover, TimePopover } from './Pickers'
+import { TeamSheet } from './TeamSheet'
 import pickers from './Pickers.module.css'
 import { VenuePicker } from './VenuePicker'
 
@@ -175,6 +175,7 @@ export function GameForm({
   const [homeTeam, setHomeTeam] = useState(game?.teams.home?.id ?? '')
   const [awayTeam, setAwayTeam] = useState(game?.teams.away?.id ?? '')
   // People the host named to invite, each to a side. Sent with the game; nothing is invited before it is saved.
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [invitees, setInvitees] = useState<{ player: FoundPlayer; side: 'home' | 'away' }[]>([])
   // The side the host plays on, with their guests. Chosen when creating; an edit keeps it (the host moves like anyone).
   const [hostSide, setHostSide] = useState<'home' | 'away'>(game?.hostSide ?? 'home')
@@ -764,39 +765,48 @@ export function GameForm({
           {!editing && (
             <fieldset className={form.field}>
               <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
-                Oyunçuları dəvət et (istəyə bağlı)
+                Oyunçular (istəyə bağlı)
               </legend>
-              {invitees.length > 0 && (
-                <ul className={invitesStyles.list} aria-label="Dəvət olunacaqlar">
-                  {invitees.map(({ player, side }) => (
-                    <li key={player.id} className={invitesStyles.row}>
-                      <Avatar person={player} size={36} decorative />
-                      <span className={invitesStyles.rowText}>
-                        <span className={invitesStyles.name}>{player.name}</span>
-                        <span className={invitesStyles.sub}>{sideLabels[side]}</span>
-                      </span>
-                      <button
-                        type="button"
-                        className={buttonClass('outlineDark', 'sm')}
-                        aria-label={`${player.name} dəvətini sil`}
-                        onClick={() => setInvitees((current) => current.filter((item) => item.player.id !== player.id))}
-                      >
-                        Sil
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <PlayerSearch
-                sideLabels={sideLabels}
-                taken={invitees.map(({ player }) => player.id)}
-                disabled={invitees.length >= maxCount - 1}
-                onPick={(player, side) => setInvitees((current) => [...current, { player, side }])}
+              <TeamSheet
+                labels={sideLabels}
+                maxCount={maxCount}
+                host={{ name: user.fullName, initials: user.initials, avatarUrl: user.avatarUrl }}
+                hostSide={hostSide}
+                guests={currentCount - 1}
+                invitees={invitees}
+                onMove={(playerId) =>
+                  setInvitees((current) => current.map((item) => (item.player.id === playerId ? { ...item, side: item.side === 'home' ? 'away' : 'home' } : item)))
+                }
+                onRemove={(playerId) => setInvitees((current) => current.filter((item) => item.player.id !== playerId))}
               />
+              <div className={invitesStyles.actions}>
+                <button
+                  type="button"
+                  className={buttonClass('outlinePrimary', 'md')}
+                  disabled={invitees.length >= maxCount - 1}
+                  onClick={() => setPickerOpen(true)}
+                  aria-haspopup="dialog"
+                >
+                  + Oyunçu əlavə et
+                </button>
+              </div>
               <p className={form.hint}>
-                Dəvət yer tutmur: oyunçu qoşulanda yeri ayrılır. Dəvətlər onun profilində görünür. Oyun yaradıldıqdan sonra da
-                dəvət edə bilərsiniz.
+                Seçdiyiniz oyunçulara dəvət gedir: qəbul edib oyuna qoşulanda yerləri ayrılır, dəvət yer tutmur. Fikrinizi dəyişsəniz
+                ✕ ilə silə, ⇄ ilə o biri komandaya keçirə bilərsiniz. Oyun yaradıldıqdan sonra da əlavə edə bilərsiniz.
               </p>
+              <PlayerPicker
+                open={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                sideLabels={sideLabels}
+                defaultSide={hostSide}
+                taken={invitees.map(({ player }) => player.id)}
+                onAdd={(players, side) =>
+                  setInvitees((current) => [
+                    ...current,
+                    ...players.filter((player) => !current.some((item) => item.player.id === player.id)).map((player) => ({ player, side })),
+                  ])
+                }
+              />
             </fieldset>
           )}
 

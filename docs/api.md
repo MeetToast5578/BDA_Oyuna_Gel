@@ -349,8 +349,9 @@ declining. A player who declined can't be invited to that game again; one who ac
 
 ### `POST /api/v1/games/{id}/invites`
 
-"Dəvət et". Host or admin, before kick-off. Body is `{ "userId": 7, "side": "away" }` for one player, or
-`{ "clubSide": "home" }` for everyone in that side's club who isn't in the game or invited yet, as many
+"Dəvət et". Host or admin, before kick-off. Body is `{ "userId": 7, "side": "away" }` for one player,
+`{ "invites": [{ "userId": 7, "side": "away" }, …] }` for several at once (the player picker adds a few
+together; one refused invite refuses the batch), or `{ "clubSide": "home" }` for everyone in that side's club who isn't in the game or invited yet, as many
 as that side has free spots (nobody left to invite is `invited: 0`, not an error). Runs under the game's
 row lock; every invite is checked before any is written. **200** returns
 `{ "invited": 1, "invites": [ … ] }`, the list as `GET` gives it. The invited players get an email
@@ -399,13 +400,23 @@ opens `/games/{gameId}?join=1&side={side}`.
 "Rədd et". The invited player turns an invite down and gets their remaining list back. The same
 `404 INVITE_NOT_FOUND` answers someone else's invite and one already answered, so ids can't be probed.
 
-### `GET /api/v1/users?q=`
+### `GET /api/v1/users`
 
-The host's player search. Signed-in only. `q` is at least 2 characters and matches anywhere in the name,
-ignoring case and Azerbaijani letters (`eli` finds "Əli"). Add `gameId` to leave out people already in or
-invited to that game. At most 8 results, never the caller, and only what a public profile already shows:
-`{ "users": [{ "id": "7", "name": "…", "initials": "…", "avatarUrl": null }] }`. There is no rate limit
-on search yet (a scan of the users table, noted in `lib/invites.ts`).
+The player list behind "Oyunçu əlavə et" (a window with every player, a search bar and filters).
+Signed-in only. Query:
+
+| Query    | Default | Notes                                                                                  |
+| -------- | ------- | -------------------------------------------------------------------------------------- |
+| `q`      | none    | Narrows by name, any length. A substring, ignoring case and Azerbaijani letters (`eli` finds "Əli") |
+| `filter` | `all`   | `clubs`: members of the clubs the caller is in. `recent`: people they have played with, latest game first. Else `400 INVALID_FILTER` |
+| `page`   | `1`     | 1-based. Else `400 INVALID_PAGE`                                                       |
+| `limit`  | `20`    | 1–50. Else `400 INVALID_PAGE`                                                          |
+| `gameId` | none    | Leaves out people already in that game or invited to it. Else `400 INVALID_GAME_ID`    |
+
+Everyone but the caller, by name unless `recent`. Only what a public profile already shows, **never an
+email or a number**: `{ "users": [{ "id": "7", "name": "…", "initials": "…", "avatarUrl": null }], "hasMore": true, "page": 1 }`.
+Any signed-in user can page through every account's name and picture this way; there is no rate limit
+on it yet (a scan of the users table, noted in `lib/invites.ts`).
 
 ## `POST /api/v1/games/{id}/decline-club`
 

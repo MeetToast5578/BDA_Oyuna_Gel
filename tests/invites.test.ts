@@ -292,44 +292,93 @@ describe.skipIf(!process.env.DATABASE_URL)('inviting players (Postgres)', () => 
     expect(await rows(gameId)).toMatchObject([{ status: 'pending', side: 'home' }])
   })
 
-  describe('search', () => {
-    const search = (q: string, as: keyof typeof names | null, gameId?: number) =>
-      searchRoute(new Request(`http://localhost/api/v1/users?q=${encodeURIComponent(q)}${gameId ? `&gameId=${gameId}` : ''}`, { headers: cookie(as) })) as Promise<Response>
+  describe('the player list', () => {
+    const list = (params: Record<string, string | number>, as: keyof typeof names | null) =>
+      searchRoute(new Request(`http://localhost/api/v1/users?${new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))}`, { headers: cookie(as) })) as Promise<Response>
+    const ids = async (response: Response) => (await response.json()).users.map((user: { id: string }) => user.id) as string[]
 
-    it('finds people by name ignoring case and Azerbaijani letters, with public fields only', async () => {
-      expect((await search('eli', null)).status).toBe(401)
-      const { users } = await (await search(`Vəli INVITE ${suffix}`, 'host')).json()
-      expect(users).toHaveLength(1)
-      expect(Object.keys(users[0]).sort()).toEqual(['avatarUrl', 'id', 'initials', 'name'])
-      expect(users[0]).toMatchObject({ id: String(who.vali.id), name: `Vəli Invite ${suffix}` })
-      // Typed without the Azerbaijani letters, or with a capital dotted İ, it is the same search. It is a
-      // substring match, so "eli" is inside "Vəli" as well as "Əli".
-      for (const typed of [`veli invite ${suffix}`, `VELİ INVITE ${suffix}`]) {
-        expect((await (await search(typed, 'host')).json()).users.map((user: { id: string }) => user.id)).toEqual([String(who.vali.id)])
-      }
-      expect((await (await search(`eli invite ${suffix}`, 'host')).json()).users.map((user: { id: string }) => user.id).sort()).toEqual(
-        [String(who.ali.id), String(who.vali.id)].sort(),
-      )
+    it('needs a session and gives public fields only', async () => {
+      expect((await list({}, null)).status).toBe(401)
+      const body = await (await list({ q: `Vəli Invite ${suffix}` }, 'host')).json()
+      expect(body.users).toHaveLength(1)
+      expect(Object.keys(body.users[0]).sort()).toEqual(['avatarUrl', 'id', 'initials', 'name'])
+      expect(body).toMatchObject({ hasMore: false, page: 1, users: [{ id: String(who.vali.id), name: `Vəli Invite ${suffix}` }] })
     })
 
-    it('needs two characters, never lists the caller, and caps the list', async () => {
-      expect((await (await search('a', 'host')).json()).users).toEqual([])
-      expect((await (await search('', 'host')).json()).users).toEqual([])
-      expect((await (await search(`Invite ${suffix}`, 'ali')).json()).users.map((user: { id: string }) => user.id)).not.toContain(String(who.ali.id))
-      expect((await (await search('e', 'host')).json()).users).toEqual([])
-      expect((await (await search('Test', 'host')).json()).users.length).toBeLessThanOrEqual(8)
-      expect((await search('ab', 'host', -1)).status).toBe(400)
+    it('finds people by name ignoring case and Azerbaijani letters, as a substring', async () => {
+      for (const typed of [`veli invite ${suffix}`, `VELİ INVITE ${suffix}`]) expect(await ids(await list({ q: typed }, 'host'))).toEqual([String(who.vali.id)])
+      // "eli" is inside "Vəli" as well as "Əli".
+      expect((await ids(await list({ q: `eli invite ${suffix}` }, 'host'))).sort()).toEqual([String(who.ali.id), String(who.vali.id)].sort())
+      expect(await ids(await list({ q: `zzzz${suffix}` }, 'host'))).toEqual([])
+    })
+
+    it('lists everyone else with no name, a page at a time, and never the caller', async () => {
+      const first = await (await list({ limit: 2 }, 'ali')).json()
+      expect(first.users).toHaveLength(2)
+      expect(first.hasMore).toBe(true)
+      const second = await (await list({ limit: 2, page: 2 }, 'ali')).json()
+      expect(second.users.map((user: { id: string }) => user.id)).not.toEqual(first.users.map((user: { id: string }) => user.id))
+      const everyone = await ids(await list({ q: `Invite ${suffix}` }, 'ali'))
+      expect(everyone).not.toContain(String(who.ali.id))
+      expect(everyone).toEqual(expect.arrayContaining([String(who.vali.id), String(who.kamal.id)]))
+      // Sorted by name.
+      const names = (await (await list({ q: suffix }, 'ali')).json()).users.map((user: { name: string }) => user.name)
+      expect(names).toEqual([...names].sort((a: string, b: string) => a.localeCompare(b, 'en')))
+    })
+
+    it('narrows to members of the caller\'s clubs', async () => {
+      // The host is in one club, with Member and Əli.
+      expect((await ids(await list({ filter: 'clubs' }, 'host'))).sort()).toEqual([String(who.member.id), String(who.ali.id)].sort())
+      expect(await ids(await list({ filter: 'clubs' }, 'stranger'))).toEqual([])
+      expect(await ids(await list({ filter: 'clubs', q: 'Member' }, 'host'))).toEqual([String(who.member.id)])
+    })
+
+    it('narrows to people the caller has played with, latest first', async () => {
+      expect(await ids(await list({ filter: 'recent' }, 'stranger'))).toEqual([])
+      const earlier = await makeGame({ hoursFromNow: 5 })
+      await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: earlier, user: who.stranger.id, side: 'away' } })
+      await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: earlier, user: who.kamal.id, side: 'away' } })
+      const later = await makeGame({ hoursFromNow: 9 })
+      await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: later, user: who.stranger.id, side: 'away' } })
+      await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: later, user: who.vali.id, side: 'away' } })
+      const recent = await ids(await list({ filter: 'recent' }, 'stranger'))
+      // Host and Vəli shared the later game; Kamal only the earlier one.
+      expect(recent.slice(0, 2).sort()).toEqual([String(who.host.id), String(who.vali.id)].sort())
+      expect(recent[2]).toBe(String(who.kamal.id))
+      expect(recent).not.toContain(String(who.stranger.id))
+      expect(await ids(await list({ filter: 'recent', q: 'kamal' }, 'stranger'))).toEqual([String(who.kamal.id)])
     })
 
     it('leaves out people already in the game or invited to it', async () => {
       const gameId = await makeGame()
       await one(gameId, 'ali', 'away')
       await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: gameId, user: who.vali.id, side: 'away' } })
-      const ids = (await (await search(`Invite ${suffix}`, 'host', gameId)).json()).users.map((user: { id: string }) => user.id)
-      expect(ids).toEqual([String(who.kamal.id)])
-      const without = (await (await search(`Invite ${suffix}`, 'host')).json()).users.map((user: { id: string }) => user.id)
-      expect(without).toEqual(expect.arrayContaining([String(who.ali.id), String(who.vali.id), String(who.kamal.id)]))
+      expect(await ids(await list({ q: `Invite ${suffix}`, gameId }, 'host'))).toEqual([String(who.kamal.id)])
+      expect(await ids(await list({ q: `Invite ${suffix}` }, 'host'))).toEqual(expect.arrayContaining([String(who.ali.id), String(who.vali.id), String(who.kamal.id)]))
     })
+
+    it('refuses a bad filter, page, limit or game', async () => {
+      for (const params of [{ filter: 'everyone' }, { page: 0 }, { page: 'x' }, { limit: 51 }, { limit: 0 }, { gameId: -1 }, { gameId: 0 }] as Record<string, string | number>[]) {
+        expect((await list(params, 'host')).status, JSON.stringify(params)).toBe(400)
+      }
+    })
+  })
+
+  it('invites several players in one request', async () => {
+    const gameId = await makeGame({ homeTeam: homeClub })
+    const response = await invite(gameId, 'host', { invites: [{ userId: who.member.id, side: 'home' }, { userId: who.kamal.id, side: 'away' }] })
+    expect(response.status).toBe(200)
+    expect((await response.json()).invited).toBe(2)
+    expect((await rows(gameId)).map((row) => [row.user, row.side])).toEqual([[who.member.id, 'home'], [who.kamal.id, 'away']])
+    // One refused invite refuses the batch and writes none of it.
+    const other = await makeGame({ homeTeam: homeClub })
+    const refused = await invite(other, 'host', { invites: [{ userId: who.kamal.id, side: 'away' }, { userId: who.stranger.id, side: 'home' }] })
+    expect(refused.status).toBe(409)
+    const refusal = (await refused.clone().json()).error
+    expect(refusal.code).toBe('INVITE_NOT_A_MEMBER')
+    // The message names the player who can't be put there.
+    expect(refusal.message).toContain(`Stranger ${suffix}`)
+    expect(await rows(other)).toHaveLength(0)
   })
 
   describe('creating a game with invites', () => {

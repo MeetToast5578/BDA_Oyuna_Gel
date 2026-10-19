@@ -11,7 +11,7 @@ import form from '@/components/ui/form.module.css'
 import { Avatar } from './bits'
 import detail from './GameDetail.module.css'
 import styles from './Invites.module.css'
-import { PlayerSearch } from './PlayerSearch'
+import { PlayerPicker } from './PlayerPicker'
 
 type Invites = Awaited<ReturnType<typeof listGameInvites>>
 
@@ -37,6 +37,7 @@ export function HostInvites({
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   async function run(action: () => Promise<{ invites: Invites; invited?: number }>) {
     setBusy(true)
@@ -61,11 +62,24 @@ export function HostInvites({
       <h2 id="invite-title" className={detail.panelLabel}>
         Oyunçu dəvət et
       </h2>
-      <PlayerSearch
+      <div className={styles.actions}>
+        <button type="button" className={buttonClass('primary', 'md')} disabled={busy} onClick={() => setPickerOpen(true)} aria-haspopup="dialog">
+          + Oyunçu əlavə et
+        </button>
+      </div>
+      <PlayerPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
         gameId={gameId}
         sideLabels={sideLabels}
-        disabled={busy}
-        onPick={(player, side) => invite({ userId: Number(player.id), side })}
+        onAdd={async (players, side) => {
+          const answer = await postJson<{ invites: Invites; invited: number }>(`/api/v1/games/${gameId}/invites`, {
+            invites: players.map((player) => ({ userId: Number(player.id), side })),
+          })
+          setInvites(answer.invites)
+          setMessage(`${answer.invited} nəfər dəvət olundu.`)
+          router.refresh()
+        }}
       />
       {(['home', 'away'] as const).some((side) => clubs[side]) && (
         <div className={styles.actions}>
