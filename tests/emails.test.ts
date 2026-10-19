@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { escapeHtml, gameCancelledEmail, gameChangedEmail, joinedEmail } from '@/lib/emails'
+import { escapeHtml, gameCancelledEmail, gameChangedEmail, joinedEmail, removedFromGameEmail } from '@/lib/emails'
 import { parseProfileUpdate } from '@/lib/game-backend'
 
 const GAME = {
@@ -38,6 +38,14 @@ describe('game emails', () => {
     const cancelled = gameCancelledEmail(GAME)
     expect(cancelled.subject).toBe('Oyun ləğv edildi: Axşam futbolu')
     expect(cancelled.text).toContain('(Şən, 18 Okt, 19:00, Aku Arena)')
+  })
+
+  it('tells a player the host took them out, with the game\'s title escaped', () => {
+    const removed = removedFromGameEmail({ ...GAME, title: '<b>Axşam</b>' })
+    expect(removed.subject).toBe('Oyundan çıxarıldınız: <b>Axşam</b>')
+    expect(removed.text).toContain('(Şən, 18 Okt, 19:00, Aku Arena)')
+    expect(removed.html).toContain('&lt;b&gt;Axşam&lt;/b&gt;')
+    expect(removed.html).not.toContain('<b>Axşam</b>')
   })
 })
 

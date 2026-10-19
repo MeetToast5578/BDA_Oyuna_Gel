@@ -79,10 +79,13 @@ async function GameDetailContent({ params, searchParams }: Props) {
   const { game, user } = loaded
 
   const canJoin = game.status === 'open' && !game.viewer.joined && !game.viewer.isHost
-  const wantsToJoin = (await searchParams).join === '1'
+  const query = await searchParams
+  const wantsToJoin = query.join === '1'
+  // A link to one side (see the share buttons) opens the join form with that side picked.
+  const linkedSide = query.side === 'home' || query.side === 'away' ? query.side : undefined
   // "Qoşul" on a card while signed out: sign in first, then come back with the join modal open.
   // proxy.ts already sends visitors without a session cookie; this catches an expired one.
-  if (wantsToJoin && canJoin && !user) redirect(loginHref(`/games/${game.id}?join=1`))
+  if (wantsToJoin && canJoin && !user) redirect(loginHref(`/games/${game.id}?join=1${linkedSide ? `&side=${linkedSide}` : ''}`))
 
   const location = [game.venue.name, game.venue.district].filter(Boolean).join(', ')
   const { participants, host } = game
@@ -224,14 +227,26 @@ async function GameDetailContent({ params, searchParams }: Props) {
         )}
 
         {/* Keyed like the create form: a page kept mounted since a profile change prefills the new number. */}
-        <JoinPanel key={user?.phoneNumber ?? 'no-phone'} game={game} user={user} autoOpen={wantsToJoin && canJoin} />
+        <JoinPanel key={user?.phoneNumber ?? 'no-phone'} game={game} user={user} autoOpen={wantsToJoin && canJoin} initialSide={linkedSide} />
 
         {/* The score of a game that is over: entered by the host, confirmed from the other side. */}
         {(game.status === 'finished' || game.result) && <ResultPanel game={game} />}
 
         {upcoming && (
           <section className={styles.panel} aria-label="Paylaş">
-            <ShareButton title={game.title} text={shareText(game)} url={gameUrl} />
+            <ShareButton
+              title={game.title}
+              text={shareText(game)}
+              url={gameUrl}
+              sideLinks={
+                game.status === 'open'
+                  ? [
+                      { label: `${game.teams.home?.name ?? 'A komandası'} üçün link`, url: `${gameUrl}?join=1&side=home` },
+                      { label: `${game.teams.away?.name ?? 'B komandası'} üçün link`, url: `${gameUrl}?join=1&side=away` },
+                    ]
+                  : []
+              }
+            />
             {/* Only for those coming: the calendar reminds them two hours before kick-off. */}
             {(game.viewer.joined || game.viewer.isHost) && (
               <p className={styles.calendarLinks}>

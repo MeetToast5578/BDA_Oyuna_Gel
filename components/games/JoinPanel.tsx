@@ -8,7 +8,7 @@ import type { CurrentUser, GameDetail } from '@/lib/api-types'
 import { isUpcoming, normalizePhone } from '@/lib/game-backend'
 import { formatLocalPhone, PHONE_ERROR, PHONE_PREFIX } from '@/lib/phone'
 import { phoneSource, type PhoneSource } from '@/lib/profile-form'
-import type { SideChoice } from '@/lib/team-logic'
+import type { Side, SideChoice } from '@/lib/team-logic'
 import { loginHref } from '@/lib/safe-redirect'
 import { expireSession } from '@/lib/session-actions'
 import choices from '@/components/create/GameForm.module.css'
@@ -44,7 +44,18 @@ const SIDE_OPTIONS: { value: SideChoice; label: string }[] = [
  * collected. On success the modal closes and the page refreshes, which shows the new player count
  * and reveals the host's phone.
  */
-export function JoinPanel({ game, user, autoOpen }: { game: GameDetail; user: CurrentUser | null; autoOpen: boolean }) {
+export function JoinPanel({
+  game,
+  user,
+  autoOpen,
+  initialSide,
+}: {
+  game: GameDetail
+  user: CurrentUser | null
+  autoOpen: boolean
+  /** From a link to one side (`?side=`); "Təsadüfi" without one. */
+  initialSide?: Side
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const id = useId()
@@ -57,7 +68,7 @@ export function JoinPanel({ game, user, autoOpen }: { game: GameDetail; user: Cu
   const [phone, setPhone] = useState(formatLocalPhone(user?.phoneNumber ?? ''))
   const phoneNote: PhoneSource = user ? phoneSource(user.phoneNumber, phone) : 'none'
   const [savePhone, setSavePhone] = useState(false)
-  const [side, setSide] = useState<SideChoice>('random')
+  const [side, setSide] = useState<SideChoice>(initialSide ?? 'random')
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({})
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -73,7 +84,7 @@ export function JoinPanel({ game, user, autoOpen }: { game: GameDetail; user: Cu
     if (autoOpen) window.history.replaceState(null, '', pathname)
   }, [autoOpen, pathname])
 
-  const joinUrl = `${pathname}?join=1`
+  const joinUrl = `${pathname}?join=1${initialSide ? `&side=${initialSide}` : ''}`
 
   function openModal() {
     if (!user) {

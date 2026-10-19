@@ -68,3 +68,12 @@ export function gameCancelledEmail(game: EmailGame): Email {
     { href: `${SITE_URL}/games`, label: 'Açıq oyunlar' },
   )
 }
+
+/** To a player the host took out of a game that hasn't started. */
+export function removedFromGameEmail(game: EmailGame): Email {
+  return build(
+    `Oyundan çıxarıldınız: ${game.title}`,
+    [`Host sizi "${game.title}" oyunundan (${when(game)}, ${game.venue.name}) çıxardı.`, 'Başqa açıq oyunlara baxa bilərsiniz.'],
+    { href: `${SITE_URL}/games`, label: 'Açıq oyunlar' },
+  )
+}

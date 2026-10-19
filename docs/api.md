@@ -285,6 +285,24 @@ reported score. Body: `{ "action": "confirm" }` or `{ "action": "dispute" }`. An
   `409 NOTHING_TO_CONFIRM` (no score reported, or it is already confirmed or disputed),
   `409 GAME_NOT_FINISHED`.
 
+## `DELETE /api/v1/games/{id}/players/{userId}`
+
+"Çıxar": the host (admins too) takes a player out of a game that hasn't started. The spot goes back to
+the game exactly as the player's own [leave](#post-apiv1gamesidleave) gives it back (same `releaseSpot`
+transaction, so a second removal, or one racing the player's own leave, changes nothing). The removed
+player gets an email (when email is on, and they haven't turned it off). **200** returns the players
+list, the same shape as `GET /participants`.
+
+| Status | `code`              | When                                           |
+| ------ | ------------------- | ---------------------------------------------- |
+| 400    | `INVALID_USER_ID`   | `userId` is not a positive integer             |
+| 401    | `UNAUTHENTICATED`   | Not signed in                                  |
+| 403    | `NOT_GAME_HOST`     | Signed in, but not this game's host            |
+| 404    | `GAME_NOT_FOUND`    |                                                |
+| 409    | `NOT_JOINED`        | That user isn't in the game (also a second removal) |
+| 409    | `HOST_CANNOT_LEAVE` | The host can't be removed; delete the game     |
+| 409    | `GAME_STARTED`      | Already kicked off, cancelled or finished      |
+
 ## `POST /api/v1/games/{id}/decline-club`
 
 "Komandanı oyundan çıxar". The host names the opposing club without asking it, so this is how it
@@ -376,6 +394,9 @@ Body: `{ "name": "Kərim Məmmədov", "phone": "+994 50 210 34 56" }` — what s
 
 `side` is optional: `"home"`, `"away"` or `"random"` (the default). Random takes the emptier side,
 with a coin flip on a tie. A side that belongs to a club only admits its members.
+
+A link to one side, `/games/{id}?join=1&side=home|away`, opens the join form with that side picked
+(the share menu offers one per side). A signed-out visitor signs in first and comes back to it.
 
 A `phone` sent is kept on the profile (see [Remembered phone number](#remembered-phone-number)) when the profile has none, or when `"saveToProfile": true` asks to replace it.
 

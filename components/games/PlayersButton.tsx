@@ -158,6 +158,8 @@ function PlayersList({
   const players = list.players.map((player, toneIndex) => ({ player, toneIndex }))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The player whose "Çıxar" was pressed once: the second press takes them out.
+  const [removing, setRemoving] = useState<string | null>(null)
   // A side with a club is named after it.
   const labels = { home: list.sideNames.home ?? 'A komandası', away: list.sideNames.away ?? 'B komandası' }
 
@@ -173,6 +175,19 @@ function PlayersList({
     }
   }
 
+  async function remove(userId: string) {
+    setBusy(true)
+    setError(null)
+    try {
+      onMoved(await apiFetch<GamePlayers>(`/api/v1/games/${gameId}/players/${userId}`, { method: 'DELETE' }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Oyunçunu çıxarmaq mümkün olmadı.')
+    } finally {
+      setRemoving(null)
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       {list.canMove && (
@@ -180,12 +195,12 @@ function PlayersList({
           <button type="button" className={buttonClass('outlinePrimary', 'md')} disabled={busy} onClick={() => change({ balance: true })}>
             Balansla
           </button>
-          {error && (
-            <p className={form.alert} role="alert">
-              {error}
-            </p>
-          )}
         </div>
+      )}
+      {error && (
+        <p className={form.alert} role="alert">
+          {error}
+        </p>
       )}
       <div className={styles.sides}>
         {(['home', 'away'] as const).map((side) => (
@@ -212,6 +227,20 @@ function PlayersList({
                         onClick={() => change({ assignments: [{ userId: Number(player.id), side: otherSide(side) }] })}
                       >
                         <span aria-hidden="true">⇄</span>
+                      </button>
+                    )}
+                    {list.canMove && player.id && (
+                      <button
+                        type="button"
+                        className={`${styles.move} ${styles.remove} ${removing === player.id ? styles.removeAsk : ''}`}
+                        disabled={busy}
+                        aria-label={
+                          removing === player.id ? `${player.name} oyunçusunu çıxarmağı təsdiqlə` : `${player.name} oyunçusunu oyundan çıxar`
+                        }
+                        onBlur={() => setRemoving((current) => (current === player.id ? null : current))}
+                        onClick={() => (removing === player.id ? remove(player.id as string) : setRemoving(player.id))}
+                      >
+                        <span aria-hidden="true">{removing === player.id ? 'Bəli?' : '✕'}</span>
                       </button>
                     )}
                   </li>
