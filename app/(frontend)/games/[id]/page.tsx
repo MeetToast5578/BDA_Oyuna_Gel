@@ -6,6 +6,7 @@ import { cache, Suspense } from 'react'
 import { Avatar, LevelBadge, ProgressBar, SportBadge } from '@/components/games/bits'
 import { BackLink } from '@/components/games/BackLink'
 import { CoverImage } from '@/components/games/CoverImage'
+import { DeclineClub } from '@/components/games/DeclineClub'
 import styles from '@/components/games/GameDetail.module.css'
 import { JoinPanel } from '@/components/games/JoinPanel'
 import { PlayersButton } from '@/components/games/PlayersButton'
@@ -216,6 +217,10 @@ async function GameDetailContent({ params, searchParams }: Props) {
           <Link href={`/games/${game.id}/edit`} className={buttonClass('outlinePrimary', 'lg', { block: true })}>
             Oyunu redaktə et
           </Link>
+        )}
+
+        {game.viewer.canDeclineClub && (
+          <DeclineClub gameId={game.id} clubName={(game.hostSide === 'home' ? game.teams.away : game.teams.home)?.name ?? ''} />
         )}
 
         {/* Keyed like the create form: a page kept mounted since a profile change prefills the new number. */}

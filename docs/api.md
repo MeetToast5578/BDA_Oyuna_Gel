@@ -205,7 +205,7 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
   "…": "game card",
   "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "phone": null },
   "participants": { "preview": [{ "id": "9", "name": "…", "initials": "RM", "avatarUrl": null }], "total": 11 },
-  "viewer": { "joined": false, "isHost": false },
+  "viewer": { "joined": false, "isHost": false, "canDeclineClub": false },
   "freeBySide": { "home": 2, "away": 3 },
   "hostSide": "home",
   "result": { "homeScore": 3, "awayScore": 1, "status": "reported" },
@@ -218,7 +218,9 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
 the other side), `confirmed` (final) or `disputed` (the host must report again); a report left
 unanswered for 48 hours reads as `confirmed`. `canReport` and `canConfirm` are what this viewer may
 do now, decided by the same rules the [score routes](#post-apiv1gamesidresult) enforce, so a page
-never re-derives them.
+never re-derives them. `viewer.canDeclineClub` is true for the captain of the club the host put
+against their own side, while the game hasn't started: it shows "Oyundan çəkil", see
+[`POST /api/v1/games/{id}/decline-club`](#post-apiv1gamesiddecline-club).
 
 `freeBySide` is the free spots on each half of the game ("A komandası" is `home`, "B komandası" is
 `away`), for the join modal's side picker. Each side holds half of `maxCount`; the host's guests
@@ -282,6 +284,23 @@ reported score. Body: `{ "action": "confirm" }` or `{ "action": "dispute" }`. An
   side: the host's own teammates, strangers and the host can't answer), `404 GAME_NOT_FOUND`,
   `409 NOTHING_TO_CONFIRM` (no score reported, or it is already confirmed or disputed),
   `409 GAME_NOT_FINISHED`.
+
+## `POST /api/v1/games/{id}/decline-club`
+
+"Komandanı oyundan çıxar". The host names the opposing club without asking it, so this is how it
+answers: the captain of the club on the side **opposite the host** (or an admin) takes it out, before
+kick-off, and that side becomes open to anyone. Players already standing on it stay, because an open
+side admits anyone. Runs under the game's row lock. **200** returns `{ "game": { … } }`.
+
+| Status | `code`             | When                                                        |
+| ------ | ------------------ | ----------------------------------------------------------- |
+| 401    | `UNAUTHENTICATED`  | Not signed in                                               |
+| 403    | `NOT_CAPTAIN`      | Not the opposing club's captain (the host's own club's captain isn't either) |
+| 404    | `GAME_NOT_FOUND`   |                                                             |
+| 409    | `GAME_STARTED`     | Started, finished or cancelled                              |
+| 409    | `NO_OPPONENT_CLUB` | The side opposite the host is already open                  |
+
+A host can name the same club again by editing the game; its captain can decline again.
 
 ## `PATCH /api/v1/games/{id}/sides`
 
@@ -517,11 +536,16 @@ A club's page. Public; signing in marks your own row.
   "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol", "memberCount": 2,
   "members": [{ "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "isCaptain": true, "you": false }],
   "record": { "…": "as in GET /api/v1/teams" },
+  "upcoming": [{ "id": "40", "title": "Cümə axşamı 5-ə-5", "opponent": "Neftçi", "dateLabel": "Cüm, 23 Okt", "timeLabel": "20:00", "freeSpots": 3, "maxCount": 10 }],
   "recent": [{ "id": "31", "title": "Cümə axşamı 5-ə-5", "startsAt": "…", "dateLabel": "Cüm, 9 Okt", "homeScore": 3, "awayScore": 1, "outcome": "win", "opponent": "Neftçi" }],
   "viewer": { "isMember": false, "isCaptain": false },
   "inviteCode": null
 }
 ```
+
+`upcoming` is up to ten games not yet played where the club is a side, soonest first (`opponent` is
+`null` while the other side is open): how a captain finds a game their club was named in, and
+members find their club's game.
 
 `recent` is the club's latest five counted games, newest first: the score as `homeScore` : `awayScore`
 (the game's A and B sides), the `outcome` from the club's side, and the other club's name (`null`

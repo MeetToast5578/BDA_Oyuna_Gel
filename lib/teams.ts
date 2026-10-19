@@ -3,10 +3,10 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
-import { formatBakuShortDate, SPORT_META, toPlayer } from '@/lib/game-backend'
-import type { Db } from '@/lib/join-game'
+import { formatBakuShortDate, formatBakuTime, SPORT_META, toPlayer } from '@/lib/game-backend'
+import { readSides, type Db } from '@/lib/join-game'
 import { recentTeamResults, teamRecords } from '@/lib/records'
-import { afterMemberLeaves, compareStandings, summarize, type WinLossRecord } from '@/lib/team-logic'
+import { afterMemberLeaves, compareStandings, otherSide, summarize, type WinLossRecord } from '@/lib/team-logic'
 
 export type TeamErrorCode = 'TEAM_NOT_FOUND' | 'NOT_CAPTAIN' | 'INVALID_INVITE' | 'NOT_A_CLUB_MEMBER' | 'TOO_MANY_CLUBS'
 export type TeamResult<T = object> = ({ ok: true } & T) | { ok: false; code: TeamErrorCode }
@@ -190,6 +190,82 @@ export async function userClubs(payload: Payload, userId: number) {
   return rows.map((row) => ({ id: String(row.id), name: row.name, sport: row.sport, sportLabel: SPORT_META[row.sport]?.label ?? row.sport }))
 }
 
+export type DeclineErrorCode = 'GAME_NOT_FOUND' | 'GAME_STARTED' | 'NO_OPPONENT_CLUB' | 'NOT_CAPTAIN'
+export type DeclineResult = { ok: true } | { ok: false; code: DeclineErrorCode }
+
+class DeclineRejected extends Error {
+  constructor(readonly code: DeclineErrorCode) {
+    super(code)
+  }
+}
+
+/**
+ * The captain of the club the host put against their own side says "not us": that side goes back to
+ * open. The host named the club without asking (D6), so this is how it answers. Players already on
+ * that side stay, because an open side admits anyone, so `checkSides` can't fail afterwards. Runs
+ * under the game's row lock, like every other change to a game's sides.
+ */
+export async function declineOpponentClub(payload: Payload, gameId: number, userId: number, isAdmin: boolean): Promise<DeclineResult> {
+  try {
+    return await drizzle(payload).transaction(async (tx) => {
+      const locked = await tx.execute<{ status: string; upcoming: boolean }>(sql`
+        SELECT status, scheduled_at > now() AS upcoming FROM games WHERE id = ${gameId} FOR UPDATE
+      `)
+      const row = locked.rows[0]
+      if (!row) throw new DeclineRejected('GAME_NOT_FOUND')
+      if (row.status !== 'scheduled' || !row.upcoming) throw new DeclineRejected('GAME_STARTED')
+
+      const { game, hostSide } = await readSides(tx, gameId)
+      const side = otherSide(hostSide)
+      const clubId = side === 'home' ? game.homeTeamId : game.awayTeamId
+      if (clubId === null) throw new DeclineRejected('NO_OPPONENT_CLUB')
+      const { rows } = await tx.execute<{ captain_id: number | null }>(sql`SELECT captain_id FROM teams WHERE id = ${clubId}`)
+      if (!isAdmin && rows[0]?.captain_id !== userId) throw new DeclineRejected('NOT_CAPTAIN')
+
+      if (side === 'home') await tx.execute(sql`UPDATE games SET home_team_id = NULL, updated_at = now() WHERE id = ${gameId}`)
+      else await tx.execute(sql`UPDATE games SET away_team_id = NULL, updated_at = now() WHERE id = ${gameId}`)
+      return { ok: true as const }
+    })
+  } catch (error) {
+    if (error instanceof DeclineRejected) return { ok: false, code: error.code }
+    throw error
+  }
+}
+
+/** Games still to be played where the club is a side, soonest first: how its captain and members find them. */
+export async function upcomingTeamGames(db: Db, teamId: number, limit = 10) {
+  const { rows } = await db.execute<{
+    id: number
+    title: string
+    scheduled_at: Date | string
+    max_players: number
+    available_players: number
+    opponent: string | null
+  }>(sql`
+    SELECT g.id, g.title, g.scheduled_at, g.max_players, g.available_players,
+           CASE WHEN g.home_team_id = ${teamId} THEN away.name ELSE home.name END AS opponent
+    FROM games g
+    LEFT JOIN teams home ON home.id = g.home_team_id
+    LEFT JOIN teams away ON away.id = g.away_team_id
+    WHERE (g.home_team_id = ${teamId} OR g.away_team_id = ${teamId})
+      AND g.status = 'scheduled' AND g.scheduled_at > now()
+    ORDER BY g.scheduled_at
+    LIMIT ${limit}
+  `)
+  return rows.map((row) => {
+    const startsAt = new Date(row.scheduled_at).toISOString()
+    return {
+      id: String(row.id),
+      title: row.title,
+      opponent: row.opponent,
+      dateLabel: formatBakuShortDate(startsAt),
+      timeLabel: formatBakuTime(startsAt),
+      freeSpots: Number(row.available_players),
+      maxCount: Number(row.max_players),
+    }
+  })
+}
+
 const MEMBER_POPULATE = { users: { fullName: true, profilePicture: true, avatarUrl: true } } as const
 
 /**
@@ -216,7 +292,7 @@ export async function getTeam(payload: Payload, teamId: number, viewerId: number
     })
   const isCaptain = viewerId !== null && captainId === viewerId
   const db = drizzle(payload)
-  const [records, recent] = await Promise.all([teamRecords(db, [teamId]), recentTeamResults(db, teamId)])
+  const [records, recent, upcoming] = await Promise.all([teamRecords(db, [teamId]), recentTeamResults(db, teamId), upcomingTeamGames(db, teamId)])
 
   return {
     id: String(doc.id),
@@ -227,6 +303,7 @@ export async function getTeam(payload: Payload, teamId: number, viewerId: number
     members,
     record: summarize(records.get(teamId) ?? []),
     recent: recent.map((game) => ({ ...game, dateLabel: formatBakuShortDate(game.startsAt) })),
+    upcoming,
     viewer: { isMember: members.some((member) => member.you), isCaptain },
     inviteCode: isCaptain ? (doc.inviteCode ?? null) : null,
   }
@@ -241,7 +318,7 @@ export async function findTeamByInviteCode(payload: Payload, code: string) {
   return team ? { id: String(team.id), name: team.name, sport: team.sport, sportLabel: SPORT_META[team.sport]?.label ?? team.sport } : null
 }
 
-export type ClubOption = { id: string; name: string; sport: string; mine: boolean }
+export type ClubOption = { id: string; name: string; sport: string; mine: boolean; memberCount: number }
 
 /**
  * The clubs a game form can pick from: every club with members, flagged when the person is one of
@@ -249,13 +326,13 @@ export type ClubOption = { id: string; name: string; sport: string; mine: boolea
  */
 export async function clubOptions(payload: Payload, userId: number, alsoIds: number[] = []): Promise<ClubOption[]> {
   const also = alsoIds.length ? sql`t.id IN (${sql.join(alsoIds.map((id) => sql`${id}`), sql`, `)})` : sql`FALSE`
-  const { rows } = await drizzle(payload).execute<{ id: number; name: string; sport: string; mine: boolean }>(sql`
-    SELECT t.id, t.name, t.sport, COALESCE(bool_or(r.users_id = ${userId}), FALSE) AS mine
+  const { rows } = await drizzle(payload).execute<{ id: number; name: string; sport: string; mine: boolean; members: string }>(sql`
+    SELECT t.id, t.name, t.sport, COALESCE(bool_or(r.users_id = ${userId}), FALSE) AS mine, count(r.id) AS members
     FROM teams t
     LEFT JOIN teams_rels r ON r.parent_id = t.id AND r.path = 'members'
     GROUP BY t.id
     HAVING count(r.id) > 0 OR ${also}
     ORDER BY t.name, t.id
   `)
-  return rows.map((row) => ({ id: String(row.id), name: row.name, sport: row.sport, mine: row.mine }))
+  return rows.map((row) => ({ id: String(row.id), name: row.name, sport: row.sport, mine: row.mine, memberCount: Number(row.members) }))
 }

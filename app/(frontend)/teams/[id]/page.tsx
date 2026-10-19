@@ -61,6 +61,26 @@ async function TeamContent({ params }: Props) {
           </p>
         </section>
 
+        <section className={styles.panel} aria-labelledby="upcoming-title">
+          <h2 id="upcoming-title" className={styles.panelLabel}>
+            Qarşıdakı oyunlar
+          </h2>
+          {team.upcoming.length === 0 ? (
+            <p className={styles.muted}>Bu komandanın qarşıdakı oyunu yoxdur.</p>
+          ) : (
+            <ul className={teams.recent} aria-label="Qarşıdakı oyunlar">
+              {team.upcoming.map((game) => (
+                <li key={game.id} className={teams.recentRow}>
+                  <Link href={`/games/${game.id}`}>
+                    {game.dateLabel} · {game.timeLabel} · {game.opponent ? `vs ${game.opponent}` : game.title}
+                  </Link>
+                  <span className={teams.recentScore}>{game.freeSpots > 0 ? `${game.freeSpots} yer` : 'dolu'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         <section className={styles.panel} aria-labelledby="record-title">
           <h2 id="record-title" className={styles.panelLabel}>
             Nəticələr

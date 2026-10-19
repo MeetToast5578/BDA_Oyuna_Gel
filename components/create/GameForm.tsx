@@ -684,62 +684,72 @@ export function GameForm({
             </div>
           </fieldset>
 
-          {clubsOfSport.length > 0 && (
-            <fieldset className={form.field}>
-              <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
-                Komandalar (istəyə bağlı)
-              </legend>
-              {!editing && (
-                <div className={`${styles.choices} ${styles.levels}`} role="radiogroup" aria-label="Siz hansı komandadasınız?">
-                  {(['home', 'away'] as const).map((side) => (
-                    <label key={side} className={`${styles.choice} ${styles.levelChoice}`}>
-                      <input type="radio" name="hostSide" value={side} checked={hostSide === side} onChange={() => setHostSide(side)} />
-                      {side === 'home' ? 'Mən A komandasındayam' : 'Mən B komandasındayam'}
+          <fieldset className={form.field}>
+            <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
+              Komandalar (istəyə bağlı)
+            </legend>
+            {clubsOfSport.length === 0 ? (
+              <p className={form.hint}>
+                {SPORT_LABELS[sport]} üçün hələ komanda yoxdur. İki komanda arasında oyun üçün{' '}
+                <a href={`/teams/new?sport=${sport}`} target="_blank" rel="noopener noreferrer">
+                  komanda yaradın
+                </a>{' '}
+                (yeni səhifədə açılır, bu forma itmir).
+              </p>
+            ) : (
+              <>
+                {!editing && (
+                  <div className={`${styles.choices} ${styles.levels}`} role="radiogroup" aria-label="Siz hansı komandadasınız?">
+                    {(['home', 'away'] as const).map((side) => (
+                      <label key={side} className={`${styles.choice} ${styles.levelChoice}`}>
+                        <input type="radio" name="hostSide" value={side} checked={hostSide === side} onChange={() => setHostSide(side)} />
+                        {side === 'home' ? 'Mən A komandasındayam' : 'Mən B komandasındayam'}
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <div className={form.row}>
+                  <div className={form.field}>
+                    <label htmlFor={ids.homeTeam} className={form.labelSmall}>
+                      A komandası{hostSide === 'home' ? ' (siz)' : ''}
                     </label>
-                  ))}
+                    <select
+                      id={ids.homeTeam}
+                      className={`${form.input} ${form.inputCompact}`}
+                      value={homeTeam}
+                      onChange={(event) => setHomeTeam(event.target.value)}
+                    >
+                      <option value="">Açıq — hər kəs oynaya bilər</option>
+                      {homeChoices.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name} · {team.memberCount} üzv
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={form.field}>
+                    <label htmlFor={ids.awayTeam} className={form.labelSmall}>
+                      B komandası{hostSide === 'away' ? ' (siz)' : ''}
+                    </label>
+                    <select
+                      id={ids.awayTeam}
+                      className={`${form.input} ${form.inputCompact}`}
+                      value={awayTeam}
+                      onChange={(event) => setAwayTeam(event.target.value)}
+                    >
+                      <option value="">Açıq — hər kəs oynaya bilər</option>
+                      {awayChoices.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name} · {team.memberCount} üzv
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              )}
-              <div className={form.row}>
-                <div className={form.field}>
-                  <label htmlFor={ids.homeTeam} className={form.labelSmall}>
-                    A komandası{hostSide === 'home' ? ' (siz)' : ''}
-                  </label>
-                  <select
-                    id={ids.homeTeam}
-                    className={`${form.input} ${form.inputCompact}`}
-                    value={homeTeam}
-                    onChange={(event) => setHomeTeam(event.target.value)}
-                  >
-                    <option value="">Açıq — hər kəs oynaya bilər</option>
-                    {homeChoices.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className={form.field}>
-                  <label htmlFor={ids.awayTeam} className={form.labelSmall}>
-                    B komandası{hostSide === 'away' ? ' (siz)' : ''}
-                  </label>
-                  <select
-                    id={ids.awayTeam}
-                    className={`${form.input} ${form.inputCompact}`}
-                    value={awayTeam}
-                    onChange={(event) => setAwayTeam(event.target.value)}
-                  >
-                    <option value="">Açıq — hər kəs oynaya bilər</option>
-                    {awayChoices.map((team) => (
-                      <option key={team.id} value={team.id}>
-                        {team.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <p className={form.hint}>Komanda seçilən tərəfdə yalnız həmin komandanın üzvləri oynaya bilər.</p>
-            </fieldset>
-          )}
+                <p className={form.hint}>Komanda seçilən tərəfdə yalnız həmin komandanın üzvləri oynaya bilər.</p>
+              </>
+            )}
+          </fieldset>
 
           <div className={form.field}>
             <label htmlFor={ids.title} className={form.labelSmall}>

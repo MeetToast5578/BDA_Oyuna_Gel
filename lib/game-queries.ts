@@ -425,11 +425,21 @@ export async function getGameDetail(
   const finished = game.status === 'finished'
   const can = (action: 'report' | 'confirm') => nextResultStatus(resultState, action, resultActor, finished, now).ok
 
+  // The club the host put against their own side; its captain may take it out of the game.
+  const opponentClubId = sides.hostSide === 'home' ? sides.game.awayTeamId : sides.game.homeTeamId
+  const canDeclineClub =
+    resolvedViewerId !== null && opponentClubId !== null && isUpcoming(game.status) &&
+    (await payload.count({
+      collection: 'teams',
+      where: { and: [{ id: { equals: opponentClubId } }, { captain: { equals: resolvedViewerId } }] },
+      overrideAccess: true,
+    }).then(({ totalDocs }) => totalDocs > 0))
+
   return {
     ...toGameCard(game),
     host: { ...game.host, phone: joined || isHost ? doc.contactPhone ?? null : null },
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
-    viewer: { joined, isHost },
+    viewer: { joined, isHost, canDeclineClub },
     freeBySide: { home: Math.max(cap - taken.home, 0), away: Math.max(cap - taken.away, 0) },
     /** The side the host stands on, where their guests stand too. */
     hostSide: sides.hostSide,
