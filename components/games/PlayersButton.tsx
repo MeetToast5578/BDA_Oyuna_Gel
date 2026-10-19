@@ -158,6 +158,8 @@ function PlayersList({
   const players = list.players.map((player, toneIndex) => ({ player, toneIndex }))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // A side with a club is named after it.
+  const labels = { home: list.sideNames.home ?? 'A komandası', away: list.sideNames.away ?? 'B komandası' }
 
   async function change(body: { balance: true } | { assignments: { userId: number; side: Side }[] }) {
     setBusy(true)
@@ -187,8 +189,8 @@ function PlayersList({
       )}
       <div className={styles.sides}>
         {(['home', 'away'] as const).map((side) => (
-          <section key={side} aria-label={SIDE_LABELS[side]}>
-            <h3 className={styles.sideTitle}>{SIDE_LABELS[side]}</h3>
+          <section key={side} aria-label={labels[side]}>
+            <h3 className={styles.sideTitle}>{labels[side]}</h3>
             <ul className={styles.list}>
               {list.host.side === side && (
                 <li>
@@ -205,8 +207,8 @@ function PlayersList({
                         type="button"
                         className={styles.move}
                         disabled={busy}
-                        aria-label={`${player.name} oyunçusunu ${SIDE_TARGETS[otherSide(side)]} köçür`}
-                        title={`${SIDE_TARGETS[otherSide(side)]} köçür`}
+                        aria-label={`${player.name} oyunçusunu ${labels[otherSide(side)]} tərəfinə köçür`}
+                        title={`${labels[otherSide(side)]} tərəfinə köçür`}
                         onClick={() => change({ assignments: [{ userId: Number(player.id), side: otherSide(side) }] })}
                       >
                         <span aria-hidden="true">⇄</span>
@@ -223,8 +225,6 @@ function PlayersList({
   )
 }
 
-const SIDE_LABELS = { home: 'A komandası', away: 'B komandası' }
-const SIDE_TARGETS = { home: 'A komandasına', away: 'B komandasına' }
 
 /** A row opens the player's profile — your own row, your own `/profile`. A deleted account's row opens nothing. */
 function PlayerRow({

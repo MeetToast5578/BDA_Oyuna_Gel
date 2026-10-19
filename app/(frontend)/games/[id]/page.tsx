@@ -15,7 +15,7 @@ import { GameDetailSkeleton } from '@/components/games/skeletons'
 import { buttonClass } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { googleCalendarUrl } from '@/lib/calendar'
-import { isUpcoming, shareText } from '@/lib/game-backend'
+import { isUpcoming, matchupLabel, shareText } from '@/lib/game-backend'
 import { getGameDetail } from '@/lib/game-queries'
 import { formatPhone } from '@/lib/phone'
 import { loginHref } from '@/lib/safe-redirect'
@@ -111,6 +111,7 @@ async function GameDetailContent({ params, searchParams }: Props) {
             <h1 id="game-title" className={styles.title}>
               {game.title}
             </h1>
+            {matchupLabel(game.teams) && <p className={styles.muted}>{matchupLabel(game.teams)}</p>}
             <ul className={styles.facts}>
               <li>
                 <Icon name="calendar" />

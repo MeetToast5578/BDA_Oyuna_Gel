@@ -292,6 +292,9 @@ export type CreateGameInput = {
   maxCount: number
   currentCount: number
   contactPhone: string | null
+  /** The clubs standing on each side, or null for a side open to anyone. */
+  homeTeamId: number | null
+  awayTeamId: number | null
 }
 
 type CreateGameParseResult = { ok: true; input: CreateGameInput } | { ok: false; code: string; message: string }
@@ -355,7 +358,18 @@ function parseGameForm(body: unknown, now: Date, fixedCurrentCount?: number): Cr
 
   const title = nonEmptyString(data.title)?.trim().slice(0, 120) ?? `${SPORT_META[sport].label} oyunu`
 
-  return { ok: true, input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone } }
+  // A club per side, both optional: absent, null or "" leaves the side open to anyone.
+  const teamId = (value: unknown) =>
+    value === undefined || value === null || value === ''
+      ? null
+      : (typeof value === 'number' || typeof value === 'string') && Number.isSafeInteger(Number(value)) && Number(value) > 0
+        ? Number(value)
+        : Number.NaN
+  const homeTeamId = teamId(data.homeTeamId)
+  const awayTeamId = teamId(data.awayTeamId)
+  if (Number.isNaN(homeTeamId) || Number.isNaN(awayTeamId)) return fail('INVALID_TEAM', 'homeTeamId and awayTeamId must be club ids.')
+
+  return { ok: true, input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, homeTeamId, awayTeamId } }
 }
 
 export function parseCreateGameBody(body: unknown, now = new Date()) {
@@ -443,6 +457,17 @@ function resolveCoverImage(game: Doc, fallbackUrl: string) {
   return { thumbnailUrl: fallbackUrl, fullUrl: fallbackUrl, fallbackUrl }
 }
 
+/** A game's club as the card shows it; null for an open side (or a relationship that wasn't populated). */
+function teamRef(value: unknown) {
+  const team = asDoc(value)
+  return team && typeof team.name === 'string' ? { id: String(team.id), name: team.name } : null
+}
+
+/** "Qarabağ vs Açıq": the clubs on each side of a game, an open side being "Açıq"; null when neither side has a club. */
+export function matchupLabel(teams: { home: { name: string } | null; away: { name: string } | null }) {
+  return teams.home || teams.away ? `${teams.home?.name ?? 'Açıq'} vs ${teams.away?.name ?? 'Açıq'}` : null
+}
+
 export function normalizeGameRecord(raw: unknown, now = Date.now()) {
   const game = asDoc(raw) ?? {}
   const sport = String(game.sport ?? 'football')
@@ -467,6 +492,7 @@ export function normalizeGameRecord(raw: unknown, now = Date.now()) {
     timeLabel: formatBakuTime(startsAt),
     relativeTimeLabel: formatBakuLabel(startsAt, new Date(now)),
     ...deriveAvailability(game, now),
+    teams: { home: teamRef(game.homeTeam), away: teamRef(game.awayTeam) },
     cover: resolveCoverImage(game, sportMeta.image),
     host: {
       /** For linking to `/users/{id}`; null only for a game whose host account is gone. */
@@ -499,6 +525,7 @@ export function toGameCard(game: GameRecord) {
     maxCount: game.maxCount,
     remainingSpots: game.remainingSpots,
     status: game.status,
+    teams: game.teams,
     coverImageUrl: game.cover.fullUrl,
     coverImage: game.cover,
     host: game.host,

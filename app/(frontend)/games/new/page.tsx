@@ -10,6 +10,8 @@ import { formatBakuDateKey } from '@/lib/game-backend'
 import { sportFromSearchParams } from '@/lib/page-data'
 import { loginHref } from '@/lib/safe-redirect'
 import { getCurrentUser } from '@/lib/session'
+import { getPayloadClient } from '@/lib/game-queries'
+import { clubOptions } from '@/lib/teams'
 
 export const metadata: Metadata = { title: 'Yeni oyun yarat' }
 
@@ -40,6 +42,8 @@ async function CreateGameForm({ searchParams }: { searchParams: SearchParams }) 
   // proxy.ts already sends visitors without a session cookie to /login; this catches an expired one.
   if (!user) redirect(loginHref(sport ? `/games/new?sport=${sport}` : '/games/new'))
 
+  const teams = await clubOptions(await getPayloadClient(), user.id)
+
   // Pages stay mounted between navigations (cacheComponents keeps them in <Activity>), so a form seen
   // before would come back with the number it started with. Keyed on the profile's number, it
   // starts over when that changes.
@@ -49,6 +53,7 @@ async function CreateGameForm({ searchParams }: { searchParams: SearchParams }) 
       user={user}
       today={formatBakuDateKey(new Date())}
       initialSport={sport ?? undefined}
+      teams={teams}
     />
   )
 }

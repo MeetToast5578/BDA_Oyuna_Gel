@@ -281,7 +281,9 @@ export function JoinPanel({ game, user, autoOpen }: { game: GameDetail; user: Cu
                 Komanda
               </legend>
               <div className={`${choices.choices} ${choices.levels}`}>
-                {SIDE_OPTIONS.map((option) => {
+                {SIDE_OPTIONS.map((fixed) => {
+                  // A side with a club is named after it.
+                  const option = fixed.value === 'random' ? fixed : { ...fixed, label: game.teams[fixed.value]?.name ?? fixed.label }
                   const free = option.value === 'random' ? null : game.freeBySide[option.value]
                   return (
                     <label key={option.value} className={`${choices.choice} ${choices.levelChoice} ${styles.sideChoice}`}>

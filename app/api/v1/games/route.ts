@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
     const userId = Number(user.id)
     const result = await createGame({ id: userId, phoneNumber: user.phoneNumber }, parsed.input)
-    if (!result.ok) return apiError(result.code, result.message, 400)
+    if (!result.ok) return apiError(result.code, result.message, result.code === 'NOT_A_MEMBER' ? 409 : 400)
 
     const phone = parsed.input.contactPhone
     const overwrite = (body as { saveToProfile?: unknown } | null)?.saveToProfile === true

@@ -92,6 +92,7 @@ Returned by the list, featured and detail endpoints.
   "maxCount": 12,
   "remainingSpots": 1,
   "status": "open",
+  "teams": { "home": { "id": "7", "name": "Qarabağ Veteranlar" }, "away": null },
   "coverImageUrl": "/api/media/file/cover-1600x900.webp",
   "coverImage": {
     "thumbnailUrl": "/api/media/file/cover-480x270.webp",
@@ -101,6 +102,10 @@ Returned by the list, featured and detail endpoints.
   "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null }
 }
 ```
+
+`teams` is the club on each side of the game; `null` is a side open to anyone. The card shows
+"Qarabağ Veteranlar vs Açıq" when either side has a club, and the join modal and players list name
+the sides after their clubs.
 
 - The card line "Aku Arena · Nizami, Bakı · Orta səviyyə" is `venue.name · venue.district, venue.cityLabel · levelLabel`.
 - "6/10 oyunçu" / "4 yer qalıb" are `currentCount/maxCount` and `remainingSpots`.
@@ -235,10 +240,12 @@ from a second ago.
     { "id": null, "name": "Rəşad Babayev", "initials": "RB", "avatarUrl": null, "side": "home", "you": false }
   ],
   "others": 2,
-  "canMove": false
+  "canMove": false,
+  "sideNames": { "home": "Qarabağ Veteranlar", "away": null }
 }
 ```
 
+- `sideNames` is the name of each side's club, `null` for an open side ("A komandası" and "B komandası").
 - `canMove` is `true` only for the host of a game that hasn't started: the page then shows the move
   buttons and "Balansla" ([`PATCH /sides`](#patch-apiv1gamesidsides)).
 - `side` is the half of the game each player is on; the page lists the two sides as columns.
@@ -308,7 +315,9 @@ Or balance everyone:
 "Oyunu redaktə et". **Host only** (admins too); everyone else gets `403`.
 
 Body is the create-game form minus `currentCount`: `sport`, `level`, `venueId`, `scheduledDate`,
-`scheduledTime`, `maxCount`, `hostPhone` and an optional `title`. Who is in the game is decided by
+`scheduledTime`, `maxCount`, `hostPhone`, an optional `title` and the optional `homeTeamId` and
+`awayTeamId`. Like every field, the clubs are replaced by what the form sends: leaving them out
+clears them. Who is in the game is decided by
 who joined, not by the host editing a number, so `currentCount` is ignored if sent — only the free
 spots move when `maxCount` changes.
 
@@ -325,6 +334,8 @@ spots move when `maxCount` changes.
 | 404    | `GAME_NOT_FOUND`          |                                                               |
 | 409    | `GAME_STARTED`            | The game has started (admins too: they correct it in `/admin`) |
 | 409    | `SIDE_FULL`               | The new `maxCount` leaves a side with more players than half  |
+| 409    | `NOT_A_MEMBER`            | A chosen club's side holds a player who isn't a member: the host moves them first |
+| 400    | `TEAM_NOT_FOUND`, `TEAM_SPORT_MISMATCH`, `SAME_TEAM`, `INVALID_TEAM` | A club that doesn't exist, plays another sport, is on both sides, or isn't an id |
 
 ## `DELETE /api/v1/games/{id}`
 
@@ -424,11 +435,12 @@ Options for the "Meydança" picker.
 | `maxCount`      | Even (two equal sides), from 2 up to the sport's full size: football 22, basketball 10, tennis 4 |
 | `hostPhone`     | Optional if the profile has a phone number; shown to players after they join |
 | `title`         | Optional, defaults to "Futbol oyunu" etc. (the design has no title field)  |
+| `homeTeamId`, `awayTeamId` | Optional club ids, one per side ("Komandalar"); absent, `null` or `""` leaves the side open to anyone. Home must be a club the host is in, since the host stands on the home side. Both must play the game's sport, and not be the same club. A side with a club admits only its members |
 | `saveToProfile` | Optional `true`: also replace the profile's number with `hostPhone` (see [Remembered phone number](#remembered-phone-number)) |
 
 The host name ("Ad Soyad (Host)") comes from the account, so show it read-only.
 
-**201** `{ "game": { …as GET /api/v1/games/{id} }, "savedToProfile": true }`. Errors: `401 UNAUTHENTICATED`; `400` with `INVALID_SPORT`, `INVALID_LEVEL`, `INVALID_VENUE`, `INVALID_DATE`, `DATE_IN_PAST`, `INVALID_MAX_COUNT`, `INVALID_CURRENT_COUNT`, `INVALID_PHONE`, `VENUE_NOT_FOUND`, `VENUE_SPORT_MISMATCH`, `PHONE_REQUIRED`.
+**201** `{ "game": { …as GET /api/v1/games/{id} }, "savedToProfile": true }`. Errors: `401 UNAUTHENTICATED`; `400` with `INVALID_SPORT`, `INVALID_LEVEL`, `INVALID_VENUE`, `INVALID_DATE`, `DATE_IN_PAST`, `INVALID_MAX_COUNT`, `INVALID_CURRENT_COUNT`, `INVALID_PHONE`, `VENUE_NOT_FOUND`, `VENUE_SPORT_MISMATCH`, `PHONE_REQUIRED`, `INVALID_TEAM`, `TEAM_NOT_FOUND`, `TEAM_SPORT_MISMATCH`, `SAME_TEAM`; `409 NOT_A_MEMBER` (the host isn't in the home club).
 
 ### Remembered phone number
 

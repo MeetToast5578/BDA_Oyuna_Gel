@@ -30,6 +30,9 @@ export type CreateGameRequest = {
   maxCount: number
   hostPhone?: string
   title?: string
+  /** The club on each side (home must be one of the host's); absent or null leaves the side open. */
+  homeTeamId?: number | null
+  awayTeamId?: number | null
   /** Replace the profile's number with `hostPhone` ("Bu nömrəni profilimdə saxla"). */
   saveToProfile?: boolean
 }

@@ -18,6 +18,7 @@ import {
   parseGameListParams,
   datePresetWindow,
   mapsUrl,
+  matchupLabel,
   venueImageUrl,
   parseMyGamesParams,
   parseProfileTabs,
@@ -620,6 +621,8 @@ describe('parseCreateGameBody', () => {
         maxCount: 10,
         currentCount: 2,
         contactPhone: '+994502103456',
+        homeTeamId: null,
+        awayTeamId: null,
       },
     })
   })
@@ -835,6 +838,7 @@ describe('normalizeGameRecord / toGameCard', () => {
       maxCount: 10,
       remainingSpots: 1,
       status: 'open',
+      teams: { home: null, away: null },
       coverImageUrl: '/images/game-football-1-7880cc.png',
       coverImage: {
         thumbnailUrl: '/images/game-football-1-7880cc.png',
@@ -924,5 +928,34 @@ describe('normalizeGameRecord / toGameCard', () => {
 
     const uploaded = normalizeGameRecord({ ...raw, arena: { ...raw.arena, image: venuePhoto, imagePath } }, NOW)
     expect(uploaded.cover.fullUrl).toBe('/api/media/file/inter-1600x900.webp')
+  })
+})
+
+describe('clubs on a game', () => {
+  const club = (name: string) => ({ id: '1', name })
+
+  it('labels the matchup, an open side reading "Açıq", and nothing when neither side has a club', () => {
+    expect(matchupLabel({ home: club('Qarabağ'), away: club('Neftçi') })).toBe('Qarabağ vs Neftçi')
+    expect(matchupLabel({ home: club('Qarabağ'), away: null })).toBe('Qarabağ vs Açıq')
+    expect(matchupLabel({ home: null, away: club('Neftçi') })).toBe('Açıq vs Neftçi')
+    expect(matchupLabel({ home: null, away: null })).toBeNull()
+  })
+
+  it('reads the clubs off a populated game and ignores an unpopulated id', () => {
+    const base = { id: 3, title: 'T', sport: 'football', scheduledAt: '2030-01-01T10:00:00Z', maxPlayers: 10, availablePlayers: 5 }
+    const card = toGameCard(normalizeGameRecord({ ...base, homeTeam: { id: 8, name: 'Qarabağ' }, awayTeam: 9 }))
+    expect(card.teams).toEqual({ home: { id: '8', name: 'Qarabağ' }, away: null })
+    expect(toGameCard(normalizeGameRecord(base)).teams).toEqual({ home: null, away: null })
+  })
+
+  it('parses a club per side, reading absent, null and empty as open, and refuses anything else', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const parse = (extra: object) => parseCreateGameBody({ ...body, ...extra }, new Date('2029-12-01'))
+    expect(parse({})).toMatchObject({ ok: true, input: { homeTeamId: null, awayTeamId: null } })
+    expect(parse({ homeTeamId: '', awayTeamId: null })).toMatchObject({ ok: true, input: { homeTeamId: null, awayTeamId: null } })
+    expect(parse({ homeTeamId: 4, awayTeamId: '7' })).toMatchObject({ ok: true, input: { homeTeamId: 4, awayTeamId: 7 } })
+    for (const bad of [0, -1, 1.5, 'abc', true, {}]) {
+      expect(parse({ homeTeamId: bad })).toMatchObject({ ok: false, code: 'INVALID_TEAM' })
+    }
   })
 })

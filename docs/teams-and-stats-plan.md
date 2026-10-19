@@ -30,7 +30,12 @@
 >   hands over each club the person captains, and the pages `/teams`, `/teams/new`, `/teams/[id]` and
 >   `/teams/join/[code]`. Not yet: the club's record and the standings, which wait for Phase 7.
 >
-> Phases 6–7 are not started.
+> - **Phase 6 built:** the create and edit forms take `homeTeamId` and `awayTeamId`, checked with
+>   `clubSidesError` and `checkSides` in the transaction that writes the game. The form has a "Komandalar"
+>   section, cards and the game page show "A vs B", and the join modal and players list name the sides
+>   after their clubs.
+>
+> Phase 7 is not started.
 
 What was asked:
 

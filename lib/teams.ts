@@ -215,3 +215,22 @@ export async function findTeamByInviteCode(payload: Payload, code: string) {
   const team = rows[0]
   return team ? { id: String(team.id), name: team.name, sport: team.sport, sportLabel: SPORT_META[team.sport]?.label ?? team.sport } : null
 }
+
+export type ClubOption = { id: string; name: string; sport: string; mine: boolean }
+
+/**
+ * The clubs a game form can pick from: every club with members, flagged when the person is one of
+ * them, plus any club `alsoIds` names (the clubs of the game being edited, even if everyone has left).
+ */
+export async function clubOptions(payload: Payload, userId: number, alsoIds: number[] = []): Promise<ClubOption[]> {
+  const also = alsoIds.length ? sql`t.id IN (${sql.join(alsoIds.map((id) => sql`${id}`), sql`, `)})` : sql`FALSE`
+  const { rows } = await drizzle(payload).execute<{ id: number; name: string; sport: string; mine: boolean }>(sql`
+    SELECT t.id, t.name, t.sport, COALESCE(bool_or(r.users_id = ${userId}), FALSE) AS mine
+    FROM teams t
+    LEFT JOIN teams_rels r ON r.parent_id = t.id AND r.path = 'members'
+    GROUP BY t.id
+    HAVING count(r.id) > 0 OR ${also}
+    ORDER BY t.name, t.id
+  `)
+  return rows.map((row) => ({ id: String(row.id), name: row.name, sport: row.sport, mine: row.mine }))
+}

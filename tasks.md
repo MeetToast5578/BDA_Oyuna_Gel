@@ -30,9 +30,9 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 - [x] Tests: only the captain can edit; wrong code refused; joining twice is a no-op.
 
 ### Teams phase 6: club sides in a game
-- [ ] Optional "Komanda" section on the create and edit forms.
-- [ ] Validate with `clubSidesError` and `checkSides`, also on edit.
-- [ ] Show "Club A vs Club B" on cards and the game page.
+- [x] Optional "Komanda" section on the create and edit forms.
+- [x] Validate with `clubSidesError` and `checkSides`, also on edit.
+- [x] Show "Club A vs Club B" on cards and the game page.
 
 ### Teams phase 7: stats
 - [ ] Confirmed-games SQL query (twin of `resultCounts`) with a test that one game in each state
@@ -43,7 +43,7 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 
 ### Phase 2 leftovers
 - [ ] `hostSide` on game create (currently always `home`).
-- [ ] Club names on the side picker (needs phase 6).
+- [x] Club names on the side picker (needs phase 6).
 
 ## B. Blocked on the owner
 

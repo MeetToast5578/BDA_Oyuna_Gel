@@ -53,7 +53,7 @@ export async function PATCH(
 
     const result = await updateGame(auth.gameId, parsed.input)
     if (!result.ok && result.code === 'GAME_STARTED') return gameStarted()
-    if (!result.ok) return apiError(result.code, result.message, result.code === 'GAME_NOT_FOUND' ? 404 : result.code === 'SIDE_FULL' ? 409 : 400)
+    if (!result.ok) return apiError(result.code, result.message, result.code === 'GAME_NOT_FOUND' ? 404 : result.code === 'SIDE_FULL' || result.code === 'NOT_A_MEMBER' ? 409 : 400)
 
     // A new time or place is news to everyone who planned around the old one.
     const { game } = result
