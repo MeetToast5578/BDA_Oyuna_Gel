@@ -1,7 +1,7 @@
 # Handoff: teams, fixes and UX work on `Branch-1`
 
 > **Update:** PR #14 (everything in §2 below) was merged into `main`. `Branch-1` was restarted from `main`
-> and carries the teams phases 3–7 in draft PR #15; §3 says what each added. 254 tests pass across 23 files.
+> and carries the teams phases 3–7 in draft PR #15; §3 says what each added. 259 tests pass across 23 files.
 
 Written at the end of the session of 14 October 2026, so the next session can pick up without
 re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComponents`; read
@@ -65,9 +65,31 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
      the profiles, the standings on `/teams?sport=`, the club's record, `components/profile/RecordPanel.tsx`.
 2. Nothing is left of the teams plan. Open items are below and in `tasks.md`.
 3. `hostSide` on create (the host picks the side they play on) is built too, in the same change as phase 6.
-4. **Blocked:**
-   - the waitlist (stage 5) needs email, which is on hold;
-   - Russian and English (stage 7) need D5 (which languages, which URLs);
+4. **Blocked on the owner:**
+   - the waitlist (stage 5) needs email, which is on hold. Plan: a `game-waitlist` collection and
+     migration, `POST`/`DELETE /games/{id}/waitlist`, promotion inside `releaseSpot`, the edit-resize and
+     `deleteMyAccount` paths, the JoinPanel full state, a join email;
+   - turning email on: a dedicated Gmail account with an App Password, `GMAIL_USER` and
+     `GMAIL_APP_PASSWORD` in Vercel (never ask for them);
+   - Russian and English (stage 7) need D5 (which languages, which URLs); then `lib/i18n/az.ts`, a
+     `[locale]` segment, a switcher, `hreflang`;
+   - a native-speaker read of the new Azerbaijani strings (listed in each commit and in PR #15);
+   - teams plan decisions D1–D12: the code assumes the recommended options.
+5. **Owner / ops:**
+   - add `https://bda-oyuna-gel.vercel.app/api/auth/google/callback` as a redirect URI in Google Cloud;
+   - rotate the database password and the Google client secret (pasted into an earlier chat);
+   - confirm stage 0 (Vercel preview fix) and update `docs/fixes-and-ux-plan.md`, which says "Not started";
+   - add a Blob token if uploads should work on `bda-oyuna-gel`;
+   - run `npm run migrate` before the profile-picture version serves traffic (`20260925_065346`);
+   - review and merge draft PR #15; test it on `bda-oyuna-gel`, not a `bda-next` preview (shared live DB).
+6. **Optional / unverified:**
+   - browser-check the server error text under "Balansla" (server tests cover every refusal, the UI
+     message was never looked at);
+   - cache `getPublicProfile`; a "starts in 2 hours" email (needs cron and `remindedAt`); a
+     `(user_id, created_at)` index on `join-attempts`;
+   - club names aren't unique, and the away-club picker lists every club of the sport;
+   - the `authorizeHost` comment says 404 for strangers, the code returns 403;
+   - not planned: Elo, per-player goals and assists, seasons, club chat, club logos.
 
 ---
 
