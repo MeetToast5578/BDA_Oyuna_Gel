@@ -484,8 +484,19 @@ from the list but stay readable, because past games point at them.
 Biggest club first.
 
 ```json
-{ "teams": [{ "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol", "memberCount": 9 }] }
+{
+  "teams": [{
+    "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol", "memberCount": 9,
+    "record": { "played": 3, "wins": 1, "draws": 1, "losses": 1, "winRate": 0.33, "scored": 4, "conceded": 4, "points": 4, "form": ["loss", "draw", "win"] }
+  }],
+  "standings": [{ "…": "the same clubs, as a league table" }]
+}
 ```
+
+`record` is the club's record from confirmed scores, over the games it was named in (home or away
+club), whoever turned up. With `?sport=`, `standings` holds the same clubs in league order: points,
+then goal difference, then goals scored, then the bigger club. Different sports can't share a table,
+so without `?sport=` there is no `standings`.
 
 ### `POST /api/v1/teams`
 
@@ -503,10 +514,16 @@ A club's page. Public; signing in marks your own row.
 {
   "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol", "memberCount": 2,
   "members": [{ "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "isCaptain": true, "you": false }],
+  "record": { "…": "as in GET /api/v1/teams" },
+  "recent": [{ "id": "31", "title": "Cümə axşamı 5-ə-5", "startsAt": "…", "dateLabel": "Cüm, 9 Okt", "homeScore": 3, "awayScore": 1, "outcome": "win", "opponent": "Neftçi" }],
   "viewer": { "isMember": false, "isCaptain": false },
   "inviteCode": null
 }
 ```
+
+`recent` is the club's latest five counted games, newest first: the score as `homeScore` : `awayScore`
+(the game's A and B sides), the `outcome` from the club's side, and the other club's name (`null`
+when that side was open).
 
 Members are in the order they joined. `inviteCode` is only ever set for the captain: it is the whole
 of what someone needs to join, and the link is `/teams/join/{inviteCode}`. `404 TEAM_NOT_FOUND`,
@@ -554,9 +571,22 @@ also hands the client `role`, `googleId`, `loginAttempts` and `lockUntil`.
   "stats": {
     "totalPlayed": 21,
     "playedBySport": [{ "sport": "football", "label": "Futbol", "iconKey": "football", "playedCount": 9 }]
-  }
+  },
+  "record": {
+    "played": 3, "wins": 1, "draws": 1, "losses": 1, "winRate": 0.33, "scored": 4, "conceded": 4,
+    "points": 4, "form": ["loss", "draw", "win"],
+    "bySport": [{ "sport": "football", "played": 3, "wins": 1, "draws": 1, "losses": 1, "winRate": 0.33, "scored": 4, "conceded": 4, "points": 4, "form": ["loss", "draw", "win"] }]
+  },
+  "clubs": [{ "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol" }]
 }
 ```
+
+- `record` is the win/draw/loss record from games with a **confirmed score**, with the side the person
+  stood on in each: `winRate` is 0–1, `points` is 3 a win and 1 a draw, `form` the last five outcomes
+  newest first, `bySport` the same per sport (every sport present, even with no games). A game whose
+  score nobody confirmed is in `stats` as played but has no result to add here; a score left
+  unanswered for 48 hours counts as confirmed, and a cancelled game never counts.
+- `clubs` are the clubs the person is in, by name.
 
 - `hostingUpcoming` / `joinedUpcoming` match the upcoming lists of `GET /api/v1/me/games`.
 - `hostedPast` and `played` are games that are over and were not cancelled: hosted ones, and joined
@@ -629,7 +659,9 @@ stays gated behind joining the game (`GET /api/v1/games/{id}`).
 {
   "id": "12", "fullName": "Kərim Məmmədov", "firstName": "Kərim", "initials": "KM", "avatarUrl": "…",
   "memberSince": "…", "memberSinceLabel": "fevral 2026", "counts": { "hostingUpcoming": 2, "hostedPast": 7 },
-  "hostedGames": [{ "…": "game card" }]
+  "hostedGames": [{ "…": "game card" }],
+  "record": { "…": "as GET /api/v1/me" },
+  "clubs": [{ "…": "as GET /api/v1/me" }]
 }
 ```
 

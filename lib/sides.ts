@@ -2,16 +2,15 @@ import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
 import { readSides, type Db } from '@/lib/join-game'
+import { playerRecords } from '@/lib/records'
 import {
   applyAssignments,
   autoBalance,
-  AUTO_CONFIRM_HOURS,
   balanceRating,
   checkSides,
   eligibleSides,
   summarize,
   type BalancePlayer,
-  type PlayedGame,
   type Side,
   type SidePlayer,
 } from '@/lib/team-logic'
@@ -24,44 +23,6 @@ class SidesRejected extends Error {
   constructor(readonly code: SidesErrorCode) {
     super(code)
   }
-}
-
-/**
- * Each player's confirmed games, as the side they stood on and the score. The SQL twin of
- * `resultCounts`: a cancelled game never counts, and a score counts once confirmed or once it has
- * gone `AUTO_CONFIRM_HOURS` undisputed. Players with no games are absent from the map.
- */
-export async function playerRecords(db: Db, userIds: number[]): Promise<Map<number, PlayedGame[]>> {
-  const records = new Map<number, PlayedGame[]>()
-  if (userIds.length === 0) return records
-
-  const { rows } = await db.execute<{
-    user_id: number
-    side: Side
-    home_score: number
-    away_score: number
-    scheduled_at: Date | string
-  }>(sql`
-    SELECT p.user_id, p.side, g.home_score, g.away_score, g.scheduled_at
-    FROM game_participants p
-    JOIN games g ON g.id = p.game_id
-    WHERE p.user_id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`, `)})
-      AND g.status <> 'cancelled'
-      AND g.home_score IS NOT NULL AND g.away_score IS NOT NULL
-      AND (g.result_status = 'confirmed'
-           OR (g.result_status = 'reported' AND g.result_reported_at <= now() - make_interval(hours => ${AUTO_CONFIRM_HOURS})))
-  `)
-  for (const row of rows) {
-    const games = records.get(row.user_id) ?? []
-    games.push({
-      side: row.side,
-      homeScore: Number(row.home_score),
-      awayScore: Number(row.away_score),
-      scheduledAt: new Date(row.scheduled_at).toISOString(),
-    })
-    records.set(row.user_id, games)
-  }
-  return records
 }
 
 /**

@@ -14,7 +14,9 @@ import {
   type ProfileUpdate,
 } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
-import { leaveAllClubs } from '@/lib/teams'
+import { playerRecords } from '@/lib/records'
+import { leaveAllClubs, userClubs } from '@/lib/teams'
+import { summarize, summarizeBySport } from '@/lib/team-logic'
 
 /**
  * A profile is always read for one signed-in person, so nothing here is cached: it would key on the
@@ -184,6 +186,20 @@ async function playedBySport(payload: Payload, userId: number, joinedIds: number
   }))
 }
 
+/**
+ * A person's win/draw/loss record from games with a confirmed score (their side in each), overall and
+ * per sport, and the clubs they are in. Games without a confirmed score count as played in the other
+ * stats but have no result to add here.
+ */
+async function recordAndClubs(payload: Payload, userId: number) {
+  const [records, clubs] = await Promise.all([
+    playerRecords((payload.db as unknown as PostgresAdapter).drizzle, [userId]),
+    userClubs(payload, userId),
+  ])
+  const games = records.get(userId) ?? []
+  return { record: { ...summarize(games), bySport: summarizeBySport(games, SPORTS) }, clubs }
+}
+
 /** The signed-in user's own profile: identity, counts and stats in one request. */
 export async function getMyProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
@@ -201,9 +217,10 @@ export async function getMyProfile(userId: number, now = new Date()) {
   ])
   if (!user) return null
 
-  const [counts, bySport] = await Promise.all([
+  const [counts, bySport, results] = await Promise.all([
     countGames(payload, userId, joinedIds, now),
     playedBySport(payload, userId, joinedIds, now),
+    recordAndClubs(payload, userId),
   ])
   const fullName = user.fullName?.trim() || user.email
 
@@ -234,6 +251,7 @@ export async function getMyProfile(userId: number, now = new Date()) {
       totalPlayed: bySport.reduce((sum, sport) => sum + sport.playedCount, 0),
       playedBySport: bySport,
     },
+    ...results,
   }
 }
 
@@ -459,7 +477,7 @@ export async function deleteMyAccount(userId: number) {
 export async function getPublicProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
   // All three need only the id, so they go out together rather than the games waiting on the user.
-  const [user, hosting, hostedPast] = await Promise.all([
+  const [user, hosting, hostedPast, results] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -483,6 +501,7 @@ export async function getPublicProfile(userId: number, now = new Date()) {
       where: { and: [{ host: { equals: userId } }, playedWhere(now)] },
       overrideAccess: true,
     }),
+    recordAndClubs(payload, userId),
   ])
   if (!user) return null
 
@@ -497,5 +516,6 @@ export async function getPublicProfile(userId: number, now = new Date()) {
     memberSinceLabel: formatBakuMonthYear(user.createdAt),
     counts: { hostingUpcoming: hosting.totalDocs, hostedPast: hostedPast.totalDocs },
     hostedGames: hosting.docs.map((doc) => toGameCard(normalizeGameRecord(doc, now.getTime()))),
+    ...results,
   }
 }

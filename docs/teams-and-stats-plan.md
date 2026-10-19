@@ -35,7 +35,13 @@
 >   section, cards and the game page show "A vs B", and the join modal and players list name the sides
 >   after their clubs.
 >
-> Phase 7 is not started.
+> - **Phase 7 built:** `lib/records.ts` holds the SQL twin of `resultCounts` for players
+>   (`playerRecords`) and clubs (`teamRecords`, `recentTeamResults`). `GET /me` and `GET /users/{id}` gain
+>   `record` and `clubs`; `GET /teams` carries each club's record and, with `?sport=`, the standings;
+>   the club page shows its record and latest results; `/teams?sport=` shows the league table; both
+>   profiles have a "Nəticələr" panel. The club pages are not cached, so they need no `teams` tag.
+>
+> All seven phases are built.
 
 What was asked:
 

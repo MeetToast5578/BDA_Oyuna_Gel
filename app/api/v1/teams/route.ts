@@ -5,20 +5,26 @@ import { SPORTS } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
 import { requireUser, teamError } from '@/lib/team-routes'
 import { parseCreateTeamBody } from '@/lib/team-logic'
-import { createTeam, listTeams } from '@/lib/teams'
+import { byStanding, createTeam, listTeams } from '@/lib/teams'
 
 const CREATE_ERRORS = {
   INVALID_NAME: 'Komanda adı 2 ilə 40 simvol arasında olmalıdır.',
   INVALID_SPORT: 'İdman növü yanlışdır.',
 }
 
-/** "Komandalar": the clubs with members, biggest first. Public; `?sport=` narrows it. */
+/**
+ * "Komandalar": the clubs with members, biggest first, each with its record. Public. `?sport=` narrows
+ * it, and then `standings` is the same clubs as a league table (points, goal difference, goals scored);
+ * all sports together have no table.
+ */
 export async function GET(request: Request) {
   const sport = new URL(request.url).searchParams.get('sport')
   if (sport !== null && !SPORTS.includes(sport)) return apiError('INVALID_SPORT', CREATE_ERRORS.INVALID_SPORT, 400)
 
   try {
-    return NextResponse.json({ teams: await listTeams(await getPayloadClient(), sport) })
+    const teams = await listTeams(await getPayloadClient(), sport)
+    const standings = sport ? [...teams].sort(byStanding) : undefined
+    return NextResponse.json({ teams, standings })
   } catch (error) {
     console.error(error)
     return apiError('INTERNAL_ERROR', 'Komandaları yükləmək mümkün olmadı.', 500)

@@ -35,11 +35,11 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 - [x] Show "Club A vs Club B" on cards and the game page.
 
 ### Teams phase 7: stats
-- [ ] Confirmed-games SQL query (twin of `resultCounts`) with a test that one game in each state
+- [x] Confirmed-games SQL query (twin of `resultCounts`) with a test that one game in each state
       agrees with the function.
-- [ ] `record` and `clubs` on `GET /me` and `GET /users/{id}`.
-- [ ] `ProfileStats`: W/D/L tiles, form pills, "Komandalar" list.
-- [ ] Standings table on `/teams?sport=`, with a `teams` cache tag.
+- [x] `record` and `clubs` on `GET /me` and `GET /users/{id}`.
+- [x] `ProfileStats`: W/D/L tiles, form pills, "Komandalar" list.
+- [x] Standings table on `/teams?sport=` (no `teams` cache tag: the club pages aren't cached).
 
 ### Phase 2 leftovers
 - [ ] `hostSide` on game create (currently always `home`).

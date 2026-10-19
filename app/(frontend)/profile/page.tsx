@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -13,6 +14,7 @@ import styles from '@/components/profile/Profile.module.css'
 import { ProfileGames } from '@/components/profile/ProfileGames'
 import { ProfileIdentity } from '@/components/profile/ProfileIdentity'
 import { ProfileStats } from '@/components/profile/ProfileStats'
+import { RecordPanel } from '@/components/profile/RecordPanel'
 import { parseProfileTabs, profileTabsQuery } from '@/lib/game-backend'
 import { formatPhone } from '@/lib/phone'
 import { findMyGames, getMyProfile } from '@/lib/profile-queries'
@@ -97,6 +99,16 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
         </EditProfile>
         <ProfileStats profile={profile} />
       </div>
+
+      <RecordPanel
+        record={profile.record}
+        clubs={profile.clubs}
+        emptyClubs={
+          <>
+            Hələ heç bir komandada deyilsiniz. <Link href="/teams/new">Komanda yarat</Link> və ya kapitandan dəvət linki istəyin.
+          </>
+        }
+      />
 
       <ProfileGames
         role={tabs.role}

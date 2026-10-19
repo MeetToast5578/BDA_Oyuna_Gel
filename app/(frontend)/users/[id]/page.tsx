@@ -12,6 +12,7 @@ import section from '@/components/games/GamesSection.module.css'
 import { PublicProfileSkeleton } from '@/components/games/skeletons'
 import styles from '@/components/profile/Profile.module.css'
 import { ProfileIdentity } from '@/components/profile/ProfileIdentity'
+import { RecordPanel } from '@/components/profile/RecordPanel'
 import { StatTiles } from '@/components/profile/ProfileStats'
 import { buttonClass } from '@/components/ui/button'
 import { getPublicProfile } from '@/lib/profile-queries'
@@ -84,6 +85,8 @@ async function PublicProfileContent({ params }: Props) {
           />
         </section>
       </div>
+
+      <RecordPanel record={profile.record} clubs={profile.clubs} emptyClubs={`${profile.firstName} heç bir komandada deyil.`} />
 
       {/* Its own boundary, so the session lookup never holds up the profile. */}
       <Suspense fallback={null}>

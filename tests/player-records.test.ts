@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
-import { playerRecords } from '@/lib/sides'
+import { playerRecords } from '@/lib/records'
 
 const HOUR_MS = 60 * 60 * 1000
 

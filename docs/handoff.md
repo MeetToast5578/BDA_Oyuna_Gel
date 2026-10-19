@@ -1,5 +1,8 @@
 # Handoff: teams, fixes and UX work on `Branch-1`
 
+> **Update:** PR #14 (everything in §2 below) was merged into `main`. `Branch-1` was restarted from `main`
+> and carries the teams phases 3–7 in draft PR #15; §3 says what each added. 254 tests pass across 23 files.
+
 Written at the end of the session of 14 October 2026, so the next session can pick up without
 re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComponents`; read
 `node_modules/next/dist/docs/` before using a Next API).
@@ -51,14 +54,16 @@ re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComp
 
 Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are built. Next:
 
-1. **Teams phases 3–6** are built:
+1. **Teams phases 3–7** are built:
    - phase 3: `lib/sides.ts`, `PATCH /api/v1/games/{id}/sides`, the host's buttons in
-     `components/games/PlayersButton.tsx`; `playerRecords` there is the stats query phase 7 needs;
+     `components/games/PlayersButton.tsx`;
    - phase 4: `lib/results.ts`, the two `/result` routes, `components/games/ResultPanel.tsx`;
    - phase 5: `lib/teams.ts`, `/api/v1/teams/**`, the `/teams` pages;
    - phase 6: clubs on a game (`homeTeamId`, `awayTeamId` in `parseGameForm`, `createGame` and
      `updateGame`, `clubOptions` for the form, `matchupLabel` for the cards).
-2. **Teams phase 7** (stats and standings).
+   - phase 7: `lib/records.ts` (`playerRecords`, `teamRecords`, `recentTeamResults`), `record` and `clubs` on
+     the profiles, the standings on `/teams?sport=`, the club's record, `components/profile/RecordPanel.tsx`.
+2. Nothing is left of the teams plan. Open items are below and in `tasks.md`.
 3. Left out of phase 2 on purpose: `hostSide` on create (the host is always `home`).
 4. **Blocked:**
    - the waitlist (stage 5) needs email, which is on hold;

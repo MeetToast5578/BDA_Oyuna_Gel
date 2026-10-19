@@ -3,9 +3,10 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
-import { SPORT_META, toPlayer } from '@/lib/game-backend'
+import { formatBakuShortDate, SPORT_META, toPlayer } from '@/lib/game-backend'
 import type { Db } from '@/lib/join-game'
-import { afterMemberLeaves } from '@/lib/team-logic'
+import { recentTeamResults, teamRecords } from '@/lib/records'
+import { afterMemberLeaves, compareStandings, summarize, type WinLossRecord } from '@/lib/team-logic'
 
 export type TeamErrorCode = 'TEAM_NOT_FOUND' | 'NOT_CAPTAIN' | 'INVALID_INVITE' | 'NOT_A_CLUB_MEMBER' | 'TOO_MANY_CLUBS'
 export type TeamResult<T = object> = ({ ok: true } & T) | { ok: false; code: TeamErrorCode }
@@ -150,7 +151,10 @@ export async function leaveAllClubs(db: Db, userId: number) {
   for (const team of rows) await leaveClub(db, team.id, team.captain_id, userId)
 }
 
-/** Clubs with at least one member (an emptied club is hidden, D12), biggest first. */
+/**
+ * Clubs with at least one member (an emptied club is hidden, D12), biggest first, each with its
+ * record from confirmed scores. The standings are these rows put in `compareStandings` order.
+ */
 export async function listTeams(payload: Payload, sport: string | null) {
   const { rows } = await drizzle(payload).execute<{ id: number; name: string; sport: string; members: string }>(sql`
     SELECT t.id, t.name, t.sport, count(r.id) AS members
@@ -160,13 +164,30 @@ export async function listTeams(payload: Payload, sport: string | null) {
     GROUP BY t.id
     ORDER BY members DESC, t.name, t.id
   `)
+  const records = await teamRecords(drizzle(payload), rows.map((row) => row.id))
   return rows.map((row) => ({
     id: String(row.id),
     name: row.name,
     sport: row.sport,
     sportLabel: SPORT_META[row.sport]?.label ?? row.sport,
     memberCount: Number(row.members),
+    record: summarize(records.get(row.id) ?? []),
   }))
+}
+
+/** League-table order: points, goal difference, goals scored; clubs level on all three, the bigger club first. */
+export const byStanding = (a: { record: WinLossRecord; memberCount: number; name: string }, b: typeof a) =>
+  compareStandings(a.record, b.record) || b.memberCount - a.memberCount || a.name.localeCompare(b.name, 'az')
+
+/** The clubs a person is a member of, by name. */
+export async function userClubs(payload: Payload, userId: number) {
+  const { rows } = await drizzle(payload).execute<{ id: number; name: string; sport: string }>(sql`
+    SELECT t.id, t.name, t.sport FROM teams t
+    JOIN teams_rels r ON r.parent_id = t.id AND r.path = 'members'
+    WHERE r.users_id = ${userId}
+    ORDER BY t.name, t.id
+  `)
+  return rows.map((row) => ({ id: String(row.id), name: row.name, sport: row.sport, sportLabel: SPORT_META[row.sport]?.label ?? row.sport }))
 }
 
 const MEMBER_POPULATE = { users: { fullName: true, profilePicture: true, avatarUrl: true } } as const
@@ -194,6 +215,8 @@ export async function getTeam(payload: Payload, teamId: number, viewerId: number
       return { id, name, initials, avatarUrl, isCaptain: member.id === captainId, you: member.id === viewerId }
     })
   const isCaptain = viewerId !== null && captainId === viewerId
+  const db = drizzle(payload)
+  const [records, recent] = await Promise.all([teamRecords(db, [teamId]), recentTeamResults(db, teamId)])
 
   return {
     id: String(doc.id),
@@ -202,6 +225,8 @@ export async function getTeam(payload: Payload, teamId: number, viewerId: number
     sportLabel: SPORT_META[doc.sport]?.label ?? doc.sport,
     memberCount: members.length,
     members,
+    record: summarize(records.get(teamId) ?? []),
+    recent: recent.map((game) => ({ ...game, dateLabel: formatBakuShortDate(game.startsAt) })),
     viewer: { isMember: members.some((member) => member.you), isCaptain },
     inviteCode: isCaptain ? (doc.inviteCode ?? null) : null,
   }
