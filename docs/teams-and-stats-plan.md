@@ -26,7 +26,11 @@
 >   `nextResultStatus` under the game's row lock. The game detail carries `result`, `canReport` and
 >   `canConfirm`, and the game page has a "Hesab" panel (`components/games/ResultPanel.tsx`).
 >
-> Phases 5–7 are not started.
+> - **Phase 5 built:** the club routes (`lib/teams.ts`, `app/api/v1/teams/**`), account deletion
+>   hands over each club the person captains, and the pages `/teams`, `/teams/new`, `/teams/[id]` and
+>   `/teams/join/[code]`. Not yet: the club's record and the standings, which wait for Phase 7.
+>
+> Phases 6–7 are not started.
 
 What was asked:
 

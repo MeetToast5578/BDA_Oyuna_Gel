@@ -12,6 +12,7 @@ import { NavLink } from './NavLink'
 const MENU_LINKS = [
   { href: '/games', label: 'Açıq oyunlar' },
   { href: '/venues', label: 'Meydançalar' },
+  { href: '/teams', label: 'Komandalar' },
   { href: '/about', label: 'Haqqımızda' },
   { href: '/rules', label: 'Qaydalar' },
   { href: '/contact', label: 'Əlaqə' },
@@ -82,6 +83,19 @@ export function Header() {
             >
               <NavLink href="/games" className={styles.link}>
                 Açıq oyunlar
+              </NavLink>
+            </Suspense>
+          </li>
+          <li>
+            <Suspense
+              fallback={
+                <Link href="/teams" className={styles.link}>
+                  Komandalar
+                </Link>
+              }
+            >
+              <NavLink href="/teams" className={styles.link}>
+                Komandalar
               </NavLink>
             </Suspense>
           </li>

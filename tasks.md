@@ -22,12 +22,12 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 - [x] Tests: state machine through the routes; a host's teammate can't confirm; auto-confirm after 48h.
 
 ### Teams phase 5: clubs
-- [ ] Endpoints: `GET/POST /teams`, `GET/PATCH /teams/{id}`, `POST /teams/{id}/join` (invite code),
+- [x] Endpoints: `GET/POST /teams`, `GET/PATCH /teams/{id}`, `POST /teams/{id}/join` (invite code),
       `POST /teams/{id}/leave`, `DELETE /teams/{id}/members/{userId}`.
-- [ ] Captain hand-over on leave (`afterMemberLeaves`), also inside `deleteMyAccount`.
-- [ ] Invite codes from `crypto.randomBytes(12)`; captain can regenerate.
-- [ ] Pages: `/teams`, `/teams/new`, `/teams/[id]`, `/teams/join/[code]`.
-- [ ] Tests: only the captain can edit; wrong code refused; joining twice is a no-op.
+- [x] Captain hand-over on leave (`afterMemberLeaves`), also inside `deleteMyAccount`.
+- [x] Invite codes from `crypto.randomBytes(12)`; captain can regenerate.
+- [x] Pages: `/teams`, `/teams/new`, `/teams/[id]`, `/teams/join/[code]`.
+- [x] Tests: only the captain can edit; wrong code refused; joining twice is a no-op.
 
 ### Teams phase 6: club sides in a game
 - [ ] Optional "Komanda" section on the create and edit forms.

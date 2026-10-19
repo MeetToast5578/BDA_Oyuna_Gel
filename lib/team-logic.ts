@@ -1,6 +1,8 @@
 // Pure team logic: sides in a game, auto-balance, the score's confirm flow and win/loss stats.
 // No Payload or Next imports, like lib/game-backend.ts. Plan: docs/teams-and-stats-plan.md.
 
+import { SPORTS } from '@/lib/game-backend'
+
 export type Side = 'home' | 'away'
 export type SideChoice = Side | 'random'
 export type Outcome = 'win' | 'draw' | 'loss'
@@ -298,3 +300,44 @@ export function summarizeBySport(games: (PlayedGame & { sport: string })[], spor
 /** League table order: points, then goal difference, then goals scored. */
 export const compareStandings = (a: WinLossRecord, b: WinLossRecord) =>
   b.points - a.points || b.scored - b.conceded - (a.scored - a.conceded) || b.scored - a.scored
+
+export const TEAM_NAME_MIN = 2
+export const TEAM_NAME_MAX = 40
+/** A longer string can't be an invite code (`newInviteCode` makes 16 characters). */
+const INVITE_CODE_MAX = 64
+
+/** A club name with its whitespace tidied, or null when it isn't 2 to 40 characters. */
+function parseTeamName(value: unknown) {
+  const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : ''
+  return name.length >= TEAM_NAME_MIN && name.length <= TEAM_NAME_MAX ? name : null
+}
+
+/** `POST /teams` body: a name and the one sport the club plays. */
+export function parseCreateTeamBody(
+  body: unknown,
+): { ok: true; name: string; sport: string } | { ok: false; code: 'INVALID_NAME' | 'INVALID_SPORT' } {
+  const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  const name = parseTeamName(doc.name)
+  if (!name) return { ok: false, code: 'INVALID_NAME' }
+  if (typeof doc.sport !== 'string' || !SPORTS.includes(doc.sport)) return { ok: false, code: 'INVALID_SPORT' }
+  return { ok: true, name, sport: doc.sport }
+}
+
+/** `PATCH /teams/{id}` body: a new `name`, and/or `regenerateInviteCode: true` to retire the old link. */
+export function parseUpdateTeamBody(
+  body: unknown,
+): { ok: true; name: string | undefined; regenerateInviteCode: boolean } | { ok: false; code: 'INVALID_NAME' | 'INVALID_TEAM' } {
+  const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  const regenerate = doc.regenerateInviteCode
+  if (doc.name === undefined && regenerate !== true) return { ok: false, code: 'INVALID_TEAM' }
+  if (regenerate !== undefined && regenerate !== true) return { ok: false, code: 'INVALID_TEAM' }
+  if (doc.name === undefined) return { ok: true, name: undefined, regenerateInviteCode: true }
+  const name = parseTeamName(doc.name)
+  return name ? { ok: true, name, regenerateInviteCode: regenerate === true } : { ok: false, code: 'INVALID_NAME' }
+}
+
+/** `POST /teams/{id}/join` body: the invite code from the link. */
+export function parseJoinTeamBody(body: unknown): { ok: true; code: string } | { ok: false } {
+  const code = body && typeof body === 'object' ? (body as Record<string, unknown>).code : null
+  return typeof code === 'string' && code.length > 0 && code.length <= INVITE_CODE_MAX ? { ok: true, code } : { ok: false }
+}

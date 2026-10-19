@@ -61,7 +61,7 @@ previews their own database if they shouldn't touch production.
 
 | Path                | What it holds                                                   |
 | ------------------- | --------------------------------------------------------------- |
-| `app/(frontend)`    | Public site: home, `/games`, `/games/past`, `/games/[id]`, `/games/new`, `/games/[id]/edit`, `/login`, `/profile`, `/users/[id]` |
+| `app/(frontend)`    | Public site: home, `/games`, `/games/past`, `/games/[id]`, `/games/new`, `/games/[id]/edit`, `/teams`, `/teams/[id]`, `/teams/new`, `/login`, `/profile`, `/users/[id]` |
 | `components/`       | Frontend components (CSS Modules); design tokens are in `app/(frontend)/globals.css` |
 | `app/(payload)`     | Payload admin panel and its REST/GraphQL routes (generated)       |
 | `app/api`           | Custom API routes — games, sports, Google auth                    |

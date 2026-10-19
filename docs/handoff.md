@@ -51,10 +51,12 @@ re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComp
 
 Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are built. Next:
 
-1. **Teams phase 3** is built (`lib/sides.ts`, `PATCH /api/v1/games/{id}/sides`, the host's buttons in
-   `components/games/PlayersButton.tsx`). `playerRecords` there is the stats query Phase 7 needs.
-2. **Teams phase 4** is built (`lib/results.ts`, the two `/result` routes, `ResultPanel`). Next:
-   **phases 5–7** in order (clubs, club sides, stats).
+1. **Teams phases 3–5** are built:
+   - phase 3: `lib/sides.ts`, `PATCH /api/v1/games/{id}/sides`, the host's buttons in
+     `components/games/PlayersButton.tsx`; `playerRecords` there is the stats query phase 7 needs;
+   - phase 4: `lib/results.ts`, the two `/result` routes, `components/games/ResultPanel.tsx`;
+   - phase 5: `lib/teams.ts`, `/api/v1/teams/**`, the `/teams` pages.
+2. **Teams phases 6–7** in order (club sides in a game, stats and standings).
 3. Left out of phase 2 on purpose: `hostSide` on create (the host is always `home`), and club
    names on the side picker (no game has clubs until phase 6).
 4. **Blocked:**

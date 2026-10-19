@@ -11,9 +11,12 @@ import {
   effectiveResultStatus,
   nextResultStatus,
   occupancy,
+  parseCreateTeamBody,
+  parseJoinTeamBody,
   parseResultBody,
   parseSideChoice,
   parseSidesBody,
+  parseUpdateTeamBody,
   pickSide,
   resultCounts,
   summarize,
@@ -251,5 +254,31 @@ describe('clubs', () => {
     expect(afterMemberLeaves([5, 8, 9], 5, 5)).toEqual({ members: [8, 9], captainId: 8 })
     expect(afterMemberLeaves([5, 8, 9], 5, 9)).toEqual({ members: [5, 8], captainId: 5 })
     expect(afterMemberLeaves([5], 5, 5)).toEqual({ members: [], captainId: null })
+  })
+})
+
+describe('club requests', () => {
+  it('parses a new club: a trimmed name of 2 to 40 characters and a known sport', () => {
+    expect(parseCreateTeamBody({ name: '  Qarabağ   Veteranlar ', sport: 'football' })).toEqual({ ok: true, name: 'Qarabağ Veteranlar', sport: 'football' })
+    for (const body of [{ name: 'A', sport: 'football' }, { name: 'x'.repeat(41), sport: 'football' }, { name: '   ', sport: 'tennis' }, { sport: 'tennis' }, null]) {
+      expect(parseCreateTeamBody(body)).toEqual({ ok: false, code: 'INVALID_NAME' })
+    }
+    expect(parseCreateTeamBody({ name: 'Duo', sport: 'chess' })).toEqual({ ok: false, code: 'INVALID_SPORT' })
+  })
+
+  it('parses an edit: a new name and/or a new invite code, nothing else', () => {
+    expect(parseUpdateTeamBody({ name: ' Yeni ad ' })).toEqual({ ok: true, name: 'Yeni ad', regenerateInviteCode: false })
+    expect(parseUpdateTeamBody({ regenerateInviteCode: true })).toEqual({ ok: true, name: undefined, regenerateInviteCode: true })
+    expect(parseUpdateTeamBody({ name: 'A' })).toEqual({ ok: false, code: 'INVALID_NAME' })
+    for (const body of [{}, null, { regenerateInviteCode: false }, { regenerateInviteCode: 'yes' }]) {
+      expect(parseUpdateTeamBody(body)).toEqual({ ok: false, code: 'INVALID_TEAM' })
+    }
+  })
+
+  it('parses an invite code: a short non-empty string', () => {
+    expect(parseJoinTeamBody({ code: 'abc_123-XYZ' })).toEqual({ ok: true, code: 'abc_123-XYZ' })
+    for (const body of [{}, null, { code: '' }, { code: 5 }, { code: 'x'.repeat(65) }]) {
+      expect(parseJoinTeamBody(body)).toEqual({ ok: false })
+    }
   })
 })

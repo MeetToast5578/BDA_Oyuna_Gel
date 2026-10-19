@@ -22,6 +22,10 @@ Errors always have the shape:
 | Oyun Detalı                             | `GET /api/v1/games/{id}`                             |
 | İştirakçılar (the avatar row's list)    | `GET /api/v1/games/{id}/participants`                |
 | Komandaları dəyiş / Balansla (host)     | `PATCH /api/v1/games/{id}/sides`                     |
+| Komandalar (list)                       | `GET /api/v1/teams?sport=…`                          |
+| Komanda yarat                           | `POST /api/v1/teams`                                 |
+| Komanda səhifəsi                        | `GET /api/v1/teams/{id}`                             |
+| Komandaya qoş / çıx / üzvü çıxar        | `POST /teams/{id}/join` · `/leave` · `DELETE /teams/{id}/members/{userId}` |
 | Hesabı daxil et (host)                  | `POST /api/v1/games/{id}/result`                     |
 | Təsdiqlə / Etiraz et (other side)       | `POST /api/v1/games/{id}/result/confirm`             |
 | Qoşulma modalı, addım 1 → addım 2       | Client-side only; nothing is sent yet                |
@@ -455,6 +459,71 @@ places in a full game. Response body matches the join endpoint.
 | 409    | `HOST_CANNOT_LEAVE` | The host leaves by deleting the game                  |
 | 409    | `GAME_STARTED`      | Already kicked off, cancelled or finished             |
 | 429    | `RATE_LIMITED`      | As for join; joins and leaves share the count         |
+
+## Clubs
+
+A club is a named team with one sport, a captain and members. Anyone signed in can create one and
+becomes its captain; others join through the captain's invite link. Clubs with no members are hidden
+from the list but stay readable, because past games point at them.
+
+### `GET /api/v1/teams`
+
+"Komandalar". Public. `?sport=football|basketball|tennis` narrows it (`400 INVALID_SPORT` otherwise).
+Biggest club first.
+
+```json
+{ "teams": [{ "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol", "memberCount": 9 }] }
+```
+
+### `POST /api/v1/teams`
+
+"Komanda yarat". Body: `{ "name": "Qarabağ Veteranlar", "sport": "football" }`; the name is 2 to 40
+characters. Answers `201 { "id": "7" }`. The creator is the captain and the first member.
+
+- Errors: `400 INVALID_NAME`, `400 INVALID_SPORT`, `401 UNAUTHENTICATED`, `409 TOO_MANY_CLUBS` (a
+  person captains at most 5).
+
+### `GET /api/v1/teams/{id}`
+
+A club's page. Public; signing in marks your own row.
+
+```json
+{
+  "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol", "memberCount": 2,
+  "members": [{ "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "isCaptain": true, "you": false }],
+  "viewer": { "isMember": false, "isCaptain": false },
+  "inviteCode": null
+}
+```
+
+Members are in the order they joined. `inviteCode` is only ever set for the captain: it is the whole
+of what someone needs to join, and the link is `/teams/join/{inviteCode}`. `404 TEAM_NOT_FOUND`,
+`400 INVALID_TEAM_ID`.
+
+### `PATCH /api/v1/teams/{id}`
+
+Captain only. `{ "name": "…" }` renames the club; `{ "regenerateInviteCode": true }` retires the old
+link for a new one (the old code stops working at once). Both may be sent together. Answers the club,
+as `GET` does. Errors: `400 INVALID_NAME`, `400 INVALID_TEAM`, `401`, `403 NOT_CAPTAIN`, `404`.
+
+### `POST /api/v1/teams/{id}/join`
+
+"Komandaya qoş". Body: `{ "code": "…" }`, the code from the invite link. Answers
+`{ "joined": true, "team": … }`; joining a club you are already in does nothing (`joined: false`).
+Errors: `401`, `403 INVALID_INVITE` (wrong or retired code, or a club that has no code yet), `404`.
+
+### `POST /api/v1/teams/{id}/leave`
+
+"Komandadan çıx". A leaving captain hands the club to its longest-standing member; when the last
+member leaves the club is kept with no captain. Games the person already joined on the club's side
+stay as they are. Errors: `401`, `404`, `409 NOT_A_CLUB_MEMBER`.
+
+### `DELETE /api/v1/teams/{id}/members/{userId}`
+
+"Üzvü çıxar". The captain removes a member, with the same hand-over if it is themselves. Errors:
+`401`, `403 NOT_CAPTAIN`, `404`, `409 NOT_A_CLUB_MEMBER`.
+
+Deleting an account hands over every club that person captains, the same way.
 
 ## Profile
 

@@ -14,6 +14,7 @@ import {
   type ProfileUpdate,
 } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
+import { leaveAllClubs } from '@/lib/teams'
 
 /**
  * A profile is always read for one signed-in person, so nothing here is cached: it would key on the
@@ -433,6 +434,9 @@ export async function deleteMyAccount(userId: number) {
       overrideAccess: true,
       req,
     })
+    // Each club they captain goes to its longest-standing member first: once the account is gone the
+    // captain column only empties, which would leave a club with members and nobody in charge.
+    await leaveAllClubs(db, userId)
     await payload.delete({ collection: 'users', id: userId, overrideAccess: true, req })
     if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
   } catch (error) {
