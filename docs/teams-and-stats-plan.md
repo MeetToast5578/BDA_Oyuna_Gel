@@ -18,7 +18,11 @@
 >   - not built from Phase 2: `hostSide` on create (the host is always `home` until a form asks),
 >     and club names on the picker (no game has clubs until Phase 6).
 >
-> Phases 3–7 are not started.
+> - **Phase 3 built:** `PATCH /api/v1/games/{id}/sides` (`lib/sides.ts`) moves players or balances, under the
+>   game's row lock and ending in `checkSides`; the players dialog has the host's "⇄" and "Balansla"
+>   buttons. `playerRecords` in `lib/sides.ts` is the SQL twin of `resultCounts`, which Phase 7 reuses.
+>
+> Phases 4–7 are not started.
 
 What was asked:
 

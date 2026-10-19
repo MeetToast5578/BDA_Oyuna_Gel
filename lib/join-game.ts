@@ -79,7 +79,7 @@ export async function claimSpot(
 }
 
 type Tx = Parameters<Parameters<PostgresAdapter['drizzle']['transaction']>[0]>[0]
-type Db = Tx | PostgresAdapter['drizzle']
+export type Db = Tx | PostgresAdapter['drizzle']
 
 /**
  * A game's sides as `checkSides` and `occupancy` see them: its clubs, the players' rows with the

@@ -459,6 +459,8 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
   return {
     game: { id: game.id, title: game.title, currentCount: game.currentCount, maxCount: game.maxCount },
     host: { ...game.host, side: hostSide, you: isViewer(game.host.id) },
+    // Only the host moves players, and only until kick-off; the sides route enforces the same.
+    canMove: isViewer(game.host.id) && isUpcoming(game.status),
     players,
     others: Math.max(0, game.currentCount - players.length - 1),
   }

@@ -1,15 +1,17 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { apiFetch } from '@/lib/api-client'
+import { apiFetch, patchJson } from '@/lib/api-client'
 import type { GamePlayers, Participant } from '@/lib/api-types'
 import { buttonClass } from '@/components/ui/button'
 import form from '@/components/ui/form.module.css'
 import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
+import { otherSide, type Side } from '@/lib/team-logic'
 import { Avatar, AvatarStack } from './bits'
 import styles from './PlayersButton.module.css'
 
@@ -57,6 +59,7 @@ export function PlayersButton({
   const [error, setError] = useState<string | null>(null)
   const pending = useRef<Promise<void> | null>(null)
   const readAt = useRef(0)
+  const router = useRouter()
 
   // A join or leave re-renders the page with a new count, so a list read before it is out of date.
   useEffect(() => {
@@ -78,6 +81,13 @@ export function PlayersButton({
       .finally(() => {
         pending.current = null
       })
+  }
+
+  // The host's move answers with the fresh list; the page behind it also shows each side's free spots.
+  function moved(next: GamePlayers) {
+    setList(next)
+    readAt.current = Date.now()
+    router.refresh()
   }
 
   function show() {
@@ -105,7 +115,7 @@ export function PlayersButton({
         createPortal(
           <Modal open={open} onClose={() => setOpen(false)} title="İştirakçılar" subtitle={gameTitle} wide>
             {list ? (
-              <PlayersList list={list} onPick={() => setOpen(false)} />
+              <PlayersList list={list} gameId={gameId} onMoved={moved} onPick={() => setOpen(false)} />
             ) : error ? (
               <div className={styles.failed}>
                 <p className={form.alert} role="alert">
@@ -133,11 +143,48 @@ export function PlayersButton({
   )
 }
 
-function PlayersList({ list, onPick }: { list: GamePlayers; onPick: () => void }) {
+function PlayersList({
+  list,
+  gameId,
+  onMoved,
+  onPick,
+}: {
+  list: GamePlayers
+  gameId: string
+  onMoved: (next: GamePlayers) => void
+  onPick: () => void
+}) {
   // Same colors as the avatar row, which draws the players in join order.
   const players = list.players.map((player, toneIndex) => ({ player, toneIndex }))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function change(body: { balance: true } | { assignments: { userId: number; side: Side }[] }) {
+    setBusy(true)
+    setError(null)
+    try {
+      onMoved(await patchJson<GamePlayers>(`/api/v1/games/${gameId}/sides`, body))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Komandaları dəyişmək mümkün olmadı.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
+      {list.canMove && (
+        <div className={styles.manage}>
+          <button type="button" className={buttonClass('outlinePrimary', 'md')} disabled={busy} onClick={() => change({ balance: true })}>
+            Balansla
+          </button>
+          {error && (
+            <p className={form.alert} role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
       <div className={styles.sides}>
         {(['home', 'away'] as const).map((side) => (
           <section key={side} aria-label={SIDE_LABELS[side]}>
@@ -151,8 +198,20 @@ function PlayersList({ list, onPick }: { list: GamePlayers; onPick: () => void }
               {players
                 .filter(({ player }) => player.side === side)
                 .map(({ player, toneIndex }) => (
-                  <li key={player.id ?? `gone-${toneIndex}`}>
+                  <li key={player.id ?? `gone-${toneIndex}`} className={list.canMove && player.id ? styles.withMove : undefined}>
                     <PlayerRow person={player} toneIndex={toneIndex} onPick={onPick} />
+                    {list.canMove && player.id && (
+                      <button
+                        type="button"
+                        className={styles.move}
+                        disabled={busy}
+                        aria-label={`${player.name} oyunçusunu ${SIDE_TARGETS[otherSide(side)]} köçür`}
+                        title={`${SIDE_TARGETS[otherSide(side)]} köçür`}
+                        onClick={() => change({ assignments: [{ userId: Number(player.id), side: otherSide(side) }] })}
+                      >
+                        <span aria-hidden="true">⇄</span>
+                      </button>
+                    )}
                   </li>
                 ))}
             </ul>
@@ -165,6 +224,7 @@ function PlayersList({ list, onPick }: { list: GamePlayers; onPick: () => void }
 }
 
 const SIDE_LABELS = { home: 'A komandası', away: 'B komandası' }
+const SIDE_TARGETS = { home: 'A komandasına', away: 'B komandasına' }
 
 /** A row opens the player's profile — your own row, your own `/profile`. A deleted account's row opens nothing. */
 function PlayerRow({

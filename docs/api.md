@@ -21,6 +21,7 @@ Errors always have the shape:
 | Empty state ("Hələ açıq oyun yoxdur")   | `GET /api/v1/games?sport=…` returning `games: []`    |
 | Oyun Detalı                             | `GET /api/v1/games/{id}`                             |
 | İştirakçılar (the avatar row's list)    | `GET /api/v1/games/{id}/participants`                |
+| Komandaları dəyiş / Balansla (host)     | `PATCH /api/v1/games/{id}/sides`                     |
 | Qoşulma modalı, addım 1 → addım 2       | Client-side only; nothing is sent yet                |
 | "Bir addım qaldı" → "Qoşulmanı təsdiq et" | `POST /api/v1/games/{id}/join` (returns host phone) |
 | Yeni Oyun Yarat: Meydança picker        | `GET /api/v1/venues?sport=…&q=…`                     |
@@ -218,10 +219,13 @@ from a second ago.
     { "id": "7", "name": "Aysel Quliyeva", "initials": "AQ", "avatarUrl": "/api/media/file/aysel.png", "side": "away", "you": true },
     { "id": null, "name": "Rəşad Babayev", "initials": "RB", "avatarUrl": null, "side": "home", "you": false }
   ],
-  "others": 2
+  "others": 2,
+  "canMove": false
 }
 ```
 
+- `canMove` is `true` only for the host of a game that hasn't started: the page then shows the move
+  buttons and "Balansla" ([`PATCH /sides`](#patch-apiv1gamesidsides)).
 - `side` is the half of the game each player is on; the page lists the two sides as columns.
 - The host comes first, then the players in the order they joined. Each row links to
   `/users/{id}`, and the viewer's own (`you`) to `/profile`.
@@ -230,6 +234,34 @@ from a second ago.
 - `others` is the rest of `currentCount`: players the host said were already coming when they
   created the game, who have no account to list ("+2 nəfər hostla birlikdə gəlir").
 - No phone numbers. `404 GAME_NOT_FOUND`, `400 INVALID_GAME_ID`.
+
+## `PATCH /api/v1/games/{id}/sides`
+
+"Komandaları dəyiş": the host moves players between the two sides, or presses "Balansla". Host or
+admin only, and only before kick-off. Everything runs in one transaction under the game's row lock,
+so a join racing it waits, and a request that would break a rule changes nothing.
+
+Move players (at most one move per player, up to 22):
+
+```json
+{ "assignments": [{ "userId": 7, "side": "away" }] }
+```
+
+Or balance everyone:
+
+```json
+{ "balance": true }
+```
+
+- Balancing makes the sides equal in size first, then in strength (each player's confirmed record,
+  a newcomer counting as 0.5). The host stays where they are and their guests with them. Members of
+  a club stay on its side.
+- `200` answers with the same body as [`GET /participants`](#get-apiv1gamesidparticipants), so the
+  page can redraw the list.
+- Errors: `400 INVALID_SIDES` (bad body), `401 UNAUTHENTICATED`, `403 NOT_GAME_HOST`,
+  `404 GAME_NOT_FOUND`, `409 GAME_STARTED`, `409 NOT_IN_GAME` (a player who isn't in the game),
+  `409 NOT_A_MEMBER` (a club's side is for its members), `409 SIDE_FULL` (a side would hold more
+  than half the game, guests included).
 
 ## `PATCH /api/v1/games/{id}`
 
