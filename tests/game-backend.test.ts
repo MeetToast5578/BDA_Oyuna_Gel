@@ -624,6 +624,7 @@ describe('parseCreateGameBody', () => {
         homeTeamId: null,
         awayTeamId: null,
         hostSide: 'home',
+        invites: [],
       },
     })
   })
@@ -967,5 +968,16 @@ describe('clubs on a game', () => {
     expect(parse({ hostSide: '' })).toMatchObject({ ok: true, input: { hostSide: 'home' } })
     expect(parse({ hostSide: 'away' })).toMatchObject({ ok: true, input: { hostSide: 'away' } })
     expect(parse({ hostSide: 'random' })).toMatchObject({ ok: false, code: 'INVALID_SIDE' })
+  })
+
+  it('reads the players to invite on create, ignores them on an edit, and refuses a bad list', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const now = new Date('2029-12-01')
+    const invites = [{ userId: 4, side: 'away' }]
+    expect(parseCreateGameBody({ ...body, invites }, now)).toMatchObject({ ok: true, input: { invites } })
+    expect(parseCreateGameBody({ ...body, invites: [{ userId: 4, side: 'x' }] }, now)).toMatchObject({ ok: false, code: 'INVALID_INVITES' })
+    // The edit form has no invites: whatever is sent is not read, so it can't invite anyone.
+    expect(parseEditGameBody({ ...body, invites }, 1, now)).toMatchObject({ ok: true, input: { invites: [] } })
+    expect(parseEditGameBody({ ...body, invites: 'garbage' }, 1, now)).toMatchObject({ ok: true, input: { invites: [] } })
   })
 })

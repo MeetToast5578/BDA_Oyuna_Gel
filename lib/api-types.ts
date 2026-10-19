@@ -35,6 +35,8 @@ export type CreateGameRequest = {
   awayTeamId?: number | null
   /** Creating only: the side the host stands on (default `home`); their guests stand there too. */
   hostSide?: 'home' | 'away'
+  /** Creating only: players to invite, each to a side. An invite holds no spot. */
+  invites?: { userId: number; side: 'home' | 'away' }[]
   /** Replace the profile's number with `hostPhone` ("Bu nömrəni profilimdə saxla"). */
   saveToProfile?: boolean
 }

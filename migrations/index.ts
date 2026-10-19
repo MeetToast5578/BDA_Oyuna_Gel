@@ -5,6 +5,7 @@ import * as migration_20261014_093046_keep_past_games_of_deleted_hosts from './2
 import * as migration_20261014_111042_user_email_notifications from './20261014_111042_user_email_notifications';
 import * as migration_20261014_114826_teams_sides_and_results from './20261014_114826_teams_sides_and_results';
 import * as migration_20261014_115147_join_outcome_side_codes from './20261014_115147_join_outcome_side_codes';
+import * as migration_20261019_185819_game_invites from './20261019_185819_game_invites';
 
 export const migrations = [
   {
@@ -41,5 +42,10 @@ export const migrations = [
     up: migration_20261014_115147_join_outcome_side_codes.up,
     down: migration_20261014_115147_join_outcome_side_codes.down,
     name: '20261014_115147_join_outcome_side_codes',
+  },
+  {
+    up: migration_20261019_185819_game_invites.up,
+    down: migration_20261019_185819_game_invites.down,
+    name: '20261019_185819_game_invites'
   },
 ];

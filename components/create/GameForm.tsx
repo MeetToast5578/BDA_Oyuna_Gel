@@ -31,6 +31,7 @@ import { phoneSource, type PhoneSource } from '@/lib/profile-form'
 import { loginHref } from '@/lib/safe-redirect'
 import type { ClubOption } from '@/lib/teams'
 import { expireSession } from '@/lib/session-actions'
+import { Avatar } from '@/components/games/bits'
 import { LEVEL_OPTIONS, SPORT_EMOJI, SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 import { buttonClass } from '@/components/ui/button'
 import form from '@/components/ui/form.module.css'
@@ -38,6 +39,8 @@ import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { PhoneProfileNote } from '@/components/ui/PhoneProfileNote'
+import { PlayerSearch, type FoundPlayer } from '@/components/games/PlayerSearch'
+import invitesStyles from '@/components/games/Invites.module.css'
 import danger from '@/components/ui/danger.module.css'
 import styles from './GameForm.module.css'
 import { CalendarPopover, TimePopover } from './Pickers'
@@ -171,6 +174,8 @@ export function GameForm({
   // The club on each side, as a club id; "" leaves the side open to anyone.
   const [homeTeam, setHomeTeam] = useState(game?.teams.home?.id ?? '')
   const [awayTeam, setAwayTeam] = useState(game?.teams.away?.id ?? '')
+  // People the host named to invite, each to a side. Sent with the game; nothing is invited before it is saved.
+  const [invitees, setInvitees] = useState<{ player: FoundPlayer; side: 'home' | 'away' }[]>([])
   // The side the host plays on, with their guests. Chosen when creating; an edit keeps it (the host moves like anyone).
   const [hostSide, setHostSide] = useState<'home' | 'away'>(game?.hostSide ?? 'home')
   const [venue, setVenue] = useState<Venue | null>(game?.venue ?? null)
@@ -207,6 +212,10 @@ export function GameForm({
         team.id !== (side === 'home' ? awayTeam : homeTeam) &&
         (side !== hostSide || team.mine || team.id === (side === 'home' ? homeTeam : awayTeam)),
     )
+  const sideLabels = {
+    home: clubsOfSport.find((team) => team.id === homeTeam)?.name ?? 'A komandası',
+    away: clubsOfSport.find((team) => team.id === awayTeam)?.name ?? 'B komandası',
+  }
   const homeChoices = choicesFor('home')
   const awayChoices = choicesFor('away')
   const minMaxCount = editing ? minMaxFor(currentCount) : MIN_MAX_PLAYERS
@@ -331,6 +340,7 @@ export function GameForm({
       homeTeamId: homeTeam ? Number(homeTeam) : null,
       awayTeamId: awayTeam ? Number(awayTeam) : null,
       ...(editing ? {} : { hostSide }),
+      ...(!editing && invitees.length > 0 ? { invites: invitees.map(({ player, side }) => ({ userId: Number(player.id), side })) } : {}),
       ...(title.trim() ? { title: title.trim() } : {}),
       ...(phoneNote === 'differs' && savePhone ? { saveToProfile: true } : {}),
     }
@@ -699,9 +709,9 @@ export function GameForm({
             ) : (
               <>
                 {!editing && (
-                  <div className={`${styles.choices} ${styles.levels}`} role="radiogroup" aria-label="Siz hansı komandadasınız?">
+                  <div className={`${styles.choices} ${styles.levels} ${styles.hostSideChoices}`} role="radiogroup" aria-label="Siz hansı komandadasınız?">
                     {(['home', 'away'] as const).map((side) => (
-                      <label key={side} className={`${styles.choice} ${styles.levelChoice}`}>
+                      <label key={side} className={`${styles.choice} ${styles.levelChoice} ${styles.hostSideChoice}`}>
                         <input type="radio" name="hostSide" value={side} checked={hostSide === side} onChange={() => setHostSide(side)} />
                         {side === 'home' ? 'Mən A komandasındayam' : 'Mən B komandasındayam'}
                       </label>
@@ -750,6 +760,45 @@ export function GameForm({
               </>
             )}
           </fieldset>
+
+          {!editing && (
+            <fieldset className={form.field}>
+              <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
+                Oyunçuları dəvət et (istəyə bağlı)
+              </legend>
+              {invitees.length > 0 && (
+                <ul className={invitesStyles.list} aria-label="Dəvət olunacaqlar">
+                  {invitees.map(({ player, side }) => (
+                    <li key={player.id} className={invitesStyles.row}>
+                      <Avatar person={player} size={36} decorative />
+                      <span className={invitesStyles.rowText}>
+                        <span className={invitesStyles.name}>{player.name}</span>
+                        <span className={invitesStyles.sub}>{sideLabels[side]}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className={buttonClass('outlineDark', 'sm')}
+                        aria-label={`${player.name} dəvətini sil`}
+                        onClick={() => setInvitees((current) => current.filter((item) => item.player.id !== player.id))}
+                      >
+                        Sil
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <PlayerSearch
+                sideLabels={sideLabels}
+                taken={invitees.map(({ player }) => player.id)}
+                disabled={invitees.length >= maxCount - 1}
+                onPick={(player, side) => setInvitees((current) => [...current, { player, side }])}
+              />
+              <p className={form.hint}>
+                Dəvət yer tutmur: oyunçu qoşulanda yeri ayrılır. Dəvətlər onun profilində görünür. Oyun yaradıldıqdan sonra da
+                dəvət edə bilərsiniz.
+              </p>
+            </fieldset>
+          )}
 
           <div className={form.field}>
             <label htmlFor={ids.title} className={form.labelSmall}>

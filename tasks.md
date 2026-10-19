@@ -45,11 +45,12 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 - [x] `hostSide` on game create.
 - [x] Club names on the side picker (needs phase 6).
 
-### Game setup: clubs and players (`docs/game-setup-teams-and-players-plan.md`, drafted, decisions D13–D18 open)
-- [ ] Phase 8: always show "Komandalar" on the form, member counts on the options, the away captain
+### Game setup: clubs and players (`docs/game-setup-teams-and-players-plan.md`; decisions D13–D18 open, built to the bold options)
+- [x] Phase 8: always show "Komandalar" on the form, member counts on the options, the away captain
       can decline, club page lists upcoming games.
-- [ ] Phase 9: host removes a player; `?side=` join links.
-- [ ] Phase 10: invite players by name (`game-invites`, user search, accept = `claimSpot`).
+- [x] Phase 9: host removes a player; `?side=` join links.
+- [x] Phase 10: invite players by name (`game-invites`, user search, joining answers an invite, decline route, badge and profile list).
+- [ ] Phase 11 (only if asked for): closed games (`joinPolicy`), guests per side.
 
 ## B. Blocked on the owner
 

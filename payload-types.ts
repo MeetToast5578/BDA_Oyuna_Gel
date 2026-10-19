@@ -74,6 +74,7 @@ export interface Config {
     games: Game;
     'game-participants': GameParticipant;
     'join-attempts': JoinAttempt;
+    'game-invites': GameInvite;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -88,6 +89,7 @@ export interface Config {
     games: GamesSelect<false> | GamesSelect<true>;
     'game-participants': GameParticipantsSelect<false> | GameParticipantsSelect<true>;
     'join-attempts': JoinAttemptsSelect<false> | JoinAttemptsSelect<true>;
+    'game-invites': GameInvitesSelect<false> | GameInvitesSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -354,6 +356,22 @@ export interface JoinAttempt {
   createdAt: string;
 }
 /**
+ * Invitations to a game. Created by the invite endpoints; the invited player answers by joining or declining.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-invites".
+ */
+export interface GameInvite {
+  id: number;
+  game: number | Game;
+  user: number | User;
+  invitedBy?: (number | null) | User;
+  side: 'home' | 'away';
+  status: 'pending' | 'accepted' | 'declined';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -404,6 +422,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'join-attempts';
         value: number | JoinAttempt;
+      } | null)
+    | ({
+        relationTo: 'game-invites';
+        value: number | GameInvite;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -601,6 +623,19 @@ export interface JoinAttemptsSelect<T extends boolean = true> {
   user?: T;
   remainingSpots?: T;
   ip?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-invites_select".
+ */
+export interface GameInvitesSelect<T extends boolean = true> {
+  game?: T;
+  user?: T;
+  invitedBy?: T;
+  side?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
 }

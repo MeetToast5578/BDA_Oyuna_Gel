@@ -12,6 +12,8 @@ import {
   nextResultStatus,
   occupancy,
   parseCreateTeamBody,
+  parseInviteEntries,
+  parseInviteRequest,
   parseJoinTeamBody,
   parseResultBody,
   parseSideChoice,
@@ -279,6 +281,43 @@ describe('club requests', () => {
     expect(parseJoinTeamBody({ code: 'abc_123-XYZ' })).toEqual({ ok: true, code: 'abc_123-XYZ' })
     for (const body of [{}, null, { code: '' }, { code: 5 }, { code: 'x'.repeat(65) }]) {
       expect(parseJoinTeamBody(body)).toEqual({ ok: false })
+    }
+  })
+})
+
+describe('invite requests', () => {
+  it('reads the create body\'s invites: none, or one entry per player', () => {
+    expect(parseInviteEntries(undefined)).toEqual({ ok: true, entries: [] })
+    expect(parseInviteEntries(null)).toEqual({ ok: true, entries: [] })
+    expect(parseInviteEntries([])).toEqual({ ok: true, entries: [] })
+    expect(parseInviteEntries([{ userId: 4, side: 'away' }, { userId: 9, side: 'home' }])).toEqual({
+      ok: true,
+      entries: [{ userId: 4, side: 'away' }, { userId: 9, side: 'home' }],
+    })
+  })
+
+  it('refuses anything else instead of trimming it', () => {
+    const bad: unknown[] = [
+      'all',
+      {},
+      [null],
+      [{ userId: 4 }],
+      [{ userId: 4, side: 'middle' }],
+      [{ userId: '4', side: 'home' }],
+      [{ userId: 0, side: 'home' }],
+      [{ userId: 1.5, side: 'home' }],
+      [{ userId: 4, side: 'home' }, { userId: 4, side: 'away' }],
+      Array.from({ length: 22 }, (_, i) => ({ userId: i + 1, side: 'home' })),
+    ]
+    for (const value of bad) expect(parseInviteEntries(value), JSON.stringify(value)).toEqual({ ok: false })
+    expect(parseInviteEntries(Array.from({ length: 21 }, (_, i) => ({ userId: i + 1, side: 'home' }))).ok).toBe(true)
+  })
+
+  it('tells one player from a whole club', () => {
+    expect(parseInviteRequest({ userId: 4, side: 'away' })).toEqual({ ok: true, club: false, entry: { userId: 4, side: 'away' } })
+    expect(parseInviteRequest({ clubSide: 'home' })).toEqual({ ok: true, club: true, side: 'home' })
+    for (const body of [null, {}, { clubSide: 'both' }, { userId: 4 }, { userId: 4, side: 'x' }]) {
+      expect(parseInviteRequest(body), JSON.stringify(body)).toEqual({ ok: false })
     }
   })
 })

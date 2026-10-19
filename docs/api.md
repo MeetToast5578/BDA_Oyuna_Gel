@@ -303,6 +303,73 @@ list, the same shape as `GET /participants`.
 | 409    | `HOST_CANNOT_LEAVE` | The host can't be removed; delete the game     |
 | 409    | `GAME_STARTED`      | Already kicked off, cancelled or finished      |
 
+## Invitations
+
+The host can name players, not only wait for them. An **invite** is a player and a side: it holds **no
+spot** (the spot is taken when the person joins) and only pre-picks the side. The player answers by
+joining (`POST /games/{id}/join`, which marks the invite accepted whichever way they got there) or by
+declining. A player who declined can't be invited to that game again; one who accepted and then left can.
+
+### `POST /api/v1/games/{id}/invites`
+
+"Dəvət et". Host or admin, before kick-off. Body is `{ "userId": 7, "side": "away" }` for one player, or
+`{ "clubSide": "home" }` for everyone in that side's club who isn't in the game or invited yet, as many
+as that side has free spots (nobody left to invite is `invited: 0`, not an error). Runs under the game's
+row lock; every invite is checked before any is written. **200** returns
+`{ "invited": 1, "invites": [ … ] }`, the list as `GET` gives it. The invited players get an email
+(when email is on, and they haven't turned it off).
+
+| Status | `code`                | When                                                                  |
+| ------ | --------------------- | --------------------------------------------------------------------- |
+| 400    | `INVALID_INVITE`      | Not `{ userId, side }` or `{ clubSide }`                              |
+| 401    | `UNAUTHENTICATED`     | Not signed in                                                         |
+| 403    | `NOT_GAME_HOST`       | Signed in, but not this game's host                                   |
+| 404    | `GAME_NOT_FOUND`      |                                                                       |
+| 404    | `USER_NOT_FOUND`      | No such player                                                        |
+| 409    | `GAME_STARTED`        | Started, finished or cancelled                                        |
+| 409    | `ALREADY_IN_GAME`     | The player (or the host) already holds a spot                         |
+| 409    | `ALREADY_INVITED`     | Invited already: pending, or they declined                            |
+| 409    | `INVITE_NOT_A_MEMBER` | That side is a club's and the player isn't in it                      |
+| 409    | `TOO_MANY_INVITES`    | Open invites would pass the game's size                               |
+| 409    | `NO_CLUB`             | `clubSide` names a side with no club                                  |
+| 429    | `RATE_LIMITED`        | 60 invites an hour per host, across all their games                   |
+
+The create body (`POST /api/v1/games`) can carry `invites: [{ userId, side }]` (at most one per player,
+up to 21), checked and written in the same transaction as the game: one refused invite refuses the whole
+game and leaves nothing behind. A bad list is `400 INVALID_INVITES`; the rows above apply as well.
+
+### `GET /api/v1/games/{id}/invites`
+
+Host or admin. The invitations still open or turned down, oldest first:
+`{ "invites": [{ "id": "5", "side": "away", "status": "pending", "player": { "id": "7", "name": "…", "initials": "…", "avatarUrl": null } }] }`.
+`status` is `pending` or `declined`; accepted invites are the players in the game's list.
+
+### `DELETE /api/v1/games/{id}/invites/{inviteId}`
+
+"Geri götür". Host or admin takes back an invite nobody has answered; a declined one stays as it is.
+**200** returns the list. `404 INVITE_NOT_FOUND`, `400 INVALID_INVITE_ID`, and the `401` / `403` / `404` above.
+
+### `GET /api/v1/me/invites`
+
+The signed-in player's invitations, soonest game first (up to 20): only those for a game that hasn't
+started and that they haven't joined. Each is `{ id, gameId, title, sportLabel, dateLabel, timeLabel,
+venueName, hostName, side, sideLabel }`, with `sideLabel` the club's name or "A komandası" / "B komandası".
+The profile shows them under "Dəvətlər" and the header's profile link carries their count. "Bax və qoşul"
+opens `/games/{gameId}?join=1&side={side}`.
+
+### `POST /api/v1/invites/{id}/decline`
+
+"Rədd et". The invited player turns an invite down and gets their remaining list back. The same
+`404 INVITE_NOT_FOUND` answers someone else's invite and one already answered, so ids can't be probed.
+
+### `GET /api/v1/users?q=`
+
+The host's player search. Signed-in only. `q` is at least 2 characters and matches anywhere in the name,
+ignoring case and Azerbaijani letters (`eli` finds "Əli"). Add `gameId` to leave out people already in or
+invited to that game. At most 8 results, never the caller, and only what a public profile already shows:
+`{ "users": [{ "id": "7", "name": "…", "initials": "…", "avatarUrl": null }] }`. There is no rate limit
+on search yet (a scan of the users table, noted in `lib/invites.ts`).
+
 ## `POST /api/v1/games/{id}/decline-club`
 
 "Komandanı oyundan çıxar". The host names the opposing club without asking it, so this is how it

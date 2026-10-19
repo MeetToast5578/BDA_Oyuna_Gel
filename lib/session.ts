@@ -7,6 +7,7 @@ import { cache } from 'react'
 import type { CurrentUser } from '@/lib/api-types'
 import { initialsOf, userAvatarUrl } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
+import { pendingInviteCount } from '@/lib/invites'
 
 /**
  * The signed-in user (Payload session or Google session cookie), or null.
@@ -48,3 +49,6 @@ export function isGoogleAuthConfigured() {
 export function sessionTag(userId: number) {
   return `session-${userId}`
 }
+
+/** Invitations waiting for the person, for the header's badge. Once per request: the header renders it twice. */
+export const getPendingInvites = cache(async (userId: number) => pendingInviteCount(await getPayloadClient(), userId))

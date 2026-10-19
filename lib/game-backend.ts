@@ -1,5 +1,7 @@
 // Pure game logic shared by the API routes, collections and tests. No Payload or Next imports here.
 
+import { parseInviteEntries, type InviteEntry } from '@/lib/team-logic'
+
 export type AvailabilityStatus = 'open' | 'full' | 'live' | 'finished' | 'cancelled'
 
 type Doc = Record<string, unknown>
@@ -297,6 +299,8 @@ export type CreateGameInput = {
   awayTeamId: number | null
   /** The side the host stands on when creating the game (an edit ignores it: the host moves like anyone). */
   hostSide: 'home' | 'away'
+  /** Players the host names at creation, each invited to a side; empty on an edit (the game page invites later). */
+  invites: InviteEntry[]
 }
 
 type CreateGameParseResult = { ok: true; input: CreateGameInput } | { ok: false; code: string; message: string }
@@ -374,9 +378,12 @@ function parseGameForm(body: unknown, now: Date, fixedCurrentCount?: number): Cr
   const hostSide = data.hostSide === undefined || data.hostSide === null || data.hostSide === '' ? 'home' : data.hostSide
   if (hostSide !== 'home' && hostSide !== 'away') return fail('INVALID_SIDE', 'hostSide must be home or away.')
 
+  const invites = fixedCurrentCount === undefined ? parseInviteEntries(data.invites) : { ok: true as const, entries: [] as InviteEntry[] }
+  if (!invites.ok) return fail('INVALID_INVITES', 'invites must be a list of { userId, side }, one entry per player.')
+
   return {
     ok: true,
-    input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, homeTeamId, awayTeamId, hostSide },
+    input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, homeTeamId, awayTeamId, hostSide, invites: invites.entries },
   }
 }
 

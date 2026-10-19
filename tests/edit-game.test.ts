@@ -84,6 +84,7 @@ describe.skipIf(!process.env.DATABASE_URL)('editing a game while players join (P
     homeTeamId: null,
     awayTeamId: null,
     hostSide: 'home',
+    invites: [],
   })
 
   const available = async (gameId: number) =>

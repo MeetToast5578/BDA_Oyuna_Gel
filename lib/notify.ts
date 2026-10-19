@@ -1,7 +1,8 @@
 import { after } from 'next/server'
 import type { Payload } from 'payload'
 
-import type { Email } from '@/lib/emails'
+import { invitedEmail, type Email } from '@/lib/emails'
+import type { InviteEntry } from '@/lib/team-logic'
 
 /**
  * Sends `email` to each of these users who has an address and hasn't turned emails off on their
@@ -55,4 +56,17 @@ export async function participantIds(payload: Payload, gameId: number, exceptUse
   return docs
     .map((row) => (typeof row.user === 'object' ? row.user?.id : row.user))
     .filter((id): id is number => typeof id === 'number' && id !== exceptUserId)
+}
+
+/** Tells each invited player which side they were invited to, naming it after the club when it has one. */
+export async function notifyInvited(
+  payload: Payload,
+  game: Parameters<typeof invitedEmail>[0] & { teams: { home: { name: string } | null; away: { name: string } | null } },
+  entries: InviteEntry[],
+) {
+  for (const side of ['home', 'away'] as const) {
+    const ids = entries.filter((entry) => entry.side === side).map((entry) => entry.userId)
+    const label = game.teams[side]?.name ?? (side === 'home' ? 'A komandası' : 'B komandası')
+    await notify(payload, ids, invitedEmail(game, side, label))
+  }
 }

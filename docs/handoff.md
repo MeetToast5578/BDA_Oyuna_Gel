@@ -1,7 +1,9 @@
 # Handoff: teams, fixes and UX work on `Branch-1`
 
 > **Update:** PR #14 (everything in §2 below) was merged into `main`. `Branch-1` was restarted from `main`
-> and carries the teams phases 3–7 in draft PR #15; §3 says what each added. 259 tests pass across 23 files.
+> and carries the teams phases 3–7 in draft PR #15; §3 says what each added. The game-setup phases 8–10
+> (`docs/game-setup-teams-and-players-plan.md`: clubs on the form, remove a player, side links, invites by
+> name) are on it too, with migration `20261019_185819_game_invites`.
 
 Written at the end of the session of 14 October 2026, so the next session can pick up without
 re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComponents`; read
@@ -63,6 +65,9 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
      `updateGame`, `clubOptions` for the form, `matchupLabel` for the cards).
    - phase 7: `lib/records.ts` (`playerRecords`, `teamRecords`, `recentTeamResults`), `record` and `clubs` on
      the profiles, the standings on `/teams?sport=`, the club's record, `components/profile/RecordPanel.tsx`.
+   - phases 8–10 (game setup): `decline-club`, `players/{userId}` (remove) and `invites` routes,
+     `lib/invites.ts`, `components/games/{PlayerSearch,HostInvites,DeclineClub}.tsx`,
+     `components/profile/PendingInvites.tsx`, the badge in `components/site/Header.tsx`.
 2. Nothing is left of the teams plan. Open items are below and in `tasks.md`.
 3. `hostSide` on create (the host picks the side they play on) is built too, in the same change as phase 6.
 4. **Blocked on the owner:**

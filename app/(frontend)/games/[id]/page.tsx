@@ -7,6 +7,7 @@ import { Avatar, LevelBadge, ProgressBar, SportBadge } from '@/components/games/
 import { BackLink } from '@/components/games/BackLink'
 import { CoverImage } from '@/components/games/CoverImage'
 import { DeclineClub } from '@/components/games/DeclineClub'
+import { HostInvites } from '@/components/games/HostInvites'
 import styles from '@/components/games/GameDetail.module.css'
 import { JoinPanel } from '@/components/games/JoinPanel'
 import { PlayersButton } from '@/components/games/PlayersButton'
@@ -17,7 +18,8 @@ import { buttonClass } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { googleCalendarUrl } from '@/lib/calendar'
 import { isUpcoming, matchupLabel, shareText } from '@/lib/game-backend'
-import { getGameDetail } from '@/lib/game-queries'
+import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
+import { listGameInvites } from '@/lib/invites'
 import { formatPhone } from '@/lib/phone'
 import { loginHref } from '@/lib/safe-redirect'
 import { getCurrentUser } from '@/lib/session'
@@ -92,6 +94,9 @@ async function GameDetailContent({ params, searchParams }: Props) {
   // Once it has started, the page describes a game that happened rather than one to join.
   const upcoming = isUpcoming(game.status)
   const gameUrl = `${SITE_URL}/games/${game.id}`
+  const sideLabels = { home: game.teams.home?.name ?? 'A komandası', away: game.teams.away?.name ?? 'B komandası' }
+  // Only the host sees who has been invited, and only while the game can still be joined.
+  const invites = game.viewer.isHost && upcoming ? await listGameInvites(await getPayloadClient(), Number(game.id)) : null
   const googleCalendar = googleCalendarUrl(game, gameUrl)
 
   return (
@@ -220,6 +225,10 @@ async function GameDetailContent({ params, searchParams }: Props) {
           <Link href={`/games/${game.id}/edit`} className={buttonClass('outlinePrimary', 'lg', { block: true })}>
             Oyunu redaktə et
           </Link>
+        )}
+
+        {invites && (
+          <HostInvites gameId={game.id} initial={invites} sideLabels={sideLabels} clubs={{ home: Boolean(game.teams.home), away: Boolean(game.teams.away) }} />
         )}
 
         {game.viewer.canDeclineClub && (

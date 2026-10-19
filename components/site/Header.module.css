@@ -281,6 +281,7 @@
 
 /* The signed-in chip: avatar and first name, linking to "Profilim". */
 .user {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -308,6 +309,23 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Invitations waiting: a count on the corner of the chip, so it shows with or without the name. */
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  color: #fff;
 }
 
 /* Matches the "Daxil ol" button, the widest thing the signed-out slot renders. */

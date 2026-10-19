@@ -164,6 +164,18 @@
   color: var(--color-text);
 }
 
+/* "Mən A komandasındayam" is long: two to a row, and tall enough to wrap on a phone. */
+.hostSideChoices {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hostSideChoice {
+  height: auto;
+  min-height: 40px;
+  padding: 8px 10px;
+  line-height: 1.25;
+}
+
 .levelChoice:has(input:checked) {
   border-color: var(--color-primary);
   box-shadow: none;

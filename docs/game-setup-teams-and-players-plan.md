@@ -1,6 +1,27 @@
 # Choosing teams and players when you create a game: plan
 
-> **Status: draft, nothing built. Decisions D13–D18 in §3 are open.**
+> **Status: Phases 8, 9 and 10 are built. Phase 11 is not (only if asked for).** Decisions D13–D18
+> in §3 are still unanswered, and the code follows the bold option of each.
+>
+> **Where the build differs from the text below:**
+> - **Accepting has no route of its own.** The invited player joins through the existing join flow
+>   (`/games/{id}?join=1&side=…`), and the join route marks the invite accepted whichever way they
+>   joined (`markInviteAccepted`). This reuses the phone and name step, the rate limit and the join
+>   audit log, and so there is no second place that can break a side's size. `POST /invites/{id}/decline`
+>   is the only answer route.
+> - **Inviting after creation is on the game page**, not the edit form: a "Oyunçu dəvət et" panel for the
+>   host (search, "invite the whole club", who is pending or declined, take back). The create form
+>   only queues invites with the game.
+> - **Invites cascade.** `game_invites` has `ON DELETE CASCADE` on the game and the player (edited from
+>   what Payload generated, and its `down` fixed), so deleting a game or an account needs no extra
+>   delete. A host limit of 60 invites an hour replaces the shared join/leave limit.
+> - **The player search has no rate limit** (the log that join and leave share would have counted every
+>   keystroke against joining). It is signed-in only, 2 characters, 8 results, public fields only.
+> - **Declining is final** for that game: the host can't invite the same player again; a player who
+>   accepted and then left can be.
+> - **New in Phase 8, not planned:** the host-side choice wraps on a phone, and `?join=1&side=` also
+>   works signed out (sign in, then back to the join form).
+>
 > Follows `docs/teams-and-stats-plan.md`, whose Phases 0–7 are built (clubs, sides, score, records,
 > and a "Komandalar" picker on the create form). This plan covers what is still missing. It reuses
 > `lib/team-logic.ts` and the invariant `checkSides`.

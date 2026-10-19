@@ -22,6 +22,7 @@ import {
   type CreateGameInput,
   type GameListQuery,
 } from '@/lib/game-backend'
+import { addInvites, INVITE_ERRORS } from '@/lib/invites'
 import { readSides } from '@/lib/join-game'
 import {
   checkSides,
@@ -597,6 +598,12 @@ export async function createGame(host: { id: number; phoneNumber?: string | null
     if (!checkSides(sides.game, sides.players, sides.guests, sides.hostId).ok) {
       if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
       return { ok: false, code: 'NOT_A_MEMBER', message: 'Seçdiyiniz tərəfin komandasının üzvü olmalısınız.' }
+    }
+    // The players the host named: checked and written with the game, so a refusal leaves no game behind.
+    const refused = await addInvites(transactionDb(payload, transactionID), created.id, sides.game, host.id, input.invites)
+    if (refused) {
+      if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+      return { ok: false, code: refused.code, message: INVITE_ERRORS[refused.code].message }
     }
     if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
     gameId = created.id

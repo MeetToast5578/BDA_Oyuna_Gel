@@ -106,6 +106,39 @@ export function parseSidesBody(
   return { ok: true, balance: false, assignments }
 }
 
+/** One named player invited to a side of a game. */
+export type InviteEntry = { userId: number; side: Side }
+
+/** A game holds at most 22 players (football), the host among them, so at most 21 can be invited. */
+export const MAX_INVITES_PER_GAME_FORM = 21
+
+/**
+ * The create body's `invites`: absent or empty is no invites, otherwise `[{ userId, side }]` with at
+ * most one entry per player. Anything else is refused, not trimmed (400 INVALID_INVITES).
+ */
+export function parseInviteEntries(value: unknown): { ok: true; entries: InviteEntry[] } | { ok: false } {
+  if (value === undefined || value === null) return { ok: true, entries: [] }
+  if (!Array.isArray(value) || value.length > MAX_INVITES_PER_GAME_FORM) return { ok: false }
+  const entries: InviteEntry[] = []
+  for (const item of value) {
+    const { userId, side } = (item ?? {}) as Record<string, unknown>
+    if (!Number.isSafeInteger(userId) || (userId as number) <= 0 || (side !== 'home' && side !== 'away')) return { ok: false }
+    if (entries.some((entry) => entry.userId === userId)) return { ok: false }
+    entries.push({ userId: userId as number, side })
+  }
+  return { ok: true, entries }
+}
+
+/** `POST /invites` body: `{ userId, side }` for one player, or `{ clubSide }` for everyone in that side's club. */
+export function parseInviteRequest(
+  body: unknown,
+): { ok: true; club: false; entry: InviteEntry } | { ok: true; club: true; side: Side } | { ok: false } {
+  const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  if (doc.clubSide !== undefined) return doc.clubSide === 'home' || doc.clubSide === 'away' ? { ok: true, club: true, side: doc.clubSide } : { ok: false }
+  const parsed = parseInviteEntries([doc])
+  return parsed.ok && parsed.entries.length === 1 ? { ok: true, club: false, entry: parsed.entries[0] } : { ok: false }
+}
+
 export type PickSideResult = { ok: true; side: Side } | { ok: false; code: 'NOT_A_MEMBER' | 'SIDE_FULL' }
 
 /**
