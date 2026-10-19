@@ -33,6 +33,8 @@ export type CreateGameRequest = {
   /** The club on each side (home must be one of the host's); absent or null leaves the side open. */
   homeTeamId?: number | null
   awayTeamId?: number | null
+  /** Creating only: the side the host stands on (default `home`); their guests stand there too. */
+  hostSide?: 'home' | 'away'
   /** Replace the profile's number with `hostPhone` ("Bu nömrəni profilimdə saxla"). */
   saveToProfile?: boolean
 }

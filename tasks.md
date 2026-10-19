@@ -42,7 +42,7 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 - [x] Standings table on `/teams?sport=` (no `teams` cache tag: the club pages aren't cached).
 
 ### Phase 2 leftovers
-- [ ] `hostSide` on game create (currently always `home`).
+- [x] `hostSide` on game create.
 - [x] Club names on the side picker (needs phase 6).
 
 ## B. Blocked on the owner

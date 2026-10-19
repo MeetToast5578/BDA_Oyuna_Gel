@@ -171,6 +171,8 @@ export function GameForm({
   // The club on each side, as a club id; "" leaves the side open to anyone.
   const [homeTeam, setHomeTeam] = useState(game?.teams.home?.id ?? '')
   const [awayTeam, setAwayTeam] = useState(game?.teams.away?.id ?? '')
+  // The side the host plays on, with their guests. Chosen when creating; an edit keeps it (the host moves like anyone).
+  const [hostSide, setHostSide] = useState<'home' | 'away'>(game?.hostSide ?? 'home')
   const [venue, setVenue] = useState<Venue | null>(game?.venue ?? null)
   // Date and time are kept as typed; the API values ("2026-09-19", "19:30") are derived from the text
   // and the chosen format, so switching format or picking from the calendar just rewrites the text.
@@ -197,10 +199,16 @@ export function GameForm({
   const [currentCount, setCurrentCount] = useState(game?.currentCount ?? 1)
   const [maxCount, setMaxCount] = useState(() => game?.maxCount ?? SPORT_META[sport].maxPlayers)
   const sportMax = SPORT_META[sport].maxPlayers
-  // Home is one of the host's clubs (they stand on that side); away is any club of the sport.
+  // The host stands on one side, so that side's club must be one of theirs; the other side may be any club of the sport.
   const clubsOfSport = teams.filter((team) => team.sport === sport)
-  const homeChoices = clubsOfSport.filter((team) => (team.mine || team.id === homeTeam) && team.id !== awayTeam)
-  const awayChoices = clubsOfSport.filter((team) => team.id !== homeTeam)
+  const choicesFor = (side: 'home' | 'away') =>
+    clubsOfSport.filter(
+      (team) =>
+        team.id !== (side === 'home' ? awayTeam : homeTeam) &&
+        (side !== hostSide || team.mine || team.id === (side === 'home' ? homeTeam : awayTeam)),
+    )
+  const homeChoices = choicesFor('home')
+  const awayChoices = choicesFor('away')
   const minMaxCount = editing ? minMaxFor(currentCount) : MIN_MAX_PLAYERS
   // Only the digits after the fixed +994 prefix, formatted as "77 538 60 04".
   const [hostPhone, setHostPhone] = useState(formatLocalPhone(game?.host.phone ?? user.phoneNumber ?? ''))
@@ -322,6 +330,7 @@ export function GameForm({
       hostPhone: `${PHONE_PREFIX} ${hostPhone}`,
       homeTeamId: homeTeam ? Number(homeTeam) : null,
       awayTeamId: awayTeam ? Number(awayTeam) : null,
+      ...(editing ? {} : { hostSide }),
       ...(title.trim() ? { title: title.trim() } : {}),
       ...(phoneNote === 'differs' && savePhone ? { saveToProfile: true } : {}),
     }
@@ -680,10 +689,20 @@ export function GameForm({
               <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
                 Komandalar (istəyə bağlı)
               </legend>
+              {!editing && (
+                <div className={`${styles.choices} ${styles.levels}`} role="radiogroup" aria-label="Siz hansı komandadasınız?">
+                  {(['home', 'away'] as const).map((side) => (
+                    <label key={side} className={`${styles.choice} ${styles.levelChoice}`}>
+                      <input type="radio" name="hostSide" value={side} checked={hostSide === side} onChange={() => setHostSide(side)} />
+                      {side === 'home' ? 'Mən A komandasındayam' : 'Mən B komandasındayam'}
+                    </label>
+                  ))}
+                </div>
+              )}
               <div className={form.row}>
                 <div className={form.field}>
                   <label htmlFor={ids.homeTeam} className={form.labelSmall}>
-                    A komandası (ev sahibi)
+                    A komandası{hostSide === 'home' ? ' (siz)' : ''}
                   </label>
                   <select
                     id={ids.homeTeam}
@@ -701,7 +720,7 @@ export function GameForm({
                 </div>
                 <div className={form.field}>
                   <label htmlFor={ids.awayTeam} className={form.labelSmall}>
-                    B komandası
+                    B komandası{hostSide === 'away' ? ' (siz)' : ''}
                   </label>
                   <select
                     id={ids.awayTeam}

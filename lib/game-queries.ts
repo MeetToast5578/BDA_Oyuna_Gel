@@ -431,6 +431,8 @@ export async function getGameDetail(
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
     viewer: { joined, isHost },
     freeBySide: { home: Math.max(cap - taken.home, 0), away: Math.max(cap - taken.away, 0) },
+    /** The side the host stands on, where their guests stand too. */
+    hostSide: sides.hostSide,
     result: scored
       ? { homeScore: doc.homeScore as number, awayScore: doc.awayScore as number, status: effectiveResultStatus(resultState, now) as ResultStatus }
       : null,
@@ -578,13 +580,13 @@ export async function createGame(host: { id: number; phoneNumber?: string | null
       collection: 'game-participants',
       overrideAccess: true,
       req,
-      data: { game: created.id, user: host.id, phone: contactPhone, side: 'home' },
+      data: { game: created.id, user: host.id, phone: contactPhone, side: input.hostSide },
     })
-    // The host stands on the home side, so a home club must be one of theirs.
+    // The host stands on the side they chose, so that side's club, if it has one, must be one of theirs.
     const sides = await readSides(transactionDb(payload, transactionID), created.id)
     if (!checkSides(sides.game, sides.players, sides.guests, sides.hostId).ok) {
       if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
-      return { ok: false, code: 'NOT_A_MEMBER', message: 'Ev sahibi komandanın üzvü olmalısınız.' }
+      return { ok: false, code: 'NOT_A_MEMBER', message: 'Seçdiyiniz tərəfin komandasının üzvü olmalısınız.' }
     }
     if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
     gameId = created.id

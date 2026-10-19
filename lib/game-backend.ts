@@ -295,6 +295,8 @@ export type CreateGameInput = {
   /** The clubs standing on each side, or null for a side open to anyone. */
   homeTeamId: number | null
   awayTeamId: number | null
+  /** The side the host stands on when creating the game (an edit ignores it: the host moves like anyone). */
+  hostSide: 'home' | 'away'
 }
 
 type CreateGameParseResult = { ok: true; input: CreateGameInput } | { ok: false; code: string; message: string }
@@ -369,7 +371,13 @@ function parseGameForm(body: unknown, now: Date, fixedCurrentCount?: number): Cr
   const awayTeamId = teamId(data.awayTeamId)
   if (Number.isNaN(homeTeamId) || Number.isNaN(awayTeamId)) return fail('INVALID_TEAM', 'homeTeamId and awayTeamId must be club ids.')
 
-  return { ok: true, input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, homeTeamId, awayTeamId } }
+  const hostSide = data.hostSide === undefined || data.hostSide === null || data.hostSide === '' ? 'home' : data.hostSide
+  if (hostSide !== 'home' && hostSide !== 'away') return fail('INVALID_SIDE', 'hostSide must be home or away.')
+
+  return {
+    ok: true,
+    input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, homeTeamId, awayTeamId, hostSide },
+  }
 }
 
 export function parseCreateGameBody(body: unknown, now = new Date()) {

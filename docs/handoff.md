@@ -64,7 +64,7 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
    - phase 7: `lib/records.ts` (`playerRecords`, `teamRecords`, `recentTeamResults`), `record` and `clubs` on
      the profiles, the standings on `/teams?sport=`, the club's record, `components/profile/RecordPanel.tsx`.
 2. Nothing is left of the teams plan. Open items are below and in `tasks.md`.
-3. Left out of phase 2 on purpose: `hostSide` on create (the host is always `home`).
+3. `hostSide` on create (the host picks the side they play on) is built too, in the same change as phase 6.
 4. **Blocked:**
    - the waitlist (stage 5) needs email, which is on hold;
    - Russian and English (stage 7) need D5 (which languages, which URLs);

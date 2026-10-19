@@ -159,6 +159,45 @@ describe.skipIf(!process.env.DATABASE_URL)('games between clubs (Postgres)', () 
     expect(detail?.teams).toEqual({ home: { id: String(clubs.mine), name: `Mine ${suffix}` }, away: null })
   })
 
+  describe('the side the host plays on', () => {
+    it('puts the host on the away side when they ask, and the host\'s club must be that side\'s', async () => {
+      const { status, json } = await create({ hostSide: 'away', awayTeamId: clubs.mine, homeTeamId: clubs.other })
+      expect(status).toBe(201)
+      expect(json.game.hostSide).toBe('away')
+      const players = await getGamePlayers(Number(json.game.id), hostId)
+      expect(players?.host.side).toBe('away')
+      const rows = await payload.find({ collection: 'game-participants', where: { game: { equals: Number(json.game.id) } }, depth: 0, overrideAccess: true })
+      expect(rows.docs.map((row) => [Number(row.user), row.side])).toEqual([[hostId, 'away']])
+    })
+
+    it('refuses an away club the host is not in when they play away, and a bad side', async () => {
+      const refused = await create({ hostSide: 'away', awayTeamId: clubs.other })
+      expect(refused.status).toBe(409)
+      expect(refused.json.error.code).toBe('NOT_A_MEMBER')
+      const bad = await create({ hostSide: 'middle' })
+      expect(bad.status).toBe(400)
+      expect(bad.json.error.code).toBe('INVALID_SIDE')
+    })
+
+    it('defaults to home, and lets the host keep guests on their own side', async () => {
+      expect((await create()).json.game.hostSide).toBe('home')
+      // Nine of ten already in, all with the host on the away side: eight guests stand with the host
+      // until that side is full, and the rest spill over, so neither side holds more than half.
+      const { status, json } = await create({ hostSide: 'away', currentCount: 9 })
+      expect(status).toBe(201)
+      expect(json.game.freeBySide).toEqual({ home: 1, away: 0 })
+    })
+
+    it('checks an edit against where the host really stands', async () => {
+      const { json } = await create({ hostSide: 'away' })
+      const gameId = Number(json.game.id)
+      const refused = await edit(gameId, { awayTeamId: clubs.other })
+      expect(refused.status).toBe(409)
+      expect(refused.json.error.code).toBe('NOT_A_MEMBER')
+      expect((await edit(gameId, { homeTeamId: clubs.other, awayTeamId: clubs.mine })).status).toBe(200)
+    })
+  })
+
   describe('editing', () => {
     it('refuses a club that would strand a player on its side, until the host moves them', async () => {
       const { json } = await create()

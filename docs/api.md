@@ -207,6 +207,7 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
   "participants": { "preview": [{ "id": "9", "name": "…", "initials": "RM", "avatarUrl": null }], "total": 11 },
   "viewer": { "joined": false, "isHost": false },
   "freeBySide": { "home": 2, "away": 3 },
+  "hostSide": "home",
   "result": { "homeScore": 3, "awayScore": 1, "status": "reported" },
   "canReport": false,
   "canConfirm": true
@@ -435,12 +436,13 @@ Options for the "Meydança" picker.
 | `maxCount`      | Even (two equal sides), from 2 up to the sport's full size: football 22, basketball 10, tennis 4 |
 | `hostPhone`     | Optional if the profile has a phone number; shown to players after they join |
 | `title`         | Optional, defaults to "Futbol oyunu" etc. (the design has no title field)  |
-| `homeTeamId`, `awayTeamId` | Optional club ids, one per side ("Komandalar"); absent, `null` or `""` leaves the side open to anyone. Home must be a club the host is in, since the host stands on the home side. Both must play the game's sport, and not be the same club. A side with a club admits only its members |
+| `homeTeamId`, `awayTeamId` | Optional club ids, one per side ("Komandalar"); absent, `null` or `""` leaves the side open to anyone. The club on the host's own side must be one the host is in. Both must play the game's sport, and not be the same club. A side with a club admits only its members |
+| `hostSide` | Optional `home` (default) or `away`: the side the host stands on, where their `currentCount − 1` guests stand too until it is full. Create only: an edit ignores it, and the host moves like any player (`PATCH /sides`) |
 | `saveToProfile` | Optional `true`: also replace the profile's number with `hostPhone` (see [Remembered phone number](#remembered-phone-number)) |
 
 The host name ("Ad Soyad (Host)") comes from the account, so show it read-only.
 
-**201** `{ "game": { …as GET /api/v1/games/{id} }, "savedToProfile": true }`. Errors: `401 UNAUTHENTICATED`; `400` with `INVALID_SPORT`, `INVALID_LEVEL`, `INVALID_VENUE`, `INVALID_DATE`, `DATE_IN_PAST`, `INVALID_MAX_COUNT`, `INVALID_CURRENT_COUNT`, `INVALID_PHONE`, `VENUE_NOT_FOUND`, `VENUE_SPORT_MISMATCH`, `PHONE_REQUIRED`, `INVALID_TEAM`, `TEAM_NOT_FOUND`, `TEAM_SPORT_MISMATCH`, `SAME_TEAM`; `409 NOT_A_MEMBER` (the host isn't in the home club).
+**201** `{ "game": { …as GET /api/v1/games/{id} }, "savedToProfile": true }`. Errors: `401 UNAUTHENTICATED`; `400` with `INVALID_SPORT`, `INVALID_LEVEL`, `INVALID_VENUE`, `INVALID_DATE`, `DATE_IN_PAST`, `INVALID_MAX_COUNT`, `INVALID_CURRENT_COUNT`, `INVALID_PHONE`, `VENUE_NOT_FOUND`, `VENUE_SPORT_MISMATCH`, `PHONE_REQUIRED`, `INVALID_TEAM`, `TEAM_NOT_FOUND`, `TEAM_SPORT_MISMATCH`, `SAME_TEAM`, `INVALID_SIDE`; `409 NOT_A_MEMBER` (the host isn't in the club of their own side).
 
 ### Remembered phone number
 

@@ -623,6 +623,7 @@ describe('parseCreateGameBody', () => {
         contactPhone: '+994502103456',
         homeTeamId: null,
         awayTeamId: null,
+        hostSide: 'home',
       },
     })
   })
@@ -957,5 +958,14 @@ describe('clubs on a game', () => {
     for (const bad of [0, -1, 1.5, 'abc', true, {}]) {
       expect(parse({ homeTeamId: bad })).toMatchObject({ ok: false, code: 'INVALID_TEAM' })
     }
+  })
+
+  it('reads the host\'s side, defaulting to home, and refuses anything but home or away', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const parse = (extra: object) => parseCreateGameBody({ ...body, ...extra }, new Date('2029-12-01'))
+    expect(parse({})).toMatchObject({ ok: true, input: { hostSide: 'home' } })
+    expect(parse({ hostSide: '' })).toMatchObject({ ok: true, input: { hostSide: 'home' } })
+    expect(parse({ hostSide: 'away' })).toMatchObject({ ok: true, input: { hostSide: 'away' } })
+    expect(parse({ hostSide: 'random' })).toMatchObject({ ok: false, code: 'INVALID_SIDE' })
   })
 })
