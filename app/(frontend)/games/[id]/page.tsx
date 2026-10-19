@@ -9,6 +9,7 @@ import { CoverImage } from '@/components/games/CoverImage'
 import styles from '@/components/games/GameDetail.module.css'
 import { JoinPanel } from '@/components/games/JoinPanel'
 import { PlayersButton } from '@/components/games/PlayersButton'
+import { ResultPanel } from '@/components/games/ResultPanel'
 import { ShareButton } from '@/components/games/ShareButton'
 import { GameDetailSkeleton } from '@/components/games/skeletons'
 import { buttonClass } from '@/components/ui/button'
@@ -218,6 +219,9 @@ async function GameDetailContent({ params, searchParams }: Props) {
 
         {/* Keyed like the create form: a page kept mounted since a profile change prefills the new number. */}
         <JoinPanel key={user?.phoneNumber ?? 'no-phone'} game={game} user={user} autoOpen={wantsToJoin && canJoin} />
+
+        {/* The score of a game that is over: entered by the host, confirmed from the other side. */}
+        {(game.status === 'finished' || game.result) && <ResultPanel game={game} />}
 
         {upcoming && (
           <section className={styles.panel} aria-label="Paylaş">

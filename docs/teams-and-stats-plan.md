@@ -22,7 +22,11 @@
 >   game's row lock and ending in `checkSides`; the players dialog has the host's "⇄" and "Balansla"
 >   buttons. `playerRecords` in `lib/sides.ts` is the SQL twin of `resultCounts`, which Phase 7 reuses.
 >
-> Phases 4–7 are not started.
+> - **Phase 4 built:** `POST /api/v1/games/{id}/result` and `/result/confirm` (`lib/results.ts`) run
+>   `nextResultStatus` under the game's row lock. The game detail carries `result`, `canReport` and
+>   `canConfirm`, and the game page has a "Hesab" panel (`components/games/ResultPanel.tsx`).
+>
+> Phases 5–7 are not started.
 
 What was asked:
 

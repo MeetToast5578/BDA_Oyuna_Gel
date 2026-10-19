@@ -22,6 +22,8 @@ Errors always have the shape:
 | Oyun Detalı                             | `GET /api/v1/games/{id}`                             |
 | İştirakçılar (the avatar row's list)    | `GET /api/v1/games/{id}/participants`                |
 | Komandaları dəyiş / Balansla (host)     | `PATCH /api/v1/games/{id}/sides`                     |
+| Hesabı daxil et (host)                  | `POST /api/v1/games/{id}/result`                     |
+| Təsdiqlə / Etiraz et (other side)       | `POST /api/v1/games/{id}/result/confirm`             |
 | Qoşulma modalı, addım 1 → addım 2       | Client-side only; nothing is sent yet                |
 | "Bir addım qaldı" → "Qoşulmanı təsdiq et" | `POST /api/v1/games/{id}/join` (returns host phone) |
 | Yeni Oyun Yarat: Meydança picker        | `GET /api/v1/venues?sport=…&q=…`                     |
@@ -195,9 +197,18 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
   "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "phone": null },
   "participants": { "preview": [{ "id": "9", "name": "…", "initials": "RM", "avatarUrl": null }], "total": 11 },
   "viewer": { "joined": false, "isHost": false },
-  "freeBySide": { "home": 2, "away": 3 }
+  "freeBySide": { "home": 2, "away": 3 },
+  "result": { "homeScore": 3, "awayScore": 1, "status": "reported" },
+  "canReport": false,
+  "canConfirm": true
 }
 ```
+
+`result` is the game's score, `null` until the host reports one. `status` is `reported` (waiting for
+the other side), `confirmed` (final) or `disputed` (the host must report again); a report left
+unanswered for 48 hours reads as `confirmed`. `canReport` and `canConfirm` are what this viewer may
+do now, decided by the same rules the [score routes](#post-apiv1gamesidresult) enforce, so a page
+never re-derives them.
 
 `freeBySide` is the free spots on each half of the game ("A komandası" is `home`, "B komandası" is
 `away`), for the join modal's side picker. Each side holds half of `maxCount`; the host's guests
@@ -234,6 +245,31 @@ from a second ago.
 - `others` is the rest of `currentCount`: players the host said were already coming when they
   created the game, who have no account to list ("+2 nəfər hostla birlikdə gəlir").
 - No phone numbers. `404 GAME_NOT_FOUND`, `400 INVALID_GAME_ID`.
+
+## `POST /api/v1/games/{id}/result`
+
+"Hesabı daxil et". The host (or an admin) reports the score once the game is over. Body:
+`{ "homeScore": 3, "awayScore": 1 }`, both whole numbers from 0 to 300 ("A komandası" is home). It
+answers `{ "game": … }`, the same body as the game detail.
+
+- The score then waits for a player on the other side from the host to confirm or dispute it
+  ([`POST /result/confirm`](#post-apiv1gamesidresultconfirm)). Reporting again, after a dispute or to
+  correct a typo, starts the 48-hour clock over and clears the earlier answer.
+- A confirmed score is final, and so is one nobody answered for 48 hours: `409 RESULT_LOCKED`. An
+  admin can still change it, and an admin's report is confirmed at once.
+- Errors: `400 INVALID_RESULT`, `400 INVALID_GAME_ID`, `401 UNAUTHENTICATED`, `403 NOT_GAME_HOST`,
+  `404 GAME_NOT_FOUND`, `409 GAME_NOT_FINISHED` (the game hasn't ended, or was cancelled).
+
+## `POST /api/v1/games/{id}/result/confirm`
+
+"Təsdiqlə" / "Etiraz et". A signed-in player who stands on the other side from the host answers the
+reported score. Body: `{ "action": "confirm" }` or `{ "action": "dispute" }`. Answers
+`{ "game": … }`.
+
+- Errors: `400 INVALID_ACTION`, `401 UNAUTHENTICATED`, `403 FORBIDDEN` (not a player on the other
+  side: the host's own teammates, strangers and the host can't answer), `404 GAME_NOT_FOUND`,
+  `409 NOTHING_TO_CONFIRM` (no score reported, or it is already confirmed or disputed),
+  `409 GAME_NOT_FINISHED`.
 
 ## `PATCH /api/v1/games/{id}/sides`
 

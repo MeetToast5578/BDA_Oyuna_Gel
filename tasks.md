@@ -14,12 +14,12 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
       members stay on their club's side.
 
 ### Teams phase 4: score report and confirm
-- [ ] `POST /games/{id}/result` (`{ homeScore, awayScore }`, whole numbers 0–300).
-- [ ] `POST /games/{id}/result/confirm` (`{ action: confirm | dispute }`).
-- [ ] `result`, `canReport`, `canConfirm` on the game detail response.
-- [ ] Game page UI: "Hesabı daxil et" (host), "Təsdiqlə | Etiraz et" (other side), "təsdiq gözləyir"
+- [x] `POST /games/{id}/result` (`{ homeScore, awayScore }`, whole numbers 0–300).
+- [x] `POST /games/{id}/result/confirm` (`{ action: confirm | dispute }`).
+- [x] `result`, `canReport`, `canConfirm` on the game detail response.
+- [x] Game page UI: "Hesabı daxil et" (host), "Təsdiqlə | Etiraz et" (other side), "təsdiq gözləyir"
       (everyone else).
-- [ ] Tests: state machine through the routes; a host's teammate can't confirm; auto-confirm after 48h.
+- [x] Tests: state machine through the routes; a host's teammate can't confirm; auto-confirm after 48h.
 
 ### Teams phase 5: clubs
 - [ ] Endpoints: `GET/POST /teams`, `GET/PATCH /teams/{id}`, `POST /teams/{id}/join` (invite code),

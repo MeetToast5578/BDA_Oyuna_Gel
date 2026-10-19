@@ -23,7 +23,15 @@ import {
   type GameListQuery,
 } from '@/lib/game-backend'
 import { readSides } from '@/lib/join-game'
-import { checkSides, occupancy, sideCapacity } from '@/lib/team-logic'
+import {
+  checkSides,
+  effectiveResultStatus,
+  nextResultStatus,
+  occupancy,
+  sideCapacity,
+  type ResultState,
+  type ResultStatus,
+} from '@/lib/team-logic'
 
 /**
  * Cached reads refresh at least this often; game, venue and join writes expire them immediately.
@@ -374,7 +382,7 @@ export async function getGameDetail(
     payload.findByID({
       collection: 'games',
       id: gameId,
-      select: { ...CARD_SELECT, contactPhone: true },
+      select: { ...CARD_SELECT, contactPhone: true, homeScore: true, awayScore: true, resultStatus: true, resultReportedAt: true },
       populate: CARD_POPULATE,
       depth: 2,
       overrideAccess: true,
@@ -402,12 +410,29 @@ export async function getGameDetail(
   const hostId = typeof doc.host === 'object' ? doc.host?.id : doc.host
   const isHost = resolvedViewerId !== null && hostId === resolvedViewerId
 
+  // The score and what this viewer may do with it, decided by the same rules the result routes use.
+  const resultState: ResultState = { status: doc.resultStatus ?? null, reportedAt: doc.resultReportedAt ?? null }
+  const scored = typeof doc.homeScore === 'number' && typeof doc.awayScore === 'number' && resultState.status !== null
+  const resultActor = {
+    isHost,
+    isAdmin: false,
+    side: sides.players.find((player) => player.userId === resolvedViewerId)?.side ?? null,
+    hostSide: sides.hostSide,
+  }
+  const finished = game.status === 'finished'
+  const can = (action: 'report' | 'confirm') => nextResultStatus(resultState, action, resultActor, finished, now).ok
+
   return {
     ...toGameCard(game),
     host: { ...game.host, phone: joined || isHost ? doc.contactPhone ?? null : null },
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
     viewer: { joined, isHost },
     freeBySide: { home: Math.max(cap - taken.home, 0), away: Math.max(cap - taken.away, 0) },
+    result: scored
+      ? { homeScore: doc.homeScore as number, awayScore: doc.awayScore as number, status: effectiveResultStatus(resultState, now) as ResultStatus }
+      : null,
+    canReport: isHost && can('report'),
+    canConfirm: resolvedViewerId !== null && can('confirm'),
   }
 }
 

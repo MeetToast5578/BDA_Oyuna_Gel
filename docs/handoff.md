@@ -53,7 +53,8 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
 
 1. **Teams phase 3** is built (`lib/sides.ts`, `PATCH /api/v1/games/{id}/sides`, the host's buttons in
    `components/games/PlayersButton.tsx`). `playerRecords` there is the stats query Phase 7 needs.
-2. **Teams phases 4–7** in order (score report and confirm, clubs, club sides, stats).
+2. **Teams phase 4** is built (`lib/results.ts`, the two `/result` routes, `ResultPanel`). Next:
+   **phases 5–7** in order (clubs, club sides, stats).
 3. Left out of phase 2 on purpose: `hostSide` on create (the host is always `home`), and club
    names on the side picker (no game has clubs until phase 6).
 4. **Blocked:**
