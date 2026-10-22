@@ -822,3 +822,16 @@ export function shareText(game: {
   const when = [game.dateLabel, game.timeLabel].filter(Boolean).join(', ')
   return [game.title, when, game.venue.name, spots].filter(Boolean).join(' · ')
 }
+
+/**
+ * "Siz 3-cüsünüz": a place in a queue, with the ordinal and "you are" suffixes in vowel harmony with
+ * how the number is read. That is decided by its last spoken word: the units (üç → -cü), else the
+ * tens (otuz → -cu), else yüz / min.
+ */
+export function placeLabel(n: number) {
+  const UNITS = ['', 'i', 'i', 'ü', 'ü', 'i', 'ı', 'i', 'i', 'u'] // bir iki üç dörd beş altı yeddi səkkiz doqquz
+  const TENS = ['', 'u', 'i', 'u', 'ı', 'i', 'ı', 'i', 'i', 'ı'] // on iyirmi otuz qırx əlli altmış yetmiş səksən doxsan
+  const vowel = n % 10 ? UNITS[n % 10] : Math.floor(n / 10) % 10 ? TENS[Math.floor(n / 10) % 10] : n % 1000 ? 'ü' : 'i'
+  const you = { i: 'siniz', ı: 'sınız', u: 'sunuz', ü: 'sünüz' }[vowel]
+  return `${n}-c${vowel}${you}`
+}

@@ -1,13 +1,15 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useId, useState, useTransition, type FormEvent } from 'react'
+import { useId, useRef, useState, useTransition, type FormEvent } from 'react'
 
 import { postJson } from '@/lib/api-client'
 import type { GameDetail } from '@/lib/api-types'
 import { MAX_SCORE, parseResultBody } from '@/lib/team-logic'
 import { buttonClass } from '@/components/ui/button'
+import danger from '@/components/ui/danger.module.css'
 import form from '@/components/ui/form.module.css'
+import { Modal } from '@/components/ui/Modal'
 import detail from './GameDetail.module.css'
 import styles from './ResultPanel.module.css'
 
@@ -30,13 +32,22 @@ export function ResultPanel({ game }: { game: GameDetail }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [refreshing, startRefresh] = useTransition()
+  // Confirming is final and disputing sends the score back, so each asks once more, score in words.
+  const [answer, setAnswer] = useState<'confirm' | 'dispute' | null>(null)
+  const heading = useRef<HTMLHeadingElement>(null)
   const { result } = game
+  // The names every other part of the page gives the sides.
+  const sideNames = { home: game.teams.home?.name ?? 'A komandası', away: game.teams.away?.name ?? 'B komandası' }
+  const scoreLine = result ? `${sideNames.home} ${result.homeScore} : ${result.awayScore} ${sideNames.away}` : ''
 
   async function send(path: string, body: unknown) {
     setBusy(true)
     setError(null)
     try {
       await postJson(`/api/v1/games/${game.id}/${path}`, body)
+      setAnswer(null)
+      // The button pressed is gone after the refresh; focus lands on the panel, which reads the new status.
+      requestAnimationFrame(() => heading.current?.focus())
       startRefresh(() => router.refresh())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Hesabı yadda saxlamaq mümkün olmadı.')
@@ -58,14 +69,17 @@ export function ResultPanel({ game }: { game: GameDetail }) {
 
   return (
     <section className={detail.panel} aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`} className={detail.panelLabel}>
+      <h2 id={`${id}-title`} ref={heading} tabIndex={-1} className={detail.panelLabel}>
         Hesab
       </h2>
 
       {result ? (
         <div>
-          <p className={styles.score}>
+          <p className={styles.score} aria-label={scoreLine}>
             {result.homeScore} : {result.awayScore}
+          </p>
+          <p className={detail.muted} aria-hidden="true">
+            {sideNames.home} — {sideNames.away}
           </p>
           <p className={`${styles.status} ${styles[result.status]}`}>{STATUS_NOTES[result.status]}</p>
         </div>
@@ -75,22 +89,59 @@ export function ResultPanel({ game }: { game: GameDetail }) {
 
       {game.canConfirm && (
         <div className={styles.actions}>
-          <button type="button" className={buttonClass('primary', 'md')} disabled={disabled} onClick={() => send('result/confirm', { action: 'confirm' })}>
+          <button type="button" className={buttonClass('primary', 'md')} disabled={disabled} aria-haspopup="dialog" onClick={() => setAnswer('confirm')}>
             Təsdiqlə
           </button>
-          <button type="button" className={buttonClass('outlinePrimary', 'md')} disabled={disabled} onClick={() => send('result/confirm', { action: 'dispute' })}>
+          <button type="button" className={buttonClass('outlinePrimary', 'md')} disabled={disabled} aria-haspopup="dialog" onClick={() => setAnswer('dispute')}>
             Etiraz et
           </button>
         </div>
       )}
+
+      <Modal
+        open={answer !== null}
+        onClose={() => {
+          if (!busy) setAnswer(null)
+        }}
+        title={answer === 'dispute' ? 'Hesaba etiraz edirsiniz?' : 'Hesabı təsdiqləyirsiniz?'}
+      >
+        <div className={danger.confirm}>
+          <p className={styles.score}>{scoreLine}</p>
+          <p className={danger.dangerText}>
+            {answer === 'dispute'
+              ? 'Host hesabı yenidən daxil etməli olacaq.'
+              : 'Təsdiqlənən hesab nəticələrə yazılır və sonra dəyişdirilə bilməz.'}
+          </p>
+          {error && (
+            <p className={form.alert} role="alert">
+              {error}
+            </p>
+          )}
+          <div className={danger.confirmActions}>
+            {/* Focus starts on going back, so Enter never settles a score by accident. */}
+            <button type="button" className={buttonClass('muted', 'lg')} onClick={() => setAnswer(null)} disabled={busy} data-autofocus>
+              İmtina et
+            </button>
+            <button
+              type="button"
+              className={buttonClass('primary', 'lg')}
+              onClick={() => send('result/confirm', { action: answer })}
+              disabled={busy}
+              aria-busy={busy}
+            >
+              {busy ? 'Göndərilir…' : answer === 'dispute' ? 'Bəli, etiraz et' : 'Bəli, təsdiqlə'}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {game.canReport && (
         <form className={styles.form} onSubmit={report} noValidate>
           <div className={styles.fields}>
             {(
               [
-                ['A komandası', home, setHome],
-                ['B komandası', away, setAway],
+                [sideNames.home, home, setHome],
+                [sideNames.away, away, setAway],
               ] as const
             ).map(([label, value, set]) => (
               <label key={label} className={form.field}>

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import detail from '@/components/games/GameDetail.module.css'
 import styles from '@/components/games/Invites.module.css'
 import { buttonClass } from '@/components/ui/button'
+import { placeLabel } from '@/lib/game-backend'
 import type { myWaitlist } from '@/lib/waitlist'
 import { LeaveWaitlist } from './LeaveWaitlist'
 
@@ -43,7 +44,7 @@ export function WaitlistPanel({ waitlist }: { waitlist: Waitlist }) {
             <span className={styles.inviteText}>
               <span className={styles.inviteTitle}>{game.title}</span>
               <span className={styles.sub}>{when(game)}</span>
-              <span className={styles.sub}>Siz {game.position}-cisiniz</span>
+              <span className={styles.sub}>Siz {placeLabel(game.position)}</span>
             </span>
             <span className={styles.actions}>
               <Link href={`/games/${game.gameId}`} className={buttonClass('outlinePrimary', 'sm')}>

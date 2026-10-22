@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   countOpenGamesBySport,
+  placeLabel,
   deriveAvailability,
   foldForSearch,
   formatBakuLabel,
@@ -979,5 +980,17 @@ describe('clubs on a game', () => {
     // The edit form has no invites: whatever is sent is not read, so it can't invite anyone.
     expect(parseEditGameBody({ ...body, invites }, 1, now)).toMatchObject({ ok: true, input: { invites: [] } })
     expect(parseEditGameBody({ ...body, invites: 'garbage' }, 1, now)).toMatchObject({ ok: true, input: { invites: [] } })
+  })
+})
+
+describe('placeLabel', () => {
+  it('follows the vowel of the last spoken word of the number', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9].map(placeLabel)).toEqual([
+      '1-cisiniz', '2-cisiniz', '3-cüsünüz', '4-cüsünüz', '5-cisiniz', '6-cısınız', '7-cisiniz', '8-cisiniz', '9-cusunuz',
+    ])
+    expect([10, 20, 30, 40, 60, 90, 100, 1000].map(placeLabel)).toEqual([
+      '10-cusunuz', '20-cisiniz', '30-cusunuz', '40-cısınız', '60-cısınız', '90-cısınız', '100-cüsünüz', '1000-cisiniz',
+    ])
+    expect([13, 26, 29].map(placeLabel)).toEqual(['13-cüsünüz', '26-cısınız', '29-cusunuz'])
   })
 })
