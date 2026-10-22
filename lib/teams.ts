@@ -3,6 +3,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
+import { invalidateGamesCache } from '@/lib/cache-tags'
 import { formatBakuShortDate, formatBakuTime, SPORT_META, toPlayer } from '@/lib/game-backend'
 import { readSides, type Db } from '@/lib/join-game'
 import { recentTeamResults, teamRecords } from '@/lib/records'
@@ -133,6 +134,8 @@ export async function updateTeam(
       UPDATE teams SET name = ${changes.name ?? sql`name`}, invite_code = ${code}, updated_at = now() WHERE id = ${teamId}
     `)
   })
+  // Cached game cards show "A vs B" by club name.
+  if (result.ok && changes.name !== undefined) invalidateGamesCache()
   return result.ok ? { ok: true as const } : result
 }
 
