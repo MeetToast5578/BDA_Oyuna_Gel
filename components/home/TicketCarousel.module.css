@@ -268,18 +268,12 @@
     transform 0.2s var(--ease-out);
 }
 
-.arrow:hover:not(:disabled) {
+.arrow:hover {
   background: rgba(222, 227, 214, 0.22);
 }
 
-.arrow:active:not(:disabled) {
+.arrow:active {
   transform: scale(0.92);
-}
-
-/* At either end of the row. */
-.arrow:disabled {
-  opacity: 0.35;
-  cursor: default;
 }
 
 .flip {
