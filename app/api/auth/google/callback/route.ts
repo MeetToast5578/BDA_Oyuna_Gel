@@ -1,19 +1,10 @@
-import { randomBytes } from 'crypto'
 import { SignJWT } from 'jose'
 import { NextResponse } from 'next/server'
 import { getPayload } from 'payload'
 
 import config from '@payload-config'
-import { googleCallbackUrl, requestOrigin } from '@/lib/google-oauth'
+import { findOrCreateGoogleUser, googleCallbackUrl, requestOrigin, type GoogleProfile } from '@/lib/google-oauth'
 import { safeRedirectPath } from '@/lib/safe-redirect'
-
-type GoogleProfile = {
-  sub: string
-  email: string
-  email_verified?: boolean
-  name?: string
-  picture?: string
-}
 
 export const GET = async (request: Request) => {
   const url = new URL(request.url)
@@ -65,38 +56,10 @@ export const GET = async (request: Request) => {
     return NextResponse.json({ error: 'Could not read a verified Google profile' }, { status: 401 })
   }
 
-  const payload = await getPayload({ config })
-  const existing = await payload.find({
-    collection: 'users',
-    where: {
-      or: [{ googleId: { equals: profile.sub } }, { email: { equals: profile.email } }],
-    },
-    limit: 1,
-    overrideAccess: true,
-  })
-
-  const user = (existing.docs[0]
-    ? await payload.update({
-        collection: 'users',
-        id: existing.docs[0].id,
-        overrideAccess: true,
-        data: {
-          googleId: profile.sub,
-          fullName: profile.name ?? profile.email,
-          avatarUrl: profile.picture ?? null,
-        },
-      })
-    : await payload.create({
-        collection: 'users',
-        overrideAccess: true,
-        data: {
-          email: profile.email,
-          password: randomBytes(32).toString('hex'),
-          googleId: profile.sub,
-          fullName: profile.name ?? profile.email,
-          avatarUrl: profile.picture ?? null,
-        },
-      })) as { id: string | number; email: string }
+  const user = await findOrCreateGoogleUser(await getPayload({ config }), profile)
+  if (!user) {
+    return NextResponse.json({ error: 'This email belongs to another Google account' }, { status: 409 })
+  }
 
   // The `google` auth strategy in collections/Users.ts resolves the session by
   // looking up `googleId`, so the JWT subject must carry the Google subject id.
