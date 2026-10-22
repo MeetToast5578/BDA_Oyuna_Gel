@@ -1,5 +1,22 @@
 # Handoff: teams, fixes and UX work on `Branch-1`
 
+> **Update, 22 October 2026 (review fixes):** a full review (security, backend, UI/UX, database) led to:
+> - **Security:** Next 16.4.2 and Payload 3.91 (published advisories; migration
+>   `20261022_081608_payload_3_91_reset_password_requested_at`). Payload's own API: venues and user
+>   rows are admin-only writes. Google sign-in matches on the Google id. The sign-in redirect compares
+>   origins. Security headers are set in `next.config.ts`.
+> - **Abuse:** atomic rate limits in `lib/rate-limit.ts` (table `rate_limits`, migration
+>   `20261022_082941_rate_limits`) on join/leave/waitlist, create game, create club, uploads and user
+>   lookups. Only the host can list players by `gameId`. Deletes lock the game rows.
+> - **Club records** take only scores the other side confirmed. The 48h auto-confirm needs someone with
+>   an account on the other side (owner's decision).
+> - **UX:** the notice badge on the phone menu, readable level badges, the filter reset, the publish
+>   button always enabled, a branded 404, a `/teams` skeleton, one-step join, side names and a confirm
+>   step on the score, a docked waitlist button, Azerbaijani ordinals, focus after join/confirm.
+> - **Not done yet:** the database review's schema changes (CHECK constraints, FK delete rules, indexes,
+>   cleanup job), CI, moving `media/` out of git, and the bigger UX items (create form, carousel).
+>   Both new migrations must run before this version serves traffic.
+
 > **Update:** PR #14 (everything in §2 below) was merged into `main`. `Branch-1` was restarted from `main`
 > and carries the teams phases 3–7 in draft PR #15; §3 says what each added. The game-setup phases 8–10
 > (`docs/game-setup-teams-and-players-plan.md`: clubs on the form, remove a player, side links, invites by
