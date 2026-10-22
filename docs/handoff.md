@@ -13,9 +13,14 @@
 > - **UX:** the notice badge on the phone menu, readable level badges, the filter reset, the publish
 >   button always enabled, a branded 404, a `/teams` skeleton, one-step join, side names and a confirm
 >   step on the score, a docked waitlist button, Azerbaijani ordinals, focus after join/confirm.
-> - **Not done yet:** the database review's schema changes (CHECK constraints, FK delete rules, indexes,
->   cleanup job), CI, moving `media/` out of git, and the bigger UX items (create form, carousel).
->   Both new migrations must run before this version serves traffic.
+> - **Since then:** database guards (CHECK constraints, delete rules, unique membership, a
+>   `scheduled_at` index, a required venue city), a daily cleanup job (`/api/cron/cleanup`, needs
+>   `CRON_SECRET` on Vercel), uncapped profile counts, CI (`.github/workflows/ci.yml`), new uploads kept
+>   out of git, one confirmation dialog everywhere, a clearer create form (the date/time format
+>   switches stay, at the owner's request), a plain carousel, and phone filters behind "Filtr".
+> - **Left out on purpose:** a trigger tying `available_players` to the participant rows (it would turn
+>   joins into errors on any game whose counters already drifted; 5 test fixtures would need fixing first).
+> - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`.
 
 > **Update:** PR #14 (everything in §2 below) was merged into `main`. `Branch-1` was restarted from `main`
 > and carries the teams phases 3–7 in draft PR #15; §3 says what each added. The game-setup phases 8–10
