@@ -17,7 +17,7 @@
 >   `scheduled_at` index, a required venue city), a daily cleanup job (`/api/cron/cleanup`, needs
 >   `CRON_SECRET` on Vercel), uncapped profile counts, CI (`.github/workflows/ci.yml`), new uploads kept
 >   out of git, one confirmation dialog everywhere, a clearer create form (the date/time format
->   switches stay, at the owner's request), a plain carousel, and phone filters behind "Filtr".
+>   switches stay, at the owner's request), and phone filters behind "Filtr".
 > - **Left out on purpose:** a trigger tying `available_players` to the participant rows (it would turn
 >   joins into errors on any game whose counters already drifted; 5 test fixtures would need fixing first).
 > - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`.
