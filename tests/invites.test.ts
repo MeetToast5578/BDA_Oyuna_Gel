@@ -357,6 +357,14 @@ describe.skipIf(!process.env.DATABASE_URL)('inviting players (Postgres)', () => 
       expect(await ids(await list({ q: `Invite ${suffix}` }, 'host'))).toEqual(expect.arrayContaining([String(who.ali.id), String(who.vali.id), String(who.kamal.id)]))
     })
 
+    it('narrows by a game only for its host, since that tells who is invited', async () => {
+      const gameId = await makeGame()
+      const stranger = await list({ q: `Invite ${suffix}`, gameId }, 'kamal')
+      expect(stranger.status).toBe(403)
+      expect((await stranger.json()).error.code).toBe('NOT_GAME_HOST')
+      expect((await list({ gameId: 999_999_999 }, 'host')).status).toBe(404)
+    })
+
     it('refuses a bad filter, page, limit or game', async () => {
       for (const params of [{ filter: 'everyone' }, { page: 0 }, { page: 'x' }, { limit: 51 }, { limit: 0 }, { gameId: -1 }, { gameId: 0 }] as Record<string, string | number>[]) {
         expect((await list(params, 'host')).status, JSON.stringify(params)).toBe(400)

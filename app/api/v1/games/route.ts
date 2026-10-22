@@ -6,6 +6,7 @@ import { createGame, findGames, getPayloadClient } from '@/lib/game-queries'
 import { INVITE_ERRORS, type InviteErrorCode } from '@/lib/invites'
 import { afterResponse, notifyInvited } from '@/lib/notify'
 import { rememberPhone } from '@/lib/profile-queries'
+import { clientIp, isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
 
 export async function GET(request: Request) {
   const now = new Date()
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     if (!parsed.ok) return apiError(parsed.code, parsed.message, 400)
 
     const userId = Number(user.id)
+    if (await isRateLimited(payload, 'createGame', { userId, ip: clientIp(request) })) return rateLimitedResponse()
     const result = await createGame({ id: userId, phoneNumber: user.phoneNumber }, parsed.input)
     if (!result.ok) {
       const status = result.code === 'NOT_A_MEMBER' ? 409 : (INVITE_ERRORS[result.code as InviteErrorCode]?.status ?? 400)

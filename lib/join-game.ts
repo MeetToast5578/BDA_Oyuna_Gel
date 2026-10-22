@@ -1,5 +1,5 @@
 import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
-import type { Payload, Where } from 'payload'
+import type { Payload } from 'payload'
 
 import type { JoinOutcome } from '@/collections/JoinAttempts'
 import { occupancy, pickSide, type GameSides, type Side, type SideChoice, type SidePlayer } from '@/lib/team-logic'
@@ -191,27 +191,6 @@ async function rejectionReason(tx: Tx, gameId: number, userId: number): Promise<
   if (game.joined) return 'ALREADY_JOINED'
   if (game.status !== 'scheduled' || !game.upcoming) return 'GAME_NOT_JOINABLE'
   return 'GAME_FULL'
-}
-
-const RATE_LIMIT_PER_MINUTE = 10
-
-/**
- * True once a user, or an IP, has made `RATE_LIMIT_PER_MINUTE` join or leave requests in the last
- * minute. Counts the audit log, so it holds across app instances with no extra store. Refused
- * requests are not logged, so a script that stops hammering is let back in a minute later.
- */
-export async function tooManyRecentAttempts(payload: Payload, userId: number, ip: string | null) {
-  const since = new Date(Date.now() - 60_000).toISOString()
-  const count = async (who: Where) =>
-    (
-      await payload.count({
-        collection: 'join-attempts',
-        overrideAccess: true,
-        where: { and: [{ createdAt: { greater_than: since } }, who] },
-      })
-    ).totalDocs
-  const [byUser, byIp] = await Promise.all([count({ user: { equals: userId } }), ip ? count({ ip: { equals: ip } }) : 0])
-  return byUser >= RATE_LIMIT_PER_MINUTE || byIp >= RATE_LIMIT_PER_MINUTE
 }
 
 /** Writes the audit-log entry for a join attempt. Never throws: a logging failure must not fail the join. */

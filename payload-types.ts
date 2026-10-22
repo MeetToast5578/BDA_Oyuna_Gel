@@ -76,6 +76,7 @@ export interface Config {
     'join-attempts': JoinAttempt;
     'game-invites': GameInvite;
     'game-waitlist': GameWaitlist;
+    'rate-limits': RateLimit;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -92,6 +93,7 @@ export interface Config {
     'join-attempts': JoinAttemptsSelect<false> | JoinAttemptsSelect<true>;
     'game-invites': GameInvitesSelect<false> | GameInvitesSelect<true>;
     'game-waitlist': GameWaitlistSelect<false> | GameWaitlistSelect<true>;
+    'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -401,6 +403,18 @@ export interface GameWaitlist {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limits".
+ */
+export interface RateLimit {
+  id: number;
+  key: string;
+  windowStart: string;
+  count: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -458,6 +472,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'game-waitlist';
         value: number | GameWaitlist;
+      } | null)
+    | ({
+        relationTo: 'rate-limits';
+        value: number | RateLimit;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -682,6 +700,17 @@ export interface GameWaitlistSelect<T extends boolean = true> {
   user?: T;
   name?: T;
   phone?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limits_select".
+ */
+export interface RateLimitsSelect<T extends boolean = true> {
+  key?: T;
+  windowStart?: T;
+  count?: T;
   updatedAt?: T;
   createdAt?: T;
 }

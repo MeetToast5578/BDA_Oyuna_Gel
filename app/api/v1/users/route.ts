@@ -2,7 +2,8 @@ import { unstable_rethrow } from 'next/navigation'
 import { NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api-response'
-import { getPayloadClient } from '@/lib/game-queries'
+import { getGameHostId, getPayloadClient } from '@/lib/game-queries'
+import { clientIp, isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
 import { listUsers, USER_FILTERS, USER_PAGE_MAX, USER_PAGE_SIZE, type UserFilter } from '@/lib/invites'
 
 const positiveInt = (raw: string | null, fallback: number) => {
@@ -32,6 +33,15 @@ export async function GET(request: Request) {
     if (Number.isNaN(gameId)) return apiError('INVALID_GAME_ID', 'Oyun ID-si yanlışdır.', 400)
     if (Number.isNaN(page) || Number.isNaN(limit) || limit > USER_PAGE_MAX) return apiError('INVALID_PAGE', 'Səhifə və ya say yanlışdır.', 400)
     if (!USER_FILTERS.includes(filter)) return apiError('INVALID_FILTER', 'Filtr yanlışdır.', 400)
+    if (await isRateLimited(payload, 'userLookup', { userId: user.id, ip: clientIp(request) })) return rateLimitedResponse()
+    // Leaving out who is invited tells whether someone was invited or declined: only the host may ask.
+    if (gameId) {
+      const hostId = await getGameHostId(gameId)
+      if (hostId === null) return apiError('GAME_NOT_FOUND', 'Oyun tapılmadı.', 404)
+      if (hostId !== Number(user.id) && (user as { role?: string }).role !== 'admin') {
+        return apiError('NOT_GAME_HOST', 'Yalnız oyunun hostu bu oyuna dəvət edə bilər.', 403)
+      }
+    }
 
     const result = await listUsers(payload, { query: params.get('q') ?? '', filter, page, limit, viewerId: Number(user.id), gameId: gameId || null })
     return NextResponse.json({ ...result, page })

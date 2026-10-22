@@ -759,6 +759,9 @@ export async function deleteGame(gameId: number) {
   const transactionID = (await payload.db.beginTransaction()) ?? undefined
   const req = { transactionID }
   try {
+    // A join takes this row's lock too, so one landing mid-delete waits and then finds no game,
+    // instead of leaving a participant row behind with its game gone.
+    await transactionDb(payload, transactionID).execute(sql`SELECT id FROM games WHERE id = ${gameId} FOR UPDATE`)
     await payload.delete({
       collection: 'game-participants',
       where: { game: { equals: gameId } },

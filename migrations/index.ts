@@ -8,6 +8,7 @@ import * as migration_20261014_115147_join_outcome_side_codes from './20261014_1
 import * as migration_20261019_185819_game_invites from './20261019_185819_game_invites';
 import * as migration_20261019_192039_game_waitlist from './20261019_192039_game_waitlist';
 import * as migration_20261022_081608_payload_3_91_reset_password_requested_at from './20261022_081608_payload_3_91_reset_password_requested_at';
+import * as migration_20261022_082941_rate_limits from './20261022_082941_rate_limits';
 
 export const migrations = [
   {
@@ -58,6 +59,11 @@ export const migrations = [
   {
     up: migration_20261022_081608_payload_3_91_reset_password_requested_at.up,
     down: migration_20261022_081608_payload_3_91_reset_password_requested_at.down,
-    name: '20261022_081608_payload_3_91_reset_password_requested_at'
+    name: '20261022_081608_payload_3_91_reset_password_requested_at',
+  },
+  {
+    up: migration_20261022_082941_rate_limits.up,
+    down: migration_20261022_082941_rate_limits.down,
+    name: '20261022_082941_rate_limits'
   },
 ];

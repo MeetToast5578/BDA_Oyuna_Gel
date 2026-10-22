@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { apiError } from '@/lib/api-response'
 import { SPORTS } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
+import { clientIp, isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
 import { requireUser, teamError } from '@/lib/team-routes'
 import { parseCreateTeamBody } from '@/lib/team-logic'
 import { byStanding, createTeam, listTeams } from '@/lib/teams'
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
     const body = parseCreateTeamBody(await request.json().catch(() => null))
     if (!body.ok) return apiError(body.code, CREATE_ERRORS[body.code], 400)
 
+    if (await isRateLimited(auth.payload, 'createTeam', { userId: auth.userId, ip: clientIp(request) })) return rateLimitedResponse()
     const result = await createTeam(auth.payload, auth.userId, body)
     return result.ok ? NextResponse.json({ id: String(result.id) }, { status: 201 }) : teamError(result.code)
   } catch (error) {

@@ -421,8 +421,13 @@ export async function deleteMyAccount(userId: number) {
   const transactionID = (await payload.db.beginTransaction()) ?? undefined
   const req = { transactionID }
   const promotions: Promotions = []
+  const adapter = payload.db as unknown as PostgresAdapter
+  const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
   try {
     if (hostedIds.length > 0) {
+      // Joins take these rows' locks too: one landing mid-delete waits, then finds no game, instead of
+      // leaving a participant row behind. Locked in id order, like everything else that locks games.
+      await db.execute(sql`SELECT id FROM games WHERE id IN (${sql.join(hostedIds.map((id) => sql`${id}`), sql`, `)}) ORDER BY id FOR UPDATE`)
       await payload.delete({
         collection: 'game-participants',
         where: { game: { in: hostedIds } },
@@ -435,14 +440,13 @@ export async function deleteMyAccount(userId: number) {
     // if they had left each one ("Oyundan çıx"); past games keep their numbers as they were played.
     // Runs before the participant rows go, since it finds the games through them. LEAST keeps a
     // game from ever showing more free spots than it has places.
-    const adapter = payload.db as unknown as PostgresAdapter
-    const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
-    // The games where their leaving frees a spot, read before their rows go: whoever is waiting for each
-    // takes it once the rows are gone.
+    // The games where their leaving frees a spot, read (and locked, in id order, so two deletions sharing
+    // games can't deadlock) before their rows go: whoever is waiting for each takes it once the rows are gone.
     const freeing = await db.execute<{ id: number }>(sql`
       SELECT g.id FROM games g JOIN game_participants p ON p.game_id = g.id
       WHERE p.user_id = ${userId} AND g.host_id IS DISTINCT FROM ${userId} AND g.status = 'scheduled' AND g.scheduled_at > now()
       ORDER BY g.id
+      FOR UPDATE OF g
     `)
     // The games that stay keep no trace of how to reach the person who deleted their account.
     await db.execute(sql`UPDATE games SET contact_phone = NULL, updated_at = now() WHERE host_id = ${userId}`)

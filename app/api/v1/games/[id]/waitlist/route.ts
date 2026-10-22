@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { apiError } from '@/lib/api-response'
 import { normalizePhone } from '@/lib/game-backend'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
-import { tooManyRecentAttempts } from '@/lib/join-game'
+import { isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
 import { joinWaitlist, leaveWaitlist, type WaitlistErrorCode } from '@/lib/waitlist'
 
 const WAITLIST_ERRORS: Record<WaitlistErrorCode, { status: number; message: string }> = {
@@ -40,9 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     // Counted with joins and leaves: signing up and withdrawing in a loop is the same kind of hammering.
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null
-    if (await tooManyRecentAttempts(payload, userId, ip)) {
-      return apiError('RATE_LIMITED', 'Çox tez-tez cəhd edirsiniz. Bir dəqiqə sonra yenidən yoxlayın.', 429)
-    }
+    if (await isRateLimited(payload, 'spot', { userId, ip })) return rateLimitedResponse()
 
     const body = (await request.json().catch(() => null)) as { name?: unknown; phone?: unknown } | null
     const name = (typeof body?.name === 'string' ? body.name : '').trim() || (user.fullName ?? '').trim()

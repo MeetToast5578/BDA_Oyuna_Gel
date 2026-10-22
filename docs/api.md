@@ -411,12 +411,12 @@ Signed-in only. Query:
 | `filter` | `all`   | `clubs`: members of the clubs the caller is in. `recent`: people they have played with, latest game first. Else `400 INVALID_FILTER` |
 | `page`   | `1`     | 1-based. Else `400 INVALID_PAGE`                                                       |
 | `limit`  | `20`    | 1–50. Else `400 INVALID_PAGE`                                                          |
-| `gameId` | none    | Leaves out people already in that game or invited to it. Else `400 INVALID_GAME_ID`    |
+| `gameId` | none    | Leaves out people already in that game or invited to it. Host or admin only (`403 NOT_GAME_HOST`, `404 GAME_NOT_FOUND`), since it tells who is invited. Else `400 INVALID_GAME_ID` |
 
 Everyone but the caller, by name unless `recent`. Only what a public profile already shows, **never an
 email or a number**: `{ "users": [{ "id": "7", "name": "…", "initials": "…", "avatarUrl": null }], "hasMore": true, "page": 1 }`.
-Any signed-in user can page through every account's name and picture this way; there is no rate limit
-on it yet (a scan of the users table, noted in `lib/invites.ts`).
+Any signed-in user can page through every account's name and picture this way, up to 120 requests a
+minute per user or IP (`429 RATE_LIMITED`; a scan of the users table, noted in `lib/invites.ts`).
 
 ## `POST /api/v1/games/{id}/decline-club`
 
@@ -545,7 +545,10 @@ The spot is taken when this request succeeds. The "Bir addım qaldı" modal then
 | 409    | `ALREADY_JOINED`    | This user already holds a spot                            |
 | 409    | `SIDE_FULL`         | The chosen side is full (the other may still have room)   |
 | 409    | `NOT_A_MEMBER`      | The chosen side is a club's, and this user isn't in it    |
-| 429    | `RATE_LIMITED`      | 10 join or leave requests in the last minute (user or IP) |
+| 429    | `RATE_LIMITED`      | 10 join, leave or waitlist requests in a minute (user or IP) |
+
+**Rate limits** (`lib/rate-limit.ts`) count in the `rate_limits` table, one row per key and window, with a
+single `INSERT … ON CONFLICT DO UPDATE … RETURNING count`, so parallel requests can't slip past together.
 
 **Concurrency.** The spot is claimed with one conditional `UPDATE … WHERE available_players > 0` inside a transaction (`lib/join-game.ts`). Postgres re-checks the condition after the row lock is released, so when two requests race for the last spot, exactly one succeeds and the other gets `409 GAME_FULL`, across any number of app instances. A unique `(game, user)` index prevents double joins, and a rejected join rolls the decrement back. The side is picked under the same row lock, so two joins can't both take a side's last spot. Every attempt is written to the `join-attempts` collection (outcome, game, user, IP), readable by admins.
 
@@ -597,7 +600,7 @@ Options for the "Meydança" picker.
 
 The host name ("Ad Soyad (Host)") comes from the account, so show it read-only.
 
-**201** `{ "game": { …as GET /api/v1/games/{id} }, "savedToProfile": true }`. Errors: `401 UNAUTHENTICATED`; `400` with `INVALID_SPORT`, `INVALID_LEVEL`, `INVALID_VENUE`, `INVALID_DATE`, `DATE_IN_PAST`, `INVALID_MAX_COUNT`, `INVALID_CURRENT_COUNT`, `INVALID_PHONE`, `VENUE_NOT_FOUND`, `VENUE_SPORT_MISMATCH`, `PHONE_REQUIRED`, `INVALID_TEAM`, `TEAM_NOT_FOUND`, `TEAM_SPORT_MISMATCH`, `SAME_TEAM`, `INVALID_SIDE`; `409 NOT_A_MEMBER` (the host isn't in the club of their own side).
+**201** `{ "game": { …as GET /api/v1/games/{id} }, "savedToProfile": true }`. Errors: `401 UNAUTHENTICATED`; `400` with `INVALID_SPORT`, `INVALID_LEVEL`, `INVALID_VENUE`, `INVALID_DATE`, `DATE_IN_PAST`, `INVALID_MAX_COUNT`, `INVALID_CURRENT_COUNT`, `INVALID_PHONE`, `VENUE_NOT_FOUND`, `VENUE_SPORT_MISMATCH`, `PHONE_REQUIRED`, `INVALID_TEAM`, `TEAM_NOT_FOUND`, `TEAM_SPORT_MISMATCH`, `SAME_TEAM`, `INVALID_SIDE`; `409 NOT_A_MEMBER` (the host isn't in the club of their own side); `429 RATE_LIMITED` (10 games an hour per user or IP).
 
 ### Remembered phone number
 
@@ -661,7 +664,7 @@ so without `?sport=` there is no `standings`.
 characters. Answers `201 { "id": "7" }`. The creator is the captain and the first member.
 
 - Errors: `400 INVALID_NAME`, `400 INVALID_SPORT`, `401 UNAUTHENTICATED`, `409 TOO_MANY_CLUBS` (a
-  person captains at most 5).
+  person captains at most 5), `429 RATE_LIMITED` (10 clubs an hour per user or IP).
 
 ### `GET /api/v1/teams/{id}`
 
@@ -827,7 +830,8 @@ stays gated behind joining the game (`GET /api/v1/games/{id}`).
 }
 ```
 
-`404 USER_NOT_FOUND` for an id that does not exist.
+`404 USER_NOT_FOUND` for an id that does not exist. `429 RATE_LIMITED` after 120 requests a minute from
+one IP, since ids are sequential.
 
 ## Accounts
 
@@ -843,8 +847,11 @@ an account another way.
 | Current user        | `GET /api/users/me`                                                                     |
 | Log out             | `POST /api/users/logout` (Payload session) **and** `POST /api/auth/logout` (Google session cookie) |
 
-Users can only read and edit their own account. Payload's own email/password login stays enabled for
-the `/admin` panel, but no public screen uses it.
+Users can only read their own account here, and only admins can change one: the site edits profiles
+through `PATCH /api/v1/me`, which validates first. Payload's own email/password login stays enabled for
+the `/admin` panel, but no public screen uses it. Google sign-in finds the account by its Google id; an
+email match only links an account no Google id owns yet, and one owned by another is refused (`409`).
+Venues (`/api/arenas`) are writable by admins only.
 
 ## Unused surfaces
 
@@ -861,6 +868,7 @@ the `/admin` panel, but no public screen uses it.
 
 - **Types:** JPEG, PNG and WebP only (`400` otherwise). SVG is refused because it is a document that
   can carry script and would be served from the site's own origin.
+- **Rate:** 20 uploads an hour per user (`429`).
 - **Size:** at most 4 MB (`413`, "Şəkil 4 MB-dan böyük ola bilməz."), below Vercel's 4.5 MB request
   limit, which would otherwise answer with a bare error page.
 - **Ownership:** the server records the uploader in `uploadedBy` and ignores any value sent. Only the
