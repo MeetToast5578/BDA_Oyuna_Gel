@@ -148,6 +148,7 @@
 
 /* Mobile menu: hidden on wide screens, where everything fits in the bar. */
 .menuButton {
+  position: relative;
   display: none;
   align-items: center;
   justify-content: center;

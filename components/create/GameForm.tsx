@@ -840,7 +840,8 @@ export function GameForm({
         <button
           type="submit"
           className={buttonClass('primary', 'xl', { block: true })}
-          disabled={pending || !complete}
+          // Never disabled for missing fields: pressing it marks and focuses the first one to fill in.
+          disabled={pending}
           aria-busy={pending}
           aria-describedby={complete ? undefined : ids.incomplete}
         >

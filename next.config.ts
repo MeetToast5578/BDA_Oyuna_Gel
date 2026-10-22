@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   // header chip) behind Suspense, instead of blocking the whole page on a session lookup.
   cacheComponents: true,
   poweredByHeader: false,
+  experimental: {
+    // app/global-not-found.tsx: unknown URLs get the site's own 404, not Next's English default.
+    globalNotFound: true,
+  },
   async headers() {
     return [
       {

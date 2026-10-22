@@ -70,6 +70,19 @@ async function SessionActions() {
   )
 }
 
+/** The same count on the phone menu's button, where the profile link itself is out of sight. */
+async function MenuNoticeBadge() {
+  const user = await getCurrentUser()
+  const notices = user ? await getNoticeCount(user.id).catch(() => 0) : 0
+  if (notices === 0) return null
+  return (
+    <span className={styles.badge}>
+      <span aria-hidden="true">{notices}</span>
+      <span className="visually-hidden">, {notices} bildiriş</span>
+    </span>
+  )
+}
+
 /** Holds the slot's width while the session resolves, so the buttons beside it do not jump. */
 function SessionActionsFallback() {
   return <span className={styles.sessionPlaceholder} aria-hidden="true" />
@@ -121,7 +134,13 @@ export function Header() {
           <Link href="/games/new" className={buttonClass('primary', 'md', { className: styles.create })}>
             Oyun yarat
           </Link>
-          <MobileMenu>
+          <MobileMenu
+            badge={
+              <Suspense fallback={null}>
+                <MenuNoticeBadge />
+              </Suspense>
+            }
+          >
             <ul className={styles.menuLinks}>
               {MENU_LINKS.map((link) => (
                 <li key={link.href}>

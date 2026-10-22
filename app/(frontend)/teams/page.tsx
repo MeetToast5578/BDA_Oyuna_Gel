@@ -10,6 +10,7 @@ import { BackHomeLink } from '@/components/games/GamesSection'
 import section from '@/components/games/GamesSection.module.css'
 import { SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 import { SportTabs } from '@/components/games/SportTabs'
+import { TeamListSkeleton } from '@/components/games/skeletons'
 import { buttonClass } from '@/components/ui/button'
 import styles from '@/components/teams/Teams.module.css'
 import { getPayloadClient } from '@/lib/game-queries'
@@ -152,7 +153,7 @@ export default function TeamsPage({ searchParams }: { searchParams: SearchParams
           Komanda yarat
         </Link>
       </div>
-      <Suspense fallback={<p className={section.filter}>Yüklənir…</p>}>
+      <Suspense fallback={<TeamListSkeleton />}>
         <TeamList searchParams={searchParams} />
       </Suspense>
     </section>

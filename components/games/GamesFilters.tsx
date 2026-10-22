@@ -47,7 +47,9 @@ export function GamesFilters({
           ]}
         />
       )}
-      <form action={basePath} method="get" className={styles.filterForm}>
+      {/* Keyed on the filters: the selects are uncontrolled, and without a remount "Filtrləri sıfırla"
+          (a client navigation) would leave them showing the old choice, which the next "Göstər" re-applies. */}
+      <form key={`${filters.level ?? ''}|${filters.venue ?? ''}|${filters.date ?? ''}`} action={basePath} method="get" className={styles.filterForm}>
         {sport && <input type="hidden" name="sport" value={sport} />}
         {filters.date && <input type="hidden" name="date" value={filters.date} />}
         <label className={form.field}>
