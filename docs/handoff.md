@@ -70,7 +70,7 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
    - phases 8–10 (game setup): `decline-club`, `players/{userId}` (remove) and `invites` routes,
      `lib/invites.ts`, `components/games/{PlayerSearch,HostInvites,DeclineClub}.tsx`,
      `components/profile/PendingInvites.tsx`, the badge in `components/site/Header.tsx`.
-2. Nothing is left of the teams plan. Open items are below.
+2. Nothing is left of the teams plan. Open items are below and in `tasks.md`.
 3. `hostSide` on create (the host picks the side they play on) is built too, in the same change as phase 6.
 4. **Blocked on the owner:**
    - (the waitlist, stage 5, is built: it tells people in the app, and its email starts going out
