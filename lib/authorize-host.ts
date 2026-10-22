@@ -2,8 +2,8 @@ import { apiError } from '@/lib/api-response'
 import { getGameHostId, getPayloadClient } from '@/lib/game-queries'
 
 /**
- * Resolves the game and checks the caller may change it. Only the host and admins can, and the
- * answer is the same 404 either way so a signed-in stranger can't probe which games exist.
+ * Resolves the game and checks the caller may change it. Only the host and admins can: a missing
+ * game is 404 and a signed-in stranger gets 403 (game pages are public, so nothing is hidden).
  */
 export async function authorizeHost(request: Request, rawId: string) {
   const gameId = Number(rawId)

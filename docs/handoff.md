@@ -49,7 +49,8 @@ re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComp
 | `2c236f5` | **Teams phases 1–2:** migrations `20261014_114826_teams_sides_and_results` (sides backfilled and proved with `checkSides`; scores and games' clubs emptied) and `20261014_115147_join_outcome_side_codes`; sides picked in `claimSpot`; `SIDE_FULL` on edit; side picker and two-column players list |
 | `b6814be` | Polish: level/venue filters on the past list, "Silinmiş istifadəçi" for a deleted host, `/api/v1/me/games` no longer logs the prerender bail-out |
 
-**Tests:** 206 passing across 17 files (`npx vitest run` against a local Postgres; see §6).
+**Tests:** 313 passing across 27 files on the latest `Branch-1` (`npx vitest run` against a local
+Postgres; see §6).
 
 ---
 
@@ -69,12 +70,11 @@ Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are b
    - phases 8–10 (game setup): `decline-club`, `players/{userId}` (remove) and `invites` routes,
      `lib/invites.ts`, `components/games/{PlayerSearch,HostInvites,DeclineClub}.tsx`,
      `components/profile/PendingInvites.tsx`, the badge in `components/site/Header.tsx`.
-2. Nothing is left of the teams plan. Open items are below and in `tasks.md`.
+2. Nothing is left of the teams plan. Open items are below.
 3. `hostSide` on create (the host picks the side they play on) is built too, in the same change as phase 6.
 4. **Blocked on the owner:**
-   - the waitlist (stage 5) needs email, which is on hold. Plan: a `game-waitlist` collection and
-     migration, `POST`/`DELETE /games/{id}/waitlist`, promotion inside `releaseSpot`, the edit-resize and
-     `deleteMyAccount` paths, the JoinPanel full state, a join email;
+   - (the waitlist, stage 5, is built: it tells people in the app, and its email starts going out
+     once email is on);
    - turning email on: a dedicated Gmail account with an App Password, `GMAIL_USER` and
      `GMAIL_APP_PASSWORD` in Vercel (never ask for them);
    - Russian and English (stage 7) need D5 (which languages, which URLs); then `lib/i18n/az.ts`, a

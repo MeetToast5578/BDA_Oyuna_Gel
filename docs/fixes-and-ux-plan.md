@@ -19,8 +19,9 @@
 >   person who can't stand on the side with room is passed over and keeps their place, the host's
 >   removal of a player promotes too, the list is capped at 30, and a direct join drops the person's
 >   sign-up. People waiting for a game whose host deletes their account are not told.
-> - **Not started:** stage 0 (the owner's, in the Vercel dashboard), stage 7. Stage 6 (teams)
->   has phases 1–2 built; see the teams plan's status.
+> - **Built since:** stage 6 (teams, all seven phases; see the teams plan's status).
+> - **Not started:** stage 0 (the owner's, in the Vercel dashboard; the `bda-oyuna-gel` project in
+>   `docs/handoff.md` §5 is the working preview copy), stage 7.
 > - **Where the build differs from the text below:**
 >   - A2 also clears the deleted host's contact number from the games that stay.
 >   - A host whose account is gone shows as "Silinmiş istifadəçi"; an account with no name still
