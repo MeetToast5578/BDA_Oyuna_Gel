@@ -41,13 +41,11 @@ export const JoinAttempts: CollectionConfig = {
       name: 'outcome',
       type: 'select',
       required: true,
-      index: true,
       options: JOIN_OUTCOMES.map((value) => ({ label: value, value })),
     },
     {
       name: 'gameId',
       type: 'number',
-      index: true,
       admin: {
         description: 'Requested game ID. Stored as a number so attempts on missing games are logged too.',
       },
