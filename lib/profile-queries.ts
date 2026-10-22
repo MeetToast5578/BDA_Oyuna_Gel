@@ -25,11 +25,6 @@ import { summarize, summarizeBySport } from '@/lib/team-logic'
  * viewer and the entries would never be reused.
  */
 
-/** Participations are read in one go rather than paged; a player has tens of games, not thousands. */
-// ponytail: unbounded read of one user's participations, fine at MVP scale. If someone ever joins
-// thousands of games, page this query instead of pulling every row.
-const MAX_PARTICIPATIONS = 500
-
 function upcomingWhere(when: MyGamesQuery['when'], now: Date): Where {
   return when === 'upcoming'
     ? { and: [{ scheduledAt: { greater_than: now.toISOString() } }, { status: { equals: 'scheduled' } }] }
@@ -44,14 +39,16 @@ function playedWhere(now: Date): Where {
   return { and: [upcomingWhere('past', now), { status: { not_equals: 'cancelled' } }] }
 }
 
-/** Game ids this user holds a participant row for, newest participation first. */
+/**
+ * Game ids this user holds a participant row for, for the "Qoşulduğum" list. Only the ids, so even a
+ * few thousand stay cheap; the list itself is paged by the games query.
+ */
 async function participatedGameIds(payload: Payload, userId: number) {
   const { docs } = await payload.find({
     collection: 'game-participants',
     where: { user: { equals: userId } },
     select: { game: true },
     depth: 0,
-    limit: MAX_PARTICIPATIONS,
     pagination: false,
     overrideAccess: true,
   })
@@ -128,64 +125,44 @@ export async function findMyGames(userId: number, query: MyGamesQuery, now = new
 }
 
 /**
- * How many games the user hosts and has joined. The upcoming counts match the "Qarşıdakı" lists; the
- * past ones (`hostedPast`, `played`) leave out cancelled games, which nobody played.
+ * How many games the user hosts and has joined, and the games played per sport, in one query over
+ * everything they ever hosted or joined. The upcoming counts match the "Qarşıdakı" lists; the past ones
+ * (`hostedPast`, `played`) leave out cancelled games, which nobody played. A host is a participant in
+ * their own game, so "joined" means games hosted by someone else (or by a deleted account).
  */
-async function countGames(payload: Payload, userId: number, joinedIds: number[], now: Date) {
-  const notHostedByMe: Where[] = [{ host: { not_equals: userId } }]
-
-  const count = async (where: Where) =>
-    (await payload.count({ collection: 'games', where, overrideAccess: true })).totalDocs
-
-  const joinedWhere = (window: Where): Where =>
-    joinedIds.length === 0
-      ? { id: { equals: -1 } }
-      : { and: [{ id: { in: joinedIds } }, ...notHostedByMe, window] }
-
-  const [hostingUpcoming, hostedPast, joinedUpcoming, played] = await Promise.all([
-    count({ and: [{ host: { equals: userId } }, upcomingWhere('upcoming', now)] }),
-    count({ and: [{ host: { equals: userId } }, playedWhere(now)] }),
-    count(joinedWhere(upcomingWhere('upcoming', now))),
-    count(joinedWhere(playedWhere(now))),
-  ])
-
-  return { hostingUpcoming, hostedPast, joinedUpcoming, played }
-}
-
-/**
- * Games actually played, hosted or joined, broken down by sport, for the profile's stats panel.
- * The per-sport counts add up to `played + hostedPast`.
- */
-async function playedBySport(payload: Payload, userId: number, joinedIds: number[], now: Date) {
-  const counts = Object.fromEntries(SPORTS.map((sport) => [sport, 0])) as Record<string, number>
-  const ids = joinedIds.length ? joinedIds : []
-
-  const { docs } = await payload.find({
-    collection: 'games',
-    where: {
-      and: [
-        { or: [{ host: { equals: userId } }, ...(ids.length ? [{ id: { in: ids } } as Where] : [])] },
-        playedWhere(now),
-      ],
-    },
-    select: { sport: true },
-    depth: 0,
-    limit: MAX_PARTICIPATIONS,
-    pagination: false,
-    overrideAccess: true,
+async function gameCounts(payload: Payload, userId: number, now: Date) {
+  const at = now.toISOString()
+  const { rows } = await (payload.db as unknown as PostgresAdapter).drizzle.execute<{
+    sport: string
+    hosting_upcoming: string
+    hosted_past: string
+    joined_upcoming: string
+    played: string
+  }>(sql`
+    SELECT g.sport,
+      count(*) FILTER (WHERE g.host_id = ${userId} AND g.status = 'scheduled' AND g.scheduled_at > ${at}) AS hosting_upcoming,
+      count(*) FILTER (WHERE g.host_id = ${userId} AND g.scheduled_at <= ${at} AND g.status <> 'cancelled') AS hosted_past,
+      count(*) FILTER (WHERE g.host_id IS DISTINCT FROM ${userId} AND g.status = 'scheduled' AND g.scheduled_at > ${at}) AS joined_upcoming,
+      count(*) FILTER (WHERE g.host_id IS DISTINCT FROM ${userId} AND g.scheduled_at <= ${at} AND g.status <> 'cancelled') AS played
+    FROM games g
+    WHERE g.host_id = ${userId} OR EXISTS (SELECT 1 FROM game_participants p WHERE p.game_id = g.id AND p.user_id = ${userId})
+    GROUP BY g.sport
+  `)
+  const sum = (key: Exclude<keyof (typeof rows)[number], 'sport'>) => rows.reduce((total, row) => total + Number(row[key]), 0)
+  const bySport = SPORTS.map((sport) => {
+    const row = rows.find((candidate) => candidate.sport === sport)
+    return {
+      sport,
+      label: SPORT_META[sport].label,
+      iconKey: SPORT_META[sport].iconKey,
+      // Played, hosted or joined: adds up to `played + hostedPast`.
+      playedCount: row ? Number(row.hosted_past) + Number(row.played) : 0,
+    }
   })
-
-  for (const doc of docs) {
-    const sport = String(doc.sport)
-    if (sport in counts) counts[sport] += 1
+  return {
+    counts: { hostingUpcoming: sum('hosting_upcoming'), hostedPast: sum('hosted_past'), joinedUpcoming: sum('joined_upcoming'), played: sum('played') },
+    bySport,
   }
-
-  return SPORTS.map((sport) => ({
-    sport,
-    label: SPORT_META[sport].label,
-    iconKey: SPORT_META[sport].iconKey,
-    playedCount: counts[sport],
-  }))
 }
 
 /**
@@ -205,9 +182,7 @@ async function recordAndClubs(payload: Payload, userId: number) {
 /** The signed-in user's own profile: identity, counts and stats in one request. */
 export async function getMyProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
-  // Two rounds instead of four: the user and their participations need only the id, and the counts
-  // and per-sport stats need only those participations. Each round is a full database latency.
-  const [user, joinedIds] = await Promise.all([
+  const [user, { counts, bySport }, results] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -215,15 +190,11 @@ export async function getMyProfile(userId: number, now = new Date()) {
       overrideAccess: true,
       disableErrors: true,
     }),
-    participatedGameIds(payload, userId),
+    gameCounts(payload, userId, now),
+    recordAndClubs(payload, userId),
   ])
   if (!user) return null
 
-  const [counts, bySport, results] = await Promise.all([
-    countGames(payload, userId, joinedIds, now),
-    playedBySport(payload, userId, joinedIds, now),
-    recordAndClubs(payload, userId),
-  ])
   const fullName = user.fullName?.trim() || user.email
 
   return {

@@ -867,6 +867,13 @@ Venues (`/api/arenas`) are writable by admins only.
   so this only closes the REST route that let anyone enumerate one person's games.
 - GraphQL is disabled (`graphQL: { disable: true }`): `/api/v1` is the only data surface.
 
+## Data kept for a while
+
+A daily job (`GET /api/cron/cleanup`, Vercel Cron, `lib/cleanup.ts`) deletes the join/leave log after
+90 days and rate-limit windows after a day, drops the waitlist of games that have started, and clears
+the phone numbers on a game, its players and its waitlist 30 days after it started. It answers 401
+unless called with `Authorization: Bearer $CRON_SECRET`.
+
 ## Uploads
 
 `POST /api/media` (multipart: `file`, plus `_payload` = `{"alt": "…"}`) is open to any signed-in user.

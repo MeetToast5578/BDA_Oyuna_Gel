@@ -44,8 +44,7 @@ export async function isRateLimited(
     `)
     if (Number(rows[0].count) > limit) over = true
   }
-  // shortcut: old windows are swept by roughly one request in a hundred; move to the daily cleanup job when there is one.
-  if (Math.random() < 0.01) await db.execute(sql`DELETE FROM rate_limits WHERE window_start < now() - interval '1 day'`)
+  // Old windows are deleted by the daily cleanup (lib/cleanup.ts).
   return over
 }
 
