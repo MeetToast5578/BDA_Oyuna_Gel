@@ -60,12 +60,12 @@ export async function submitResult(
           availablePlayers: game.available_players,
         }).status === 'finished'
 
-      const { hostSide } = await readSides(tx, gameId)
+      const { hostSide, players } = await readSides(tx, gameId)
       const mine = await tx.execute<{ side: Side }>(sql`
         SELECT side FROM game_participants WHERE game_id = ${gameId} AND user_id = ${actor.userId}
       `)
       const next = nextResultStatus(
-        { status: game.result_status, reportedAt: iso(game.result_reported_at) },
+        { status: game.result_status, reportedAt: iso(game.result_reported_at), rivalsCanAnswer: players.some((player) => player.side !== hostSide) },
         action,
         { isHost: Number(game.host_id) === actor.userId, isAdmin: actor.isAdmin, side: mine.rows[0]?.side ?? null, hostSide },
         finished,

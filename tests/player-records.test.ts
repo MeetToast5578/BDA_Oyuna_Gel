@@ -13,6 +13,7 @@ describe.skipIf(!process.env.DATABASE_URL)('playerRecords (Postgres)', () => {
   let payload: Payload
   let arenaId: number
   let userId: number
+  let rivalId: number
   const gameIds: number[] = []
 
   beforeAll(async () => {
@@ -26,6 +27,13 @@ describe.skipIf(!process.env.DATABASE_URL)('playerRecords (Postgres)', () => {
         data: { email: `records-${suffix}@oyunagel.test`, password: 'records-test-password', fullName: 'Records' },
       })
     ).id
+    rivalId = (
+      await payload.create({
+        collection: 'users',
+        overrideAccess: true,
+        data: { email: `records-${suffix}-rival@oyunagel.test`, password: 'records-test-password', fullName: 'Rival' },
+      })
+    ).id
     arenaId = (
       await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Records Arena ${suffix}`, location: 'Bakı' } })
     ).id
@@ -36,13 +44,13 @@ describe.skipIf(!process.env.DATABASE_URL)('playerRecords (Postgres)', () => {
     await payload.delete({ collection: 'game-participants', where: { game: { in: gameIds } }, overrideAccess: true })
     await payload.delete({ collection: 'games', where: { id: { in: gameIds } }, overrideAccess: true })
     await payload.delete({ collection: 'arenas', where: { id: { equals: arenaId } }, overrideAccess: true })
-    await payload.delete({ collection: 'users', where: { id: { equals: userId } }, overrideAccess: true })
+    await payload.delete({ collection: 'users', where: { id: { in: [userId, rivalId] } }, overrideAccess: true })
     await payload.db.destroy?.()
   })
 
   async function played(
     resultStatus: 'reported' | 'confirmed' | 'disputed' | undefined,
-    { status = 'scheduled', reportedHoursAgo = 1 }: { status?: 'scheduled' | 'cancelled'; reportedHoursAgo?: number } = {},
+    { status = 'scheduled', reportedHoursAgo = 1, rival = true }: { status?: 'scheduled' | 'cancelled'; reportedHoursAgo?: number; rival?: boolean } = {},
   ) {
     const game = await payload.create({
       collection: 'games',
@@ -66,11 +74,14 @@ describe.skipIf(!process.env.DATABASE_URL)('playerRecords (Postgres)', () => {
     })
     gameIds.push(game.id)
     await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: game.id, user: userId, side: 'home' } })
+    if (rival) await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: game.id, user: rivalId, side: 'away' } })
   }
 
-  it('counts confirmed scores and old undisputed reports, and nothing else', async () => {
+  it('counts confirmed scores and old undisputed reports someone could have disputed, and nothing else', async () => {
     await played('confirmed')
     await played('reported', { reportedHoursAgo: 49 })
+    // Nobody with an account on the other side: the report waits for an admin.
+    await played('reported', { reportedHoursAgo: 49, rival: false })
     await played('reported', { reportedHoursAgo: 1 })
     await played('disputed')
     await played('confirmed', { status: 'cancelled' })

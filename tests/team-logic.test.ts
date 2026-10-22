@@ -91,12 +91,12 @@ describe('score confirmation', () => {
   const rival: ResultActor = { isHost: false, isAdmin: false, side: 'away', hostSide: 'home' }
   const teammate: ResultActor = { isHost: false, isAdmin: false, side: 'home', hostSide: 'home' }
   const now = Date.parse('2026-10-14T12:00:00Z')
-  const reported = { status: 'reported' as const, reportedAt: '2026-10-14T10:00:00Z' }
+  const reported = { status: 'reported' as const, reportedAt: '2026-10-14T10:00:00Z', rivalsCanAnswer: true }
 
   it('lets the host report only after the game', () => {
-    expect(nextResultStatus({ status: null, reportedAt: null }, 'report', host, false, now)).toEqual({ ok: false, code: 'GAME_NOT_FINISHED' })
-    expect(nextResultStatus({ status: null, reportedAt: null }, 'report', host, true, now)).toEqual({ ok: true, status: 'reported' })
-    expect(nextResultStatus({ status: null, reportedAt: null }, 'report', rival, true, now)).toEqual({ ok: false, code: 'FORBIDDEN' })
+    expect(nextResultStatus({ status: null, reportedAt: null, rivalsCanAnswer: true }, 'report', host, false, now)).toEqual({ ok: false, code: 'GAME_NOT_FINISHED' })
+    expect(nextResultStatus({ status: null, reportedAt: null, rivalsCanAnswer: true }, 'report', host, true, now)).toEqual({ ok: true, status: 'reported' })
+    expect(nextResultStatus({ status: null, reportedAt: null, rivalsCanAnswer: true }, 'report', rival, true, now)).toEqual({ ok: false, code: 'FORBIDDEN' })
   })
 
   it('needs the other side to confirm or dispute', () => {
@@ -106,15 +106,21 @@ describe('score confirmation', () => {
   })
 
   it('sends a dispute back to the host and locks a confirmed score', () => {
-    expect(nextResultStatus({ status: 'disputed', reportedAt: reported.reportedAt }, 'report', host, true, now)).toEqual({ ok: true, status: 'reported' })
-    expect(nextResultStatus({ status: 'confirmed', reportedAt: null }, 'report', host, true, now)).toEqual({ ok: false, code: 'RESULT_LOCKED' })
-    expect(nextResultStatus({ status: 'confirmed', reportedAt: null }, 'report', { ...host, isAdmin: true }, true, now)).toEqual({ ok: true, status: 'confirmed' })
+    expect(nextResultStatus({ status: 'disputed', reportedAt: reported.reportedAt, rivalsCanAnswer: true }, 'report', host, true, now)).toEqual({ ok: true, status: 'reported' })
+    expect(nextResultStatus({ status: 'confirmed', reportedAt: null, rivalsCanAnswer: true }, 'report', host, true, now)).toEqual({ ok: false, code: 'RESULT_LOCKED' })
+    expect(nextResultStatus({ status: 'confirmed', reportedAt: null, rivalsCanAnswer: true }, 'report', { ...host, isAdmin: true }, true, now)).toEqual({ ok: true, status: 'confirmed' })
   })
 
   it('confirms an undisputed report after 48 hours', () => {
     expect(effectiveResultStatus(reported, now)).toBe('reported')
     expect(effectiveResultStatus(reported, now + 48 * 3_600_000)).toBe('confirmed')
     expect(nextResultStatus(reported, 'dispute', rival, true, now + 48 * 3_600_000)).toEqual({ ok: false, code: 'NOTHING_TO_CONFIRM' })
+  })
+
+  it('never auto-confirms when nobody with an account stands on the other side', () => {
+    const unanswerable = { ...reported, rivalsCanAnswer: false }
+    expect(effectiveResultStatus(unanswerable, now + 1000 * 3_600_000)).toBe('reported')
+    expect(resultCounts('finished', unanswerable, now + 1000 * 3_600_000)).toBe(false)
   })
 })
 
@@ -228,12 +234,12 @@ describe('request bodies', () => {
 })
 
 describe('what counts toward stats', () => {
-  const confirmed = { status: 'confirmed' as const, reportedAt: null }
+  const confirmed = { status: 'confirmed' as const, reportedAt: null, rivalsCanAnswer: true }
   it('drops cancelled games and unconfirmed scores', () => {
     expect(resultCounts('finished', confirmed)).toBe(true)
     expect(resultCounts('cancelled', confirmed)).toBe(false)
-    expect(resultCounts('finished', { status: 'disputed', reportedAt: null })).toBe(false)
-    expect(resultCounts('finished', { status: null, reportedAt: null })).toBe(false)
+    expect(resultCounts('finished', { status: 'disputed', reportedAt: null, rivalsCanAnswer: true })).toBe(false)
+    expect(resultCounts('finished', { status: null, reportedAt: null, rivalsCanAnswer: true })).toBe(false)
   })
 
   it('keeps every sport in the per-sport breakdown', () => {

@@ -4,15 +4,32 @@ import type { Db } from '@/lib/join-game'
 import { AUTO_CONFIRM_HOURS, outcomeFor, type Outcome, type PlayedGame, type Side } from '@/lib/team-logic'
 
 /**
- * Whether a game's score goes into anyone's record, on the games table aliased `g`. The SQL twin of
+ * Whether a game's score goes into a player's record, on the games table aliased `g`. The SQL twin of
  * `resultCounts`: a cancelled game never counts, and a score counts once confirmed or once it has
- * gone `AUTO_CONFIRM_HOURS` undisputed. A database test builds a game in each state and checks the two agree.
+ * gone `AUTO_CONFIRM_HOURS` undisputed while someone with an account stood on the side opposite the
+ * host (the host's side as `readSides` finds it, home when the host has no row). A database test
+ * builds a game in each state and checks the two agree.
  */
 const counted = sql`
   g.status <> 'cancelled'
   AND g.home_score IS NOT NULL AND g.away_score IS NOT NULL
   AND (g.result_status = 'confirmed'
-       OR (g.result_status = 'reported' AND g.result_reported_at <= now() - make_interval(hours => ${AUTO_CONFIRM_HOURS})))`
+       OR (g.result_status = 'reported' AND g.result_reported_at <= now() - make_interval(hours => ${AUTO_CONFIRM_HOURS})
+           AND EXISTS (
+             SELECT 1 FROM game_participants rival
+             WHERE rival.game_id = g.id
+               AND rival.side <> coalesce((SELECT h.side FROM game_participants h WHERE h.game_id = g.id AND h.user_id = g.host_id), 'home'))))`
+
+/**
+ * Whether a game's score goes into a club's record and the standings: only a score stored as
+ * confirmed, i.e. a player on the other side pressed "Təsdiqlə" (a club's side admits only its
+ * members, so that club agreed) or an admin settled it. Never by the 48-hour rule: otherwise a host
+ * could name any club as the opponent and give themselves wins nobody answered.
+ */
+const clubCounted = sql`
+  g.status <> 'cancelled'
+  AND g.home_score IS NOT NULL AND g.away_score IS NOT NULL
+  AND g.result_status = 'confirmed'`
 
 const idList = (ids: number[]) => sql.join(ids.map((id) => sql`${id}`), sql`, `)
 const iso = (value: Date | string) => new Date(value).toISOString()
@@ -58,7 +75,7 @@ export async function teamRecords(db: Db, teamIds: number[]): Promise<Map<number
            g.home_score, g.away_score, g.scheduled_at, g.sport
     FROM teams t
     JOIN games g ON g.home_team_id = t.id OR g.away_team_id = t.id
-    WHERE t.id IN (${idList(teamIds)}) AND ${counted}
+    WHERE t.id IN (${idList(teamIds)}) AND ${clubCounted}
   `)
   for (const row of rows) records.set(row.team_id, [...(records.get(row.team_id) ?? []), toGame(row)])
   return records
@@ -92,7 +109,7 @@ export async function recentTeamResults(db: Db, teamId: number, limit = 5): Prom
     FROM games g
     LEFT JOIN teams home ON home.id = g.home_team_id
     LEFT JOIN teams away ON away.id = g.away_team_id
-    WHERE (g.home_team_id = ${teamId} OR g.away_team_id = ${teamId}) AND ${counted}
+    WHERE (g.home_team_id = ${teamId} OR g.away_team_id = ${teamId}) AND ${clubCounted}
     ORDER BY g.scheduled_at DESC
     LIMIT ${limit}
   `)

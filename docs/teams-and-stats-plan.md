@@ -90,7 +90,7 @@ What was asked:
 | D1 | Who can stand on a club's side? | **Members only** · anyone |
 | D2 | How do people join a club? | **Invite link (the captain shares a code)** · request and captain approves · captain adds by name |
 | D3 | Can a user be in several clubs? | **Yes, any number; each club has one sport** · one club per sport |
-| D4 | A reported score nobody answers | **Counts as confirmed after 48h** (`AUTO_CONFIRM_HOURS`) · never counts |
+| D4 | A reported score nobody answers | **Counts as confirmed after 48h** (`AUTO_CONFIRM_HOURS`) · never counts. *Decided 22 Oct 2026:* 48h only for players' records and only when someone with an account stood on the other side; a club's record and the standings take only explicitly confirmed scores |
 | D5 | Who confirms? | **Any registered player on the other side** · only the other club's captain |
 | D6 | Club vs club: does the away club have to accept? | **No: the host picks the away club and its members join that side** · challenge/accept step |
 | D7 | Do games without clubs count toward a player's stats? | **Yes**, every confirmed game counts for each registered player in it |
@@ -333,7 +333,8 @@ each has a guard and a test planned.
   because a game never has more rows plus guests than `maxPlayers`, and guests spill over. The
   migration still runs `checkSides` on every game to prove it.
 - **No one left to confirm** (the other side is all guests, or its players deleted their accounts):
-  the 48h auto-confirm covers it.
+  the score stays unconfirmed until an admin settles it. The 48h auto-confirm only applies when
+  someone with an account stood on the other side, and never to club records.
 - **The Azerbaijani strings need a native speaker's read**, as in the earlier plans.
 
 ## 7. Skipped on purpose

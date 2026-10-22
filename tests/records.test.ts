@@ -12,9 +12,11 @@ const HOUR_MS = 60 * 60 * 1000
 const DAY_MS = 24 * HOUR_MS
 
 /**
- * Records and standings, from confirmed scores only. Club A, B and C play four counted games and
+ * Records and standings, from confirmed scores only. Club A, B and C play three counted games and
  * three that must not count (a fresh report, a disputed score, a cancelled game), so one fixture
  * checks the SQL against the rules in `resultCounts` for players, clubs, profiles and the table.
+ * A seventh, a report left unanswered for 49 hours, counts for the players but never for the clubs:
+ * a club's record takes only scores someone on the other side confirmed.
  */
 describe.skipIf(!process.env.DATABASE_URL)('records and standings (Postgres)', () => {
   const suffix = Date.now()
@@ -97,7 +99,8 @@ describe.skipIf(!process.env.DATABASE_URL)('records and standings (Postgres)', (
         await payload.create({ collection: 'game-participants', overrideAccess: true, data: { game: game.id, user: userId, side } })
       }
     }
-    // Counted: A beats B 3–1, A draws C 1–1, B beats A 2–0 (a report nobody answered for 49 hours).
+    // Counted: A beats B 3–1, A draws C 1–1. B beats A 2–0 by a report nobody answered for 49 hours:
+    // the players' records take it, the clubs' don't.
     await played(10, teamA, teamB, [3, 1], { status: 'confirmed' }, [[u1, 'home'], [u2, 'away']])
     await played(9, teamA, teamC, [1, 1], { status: 'confirmed' }, [[u1, 'home']])
     await played(8, teamB, teamA, [2, 0], { status: 'reported', reportedHoursAgo: 49 }, [[u2, 'home'], [u1, 'away']])
@@ -127,8 +130,8 @@ describe.skipIf(!process.env.DATABASE_URL)('records and standings (Postgres)', (
   it("reads a club's counted games from the side the club stood on, not from its players", async () => {
     const records = await teamRecords(db, [teamA, teamB, teamC])
     const sides = (id: number) => records.get(id)?.map((game) => game.side).sort()
-    expect(sides(teamA)).toEqual(['away', 'home', 'home'])
-    expect(sides(teamB)).toEqual(['away', 'home'])
+    expect(sides(teamA)).toEqual(['home', 'home'])
+    expect(sides(teamB)).toEqual(['away'])
     expect(sides(teamC)).toEqual(['away'])
   })
 
@@ -146,9 +149,8 @@ describe.skipIf(!process.env.DATABASE_URL)('records and standings (Postgres)', (
 
   it('gives a club its record and its latest results, newest first', async () => {
     const team = await getTeam(payload, teamA, null)
-    expect(team?.record).toMatchObject({ played: 3, wins: 1, draws: 1, losses: 1, scored: 4, conceded: 4, points: 4 })
+    expect(team?.record).toMatchObject({ played: 2, wins: 1, draws: 1, losses: 0, scored: 4, conceded: 2, points: 4 })
     expect(team?.recent.map((game) => [game.outcome, game.homeScore, game.awayScore, game.opponent])).toEqual([
-      ['loss', 2, 0, `Club B ${suffix}`],
       ['draw', 1, 1, `Club C ${suffix}`],
       ['win', 3, 1, `Club B ${suffix}`],
     ])
@@ -158,12 +160,12 @@ describe.skipIf(!process.env.DATABASE_URL)('records and standings (Postgres)', (
     const own = <T extends { id: string }>(rows: T[]) => rows.filter((row) => teamIds.includes(Number(row.id)))
     const all = await listTeams(payload, 'football')
     expect(own(all).map((team) => [team.id, team.record.points]).sort()).toEqual(
-      [[String(teamA), 4], [String(teamB), 3], [String(teamC), 1]].sort(),
+      [[String(teamA), 4], [String(teamB), 0], [String(teamC), 1]].sort(),
     )
 
     const response = await listRoute(new Request('http://localhost/api/v1/teams?sport=football'))
     const { standings, teams } = await (response as Response).json()
-    expect(own(standings).map((team: { id: string }) => Number(team.id))).toEqual([teamA, teamB, teamC])
+    expect(own(standings).map((team: { id: string }) => Number(team.id))).toEqual([teamA, teamC, teamB])
     expect(teams.length).toBe(standings.length)
     // Without a sport the sports can't share one table, so there is none.
     const everything = await (await listRoute(new Request('http://localhost/api/v1/teams')) as Response).json()

@@ -417,7 +417,11 @@ export async function getGameDetail(
   const isHost = resolvedViewerId !== null && hostId === resolvedViewerId
 
   // The score and what this viewer may do with it, decided by the same rules the result routes use.
-  const resultState: ResultState = { status: doc.resultStatus ?? null, reportedAt: doc.resultReportedAt ?? null }
+  const resultState: ResultState = {
+    status: doc.resultStatus ?? null,
+    reportedAt: doc.resultReportedAt ?? null,
+    rivalsCanAnswer: sides.players.some((player) => player.side !== sides.hostSide),
+  }
   const scored = typeof doc.homeScore === 'number' && typeof doc.awayScore === 'number' && resultState.status !== null
   const resultActor = {
     isHost,

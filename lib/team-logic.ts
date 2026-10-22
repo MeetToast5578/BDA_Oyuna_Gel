@@ -204,11 +204,16 @@ export function autoBalance(players: BalancePlayer[], maxPlayers: number): Map<n
   return assigned
 }
 
-export type ResultState = { status: ResultStatus | null; reportedAt: string | null }
+/** `rivalsCanAnswer`: someone with an account stands on the side opposite the host, so a report can be disputed. */
+export type ResultState = { status: ResultStatus | null; reportedAt: string | null; rivalsCanAnswer: boolean }
 
-/** The stored status as it stands now: a report left undisputed for AUTO_CONFIRM_HOURS counts as confirmed. */
+/**
+ * The stored status as it stands now: a report left undisputed for AUTO_CONFIRM_HOURS counts as
+ * confirmed, but only when someone on the other side could have disputed it. With nobody there (only
+ * guests) it waits for an admin, so a host can't hand themselves results against an empty side.
+ */
 export function effectiveResultStatus(state: ResultState, now = Date.now()): ResultStatus | null {
-  if (state.status !== 'reported' || !state.reportedAt) return state.status
+  if (state.status !== 'reported' || !state.reportedAt || !state.rivalsCanAnswer) return state.status
   return now - Date.parse(state.reportedAt) >= AUTO_CONFIRM_HOURS * 3_600_000 ? 'confirmed' : 'reported'
 }
 

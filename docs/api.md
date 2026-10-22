@@ -217,7 +217,8 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
 
 `result` is the game's score, `null` until the host reports one. `status` is `reported` (waiting for
 the other side), `confirmed` (final) or `disputed` (the host must report again); a report left
-unanswered for 48 hours reads as `confirmed`. `canReport` and `canConfirm` are what this viewer may
+unanswered for 48 hours reads as `confirmed` when someone with an account stood on the other side
+(with only guests there it stays `reported` until an admin settles it). `canReport` and `canConfirm` are what this viewer may
 do now, decided by the same rules the [score routes](#post-apiv1gamesidresult) enforce, so a page
 never re-derives them. `waitlist` is how many are waiting for a spot in this (full) game, and the viewer's place on that list
 (`1` is next, `null` when they aren't on it); see [the waitlist](#post-apiv1gamesidwaitlist).
@@ -272,7 +273,8 @@ answers `{ "game": … }`, the same body as the game detail.
 - The score then waits for a player on the other side from the host to confirm or dispute it
   ([`POST /result/confirm`](#post-apiv1gamesidresultconfirm)). Reporting again, after a dispute or to
   correct a typo, starts the 48-hour clock over and clears the earlier answer.
-- A confirmed score is final, and so is one nobody answered for 48 hours: `409 RESULT_LOCKED`. An
+- A confirmed score is final, and so is one nobody on the other side answered for 48 hours (when
+  someone with an account stood there): `409 RESULT_LOCKED`. An
   admin can still change it, and an admin's report is confirmed at once.
 - Errors: `400 INVALID_RESULT`, `400 INVALID_GAME_ID`, `401 UNAUTHENTICATED`, `403 NOT_GAME_HOST`,
   `404 GAME_NOT_FOUND`, `409 GAME_NOT_FINISHED` (the game hasn't ended, or was cancelled).
@@ -654,7 +656,9 @@ Biggest club first.
 ```
 
 `record` is the club's record from confirmed scores, over the games it was named in (home or away
-club), whoever turned up. With `?sport=`, `standings` holds the same clubs in league order: points,
+club), whoever turned up. Only a score a player on the other side confirmed (or an admin set) counts
+for a club: the 48-hour rule never does, so a host can't give themselves wins over a club that never
+answered. With `?sport=`, `standings` holds the same clubs in league order: points,
 then goal difference, then goals scored, then the bigger club. Different sports can't share a table,
 so without `?sport=` there is no `standings`.
 
@@ -750,7 +754,8 @@ also hands the client `role`, `googleId`, `loginAttempts` and `lockUntil`.
   stood on in each: `winRate` is 0–1, `points` is 3 a win and 1 a draw, `form` the last five outcomes
   newest first, `bySport` the same per sport (every sport present, even with no games). A game whose
   score nobody confirmed is in `stats` as played but has no result to add here; a score left
-  unanswered for 48 hours counts as confirmed, and a cancelled game never counts.
+  unanswered for 48 hours counts as confirmed if someone with an account stood on the other side,
+  and a cancelled game never counts.
 - `clubs` are the clubs the person is in, by name.
 
 - `hostingUpcoming` / `joinedUpcoming` match the upcoming lists of `GET /api/v1/me/games`.
