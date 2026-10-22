@@ -6,6 +6,7 @@ import { useState, useTransition, type FormEvent } from 'react'
 import { apiFetch, patchJson, postJson } from '@/lib/api-client'
 import { TEAM_NAME_MAX } from '@/lib/team-logic'
 import { buttonClass, type ButtonVariant } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import form from '@/components/ui/form.module.css'
 import styles from './Teams.module.css'
 
@@ -56,23 +57,25 @@ function ConfirmButton({
   onConfirm: () => void
 }) {
   const [asking, setAsking] = useState(false)
-  if (!asking) {
-    return (
-      <button type="button" className={buttonClass(variant, 'sm')} onClick={() => setAsking(true)}>
+  return (
+    <>
+      <button type="button" className={buttonClass(variant, 'sm')} aria-haspopup="dialog" onClick={() => setAsking(true)}>
         {label}
       </button>
-    )
-  }
-  return (
-    <span className={styles.confirm} role="group" aria-label={question}>
-      <span className={styles.note}>{question}</span>
-      <button type="button" className={buttonClass('danger', 'sm')} disabled={busy} onClick={onConfirm}>
-        {confirmLabel}
-      </button>
-      <button type="button" className={buttonClass('outlineDark', 'sm')} onClick={() => setAsking(false)}>
-        Xeyr
-      </button>
-    </span>
+      {/* The action's own error shows beside the button, so the dialog closes as soon as it starts. */}
+      <ConfirmDialog
+        open={asking}
+        onClose={() => setAsking(false)}
+        title={question}
+        confirmLabel={confirmLabel}
+        pendingLabel="Gözləyin…"
+        onConfirm={() => {
+          setAsking(false)
+          onConfirm()
+        }}
+        pending={busy}
+      />
+    </>
   )
 }
 

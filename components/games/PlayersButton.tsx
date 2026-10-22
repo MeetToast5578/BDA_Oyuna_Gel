@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom'
 import { apiFetch, patchJson } from '@/lib/api-client'
 import type { GamePlayers, Participant } from '@/lib/api-types'
 import { buttonClass } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import form from '@/components/ui/form.module.css'
 import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
@@ -158,8 +159,8 @@ function PlayersList({
   const players = list.players.map((player, toneIndex) => ({ player, toneIndex }))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // The player whose "Çıxar" was pressed once: the second press takes them out.
-  const [removing, setRemoving] = useState<string | null>(null)
+  // The player whose "✕" was pressed: the dialog asks before taking them out.
+  const [removing, setRemoving] = useState<{ id: string; name: string } | null>(null)
   // A side with a club is named after it.
   const labels = { home: list.sideNames.home ?? 'A komandası', away: list.sideNames.away ?? 'B komandası' }
 
@@ -180,10 +181,10 @@ function PlayersList({
     setError(null)
     try {
       onMoved(await apiFetch<GamePlayers>(`/api/v1/games/${gameId}/players/${userId}`, { method: 'DELETE' }))
+      setRemoving(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Oyunçunu çıxarmaq mümkün olmadı.')
     } finally {
-      setRemoving(null)
       setBusy(false)
     }
   }
@@ -232,15 +233,16 @@ function PlayersList({
                     {list.canMove && player.id && (
                       <button
                         type="button"
-                        className={`${styles.move} ${styles.remove} ${removing === player.id ? styles.removeAsk : ''}`}
+                        className={`${styles.move} ${styles.remove}`}
                         disabled={busy}
-                        aria-label={
-                          removing === player.id ? `${player.name} oyunçusunu çıxarmağı təsdiqlə` : `${player.name} oyunçusunu oyundan çıxar`
-                        }
-                        onBlur={() => setRemoving((current) => (current === player.id ? null : current))}
-                        onClick={() => (removing === player.id ? remove(player.id as string) : setRemoving(player.id))}
+                        aria-haspopup="dialog"
+                        aria-label={`${player.name} oyunçusunu oyundan çıxar`}
+                        onClick={() => {
+                          setError(null)
+                          setRemoving({ id: player.id as string, name: player.name })
+                        }}
                       >
-                        <span aria-hidden="true">{removing === player.id ? 'Bəli?' : '✕'}</span>
+                        <span aria-hidden="true">✕</span>
                       </button>
                     )}
                   </li>
@@ -250,6 +252,17 @@ function PlayersList({
         ))}
       </div>
       {list.others > 0 && <p className={styles.others}>+{list.others} nəfər hostla birlikdə gəlir</p>}
+      <ConfirmDialog
+        open={removing !== null}
+        onClose={() => setRemoving(null)}
+        title={`${removing?.name ?? 'Oyunçu'} oyundan çıxarılsın?`}
+        text="Yeri oyuna qayıdır; gözləmə siyahısında kimsə varsa, ona verilir."
+        confirmLabel="Bəli, çıxar"
+        pendingLabel="Çıxarılır…"
+        onConfirm={() => removing && remove(removing.id)}
+        pending={busy}
+        error={error}
+      />
     </>
   )
 }

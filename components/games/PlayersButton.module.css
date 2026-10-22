@@ -77,12 +77,6 @@
   font-size: 14px;
 }
 
-.removeAsk {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-  font-weight: 600;
-}
-
 .move:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { apiFetch, ApiError, patchJson, postJson } from '@/lib/api-client'
 import type { CreateGameRequest, CurrentUser, GameDetail, Venue } from '@/lib/api-types'
@@ -230,6 +230,15 @@ export function GameForm({
   const [errors, setErrors] = useState<Errors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [sportNotice, setSportNotice] = useState('')
+  // Set by the first change anywhere in the form; leaving the page after that asks first.
+  const [dirty, setDirty] = useState(false)
+  useEffect(() => {
+    if (!dirty || pending) return
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty, pending])
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -239,11 +248,22 @@ export function GameForm({
 
   function chooseSport(next: string) {
     setSport(next)
+    const cleared: string[] = []
     // A club plays one sport, so one of another sport can't stay on a side.
-    if (teams.find((team) => team.id === homeTeam)?.sport !== next) setHomeTeam('')
-    if (teams.find((team) => team.id === awayTeam)?.sport !== next) setAwayTeam('')
+    if (homeTeam && teams.find((team) => team.id === homeTeam)?.sport !== next) {
+      setHomeTeam('')
+      cleared.push('komanda')
+    }
+    if (awayTeam && teams.find((team) => team.id === awayTeam)?.sport !== next) {
+      setAwayTeam('')
+      if (!cleared.includes('komanda')) cleared.push('komanda')
+    }
     // A venue that doesn't host the new sport would be rejected by the API.
-    if (venue && !venueOffers(venue, next)) setVenue(null)
+    if (venue && !venueOffers(venue, next)) {
+      setVenue(null)
+      cleared.unshift('meydança')
+    }
+    setSportNotice(cleared.length ? `${SPORT_LABELS[next]} üçün ${cleared.join(' və ')} seçimi sıfırlandı. Yenidən seçin.` : '')
     // Each sport has its own limit (football 22, basketball 10, tennis 4); start from the full size.
     changeMaxCount(SPORT_META[next].maxPlayers)
   }
@@ -401,10 +421,11 @@ export function GameForm({
 
 
   const formBody = (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    // shortcut: only reloads, closing the tab and typed URLs ask before losing the form; in-app links don't (Next has no navigation guard), add one if hosts complain.
+    <form className={styles.form} onSubmit={submit} onChange={() => setDirty(true)} noValidate>
       <div className={styles.main}>
         <section className={styles.section} aria-labelledby="host-section">
-          <h2 id="host-section" className="visually-hidden">
+          <h2 id="host-section" className={styles.sectionTitle}>
             Host məlumatları
           </h2>
           <div className={form.row}>
@@ -444,7 +465,7 @@ export function GameForm({
         </section>
 
         <section className={styles.section} aria-labelledby="game-section">
-          <h2 id="game-section" className="visually-hidden">
+          <h2 id="game-section" className={styles.sectionTitle}>
             Oyun məlumatları
           </h2>
 
@@ -469,6 +490,9 @@ export function GameForm({
                 </label>
               ))}
             </div>
+            <p className={styles.notice} role="status">
+              {sportNotice}
+            </p>
           </fieldset>
 
           <VenuePicker

@@ -13,6 +13,7 @@ import { loginHref } from '@/lib/safe-redirect'
 import { expireSession } from '@/lib/session-actions'
 import choices from '@/components/create/GameForm.module.css'
 import { buttonClass } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import form from '@/components/ui/form.module.css'
 import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
@@ -67,6 +68,7 @@ export function JoinPanel({
   const [errors, setErrors] = useState<{ name?: string; phone?: string }>({})
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [confirmLeaveList, setConfirmLeaveList] = useState(false)
   // Set the moment the join succeeds, so the button can't be pressed again while the page refreshes.
   const [justJoined, setJustJoined] = useState(false)
   // Announced here rather than by LeaveGame, which is gone once the page shows "Qoşul" again.
@@ -141,6 +143,7 @@ export function JoinPanel({
     setError(null)
     try {
       await apiFetch(`/api/v1/games/${game.id}/waitlist`, { method: 'DELETE' })
+      setConfirmLeaveList(false)
       startRefresh(() => router.refresh())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Siyahıdan çıxmaq mümkün olmadı.')
@@ -247,9 +250,29 @@ export function JoinPanel({
                 Gözləmə siyahısında {placeLabel(game.waitlist.yourPosition)}
               </p>
               <p className={styles.pastNote}>Yer boşalanda avtomatik sizə veriləcək və bildiriş görəcəksiniz.</p>
-              <button type="button" className={buttonClass('outlinePrimary', 'lg', { block: true })} disabled={pending} onClick={leaveWaitlist}>
+              <button
+                type="button"
+                className={buttonClass('outlinePrimary', 'lg', { block: true })}
+                disabled={pending}
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setError(null)
+                  setConfirmLeaveList(true)
+                }}
+              >
                 Siyahıdan çıx
               </button>
+              <ConfirmDialog
+                open={confirmLeaveList}
+                onClose={() => setConfirmLeaveList(false)}
+                title="Siyahıdan çıxmaq istəyirsiniz?"
+                text="Növbədəki yerinizi itirəcəksiniz. Yenidən yazılsanız, siyahının sonuna düşəcəksiniz."
+                confirmLabel="Bəli, çıx"
+                pendingLabel="Çıxılır…"
+                onConfirm={leaveWaitlist}
+                pending={pending}
+                error={error}
+              />
               {error && (
                 <p className={form.alert} role="alert">
                   {error}

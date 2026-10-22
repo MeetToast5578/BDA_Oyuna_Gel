@@ -5,11 +5,12 @@ import { useState, useTransition } from 'react'
 
 import { apiFetch } from '@/lib/api-client'
 import { buttonClass } from '@/components/ui/button'
-import form from '@/components/ui/form.module.css'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 /** "Siyahıdan çıx" beside a game the person is waiting for; the list refreshes without it. */
 export function LeaveWaitlist({ gameId, title }: { gameId: string; title: string }) {
   const router = useRouter()
+  const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [, startRefresh] = useTransition()
@@ -19,6 +20,7 @@ export function LeaveWaitlist({ gameId, title }: { gameId: string; title: string
     setError(null)
     try {
       await apiFetch(`/api/v1/games/${gameId}/waitlist`, { method: 'DELETE' })
+      setOpen(false)
       startRefresh(() => router.refresh())
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Siyahıdan çıxmaq mümkün olmadı.')
@@ -31,14 +33,29 @@ export function LeaveWaitlist({ gameId, title }: { gameId: string; title: string
 
   return (
     <>
-      <button type="button" className={buttonClass('outlineDark', 'sm')} disabled={busy} aria-busy={busy} aria-label={`${title} oyununun gözləmə siyahısından çıx`} onClick={leave}>
+      <button
+        type="button"
+        className={buttonClass('outlineDark', 'sm')}
+        aria-haspopup="dialog"
+        aria-label={`${title} oyununun gözləmə siyahısından çıx`}
+        onClick={() => {
+          setError(null)
+          setOpen(true)
+        }}
+      >
         Siyahıdan çıx
       </button>
-      {error && (
-        <span className={form.alert} role="alert">
-          {error}
-        </span>
-      )}
+      <ConfirmDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Siyahıdan çıxmaq istəyirsiniz?"
+        text="Növbədəki yerinizi itirəcəksiniz. Yenidən yazılsanız, siyahının sonuna düşəcəksiniz."
+        confirmLabel="Bəli, çıx"
+        pendingLabel="Çıxılır…"
+        onConfirm={leave}
+        pending={busy}
+        error={error}
+      />
     </>
   )
 }

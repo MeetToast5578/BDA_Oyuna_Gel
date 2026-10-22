@@ -54,6 +54,22 @@
   min-width: 0;
 }
 
+/* "Host məlumatları", "Oyun məlumatları": the long form's visible outline, styled like the game page's panel labels. */
+.sectionTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* What a sport change cleared, so it isn't a silent surprise at submit. */
+.notice {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
 .section {
   display: flex;
   flex-direction: column;
