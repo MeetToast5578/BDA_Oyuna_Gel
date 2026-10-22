@@ -113,6 +113,28 @@
   gap: 16px 24px;
 }
 
+/* "Filtr": only on phones (FilterDrawer). Scoped to the drawer to win over the button class's display. */
+.filterDrawer .filterToggle {
+  display: none;
+}
+
+@media (max-width: 599px) {
+  .filterDrawer .filterToggle {
+    display: inline-flex;
+    align-self: flex-start;
+  }
+
+  .filterDrawer:not([data-open]) .filterBody {
+    display: none;
+  }
+
+  .filterDrawer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
 .filterForm {
   display: flex;
   flex-wrap: wrap;
