@@ -46,7 +46,7 @@ describe.skipIf(!process.env.DATABASE_URL)('inviting players (Postgres)', () => 
     const config = (await import('@/payload.config')).default
     payload = await getPayload({ config })
     for (const key of Object.keys(names) as (keyof typeof names)[]) who[key] = await makeUser(key)
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Invite Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Invite Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
     homeClub = (
       await payload.create({
         collection: 'teams',

@@ -36,7 +36,7 @@ describe.skipIf(!process.env.DATABASE_URL)('join and leave rate limit (Postgres)
       })
     ).id
     token = (await payload.login({ collection: 'users', data: { email, password: 'rate-test-password' } })).token ?? ''
-    arenaId = (await payload.create({ collection: 'arenas', data: { name: `Rate Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', data: { name: `Rate Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
     gameId = (
       await payload.create({
         collection: 'games',

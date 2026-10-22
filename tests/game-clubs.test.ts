@@ -42,7 +42,7 @@ describe.skipIf(!process.env.DATABASE_URL)('games between clubs (Postgres)', () 
     playerId = player.id
     userIds.push(host.id, player.id)
     token = (await payload.login({ collection: 'users', data: { email, password: 'clubs-test-password' } })).token ?? ''
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Clubs Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Clubs Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
 
     const club = async (name: string, sport: string, members: number[]) => {
       const created = await payload.create({ collection: 'teams', overrideAccess: true, data: { name: `${name} ${suffix}`, sport: sport as 'football', members, captain: members[0] } })

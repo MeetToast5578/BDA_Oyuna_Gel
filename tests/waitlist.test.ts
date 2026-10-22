@@ -45,7 +45,7 @@ describe.skipIf(!process.env.DATABASE_URL)('the waitlist (Postgres)', () => {
     const config = (await import('@/payload.config')).default
     payload = await getPayload({ config })
     for (const [i, key] of keys.entries()) who[key] = await makeUser(key, `+99450123${String(4000 + i)}`)
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Wait Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Wait Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
   })
 
   afterAll(async () => {

@@ -31,6 +31,7 @@ export const Arena: CollectionConfig = {
     {
       name: 'city',
       type: 'select',
+      required: true,
       defaultValue: DEFAULT_CITY,
       index: true,
       options: CITY_OPTIONS,

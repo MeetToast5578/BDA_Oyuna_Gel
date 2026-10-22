@@ -42,7 +42,7 @@ describe.skipIf(!process.env.DATABASE_URL)('the players list (Postgres)', () => 
       await payload.create({
         collection: 'arenas',
         overrideAccess: true,
-        data: { name: `Players Arena ${suffix}`, location: 'Bakı' },
+        data: { name: `Players Arena ${suffix}`, location: 'Bakı', city: 'baku' },
       })
     ).id
     // Five in: the host, two friends they said were coming, and the two players who joined below.

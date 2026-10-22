@@ -33,7 +33,7 @@ describe.skipIf(!process.env.DATABASE_URL)('games and teams access (Postgres)', 
     host = await makeUser('host')
     admin = await makeUser('admin', 'admin')
     arenaId = (
-      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Access Arena ${suffix}`, location: 'Bakı' } })
+      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Access Arena ${suffix}`, location: 'Bakı', city: 'baku' } })
     ).id
     gameId = (
       await payload.create({
@@ -105,7 +105,7 @@ describe.skipIf(!process.env.DATABASE_URL)('games and teams access (Postgres)', 
 
   it('refuses a user writing a venue', async () => {
     await expect(
-      payload.create({ collection: 'arenas', data: { name: 'Bypass Arena', location: 'Bakı' }, user: host, overrideAccess: false }),
+      payload.create({ collection: 'arenas', data: { name: 'Bypass Arena', location: 'Bakı', city: 'baku' }, user: host, overrideAccess: false }),
     ).rejects.toThrow()
     await expect(
       payload.update({ collection: 'arenas', id: arenaId, data: { name: 'Defaced' }, user: host, overrideAccess: false }),

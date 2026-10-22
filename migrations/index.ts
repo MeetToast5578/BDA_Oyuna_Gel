@@ -10,6 +10,7 @@ import * as migration_20261019_192039_game_waitlist from './20261019_192039_game
 import * as migration_20261022_081608_payload_3_91_reset_password_requested_at from './20261022_081608_payload_3_91_reset_password_requested_at';
 import * as migration_20261022_082941_rate_limits from './20261022_082941_rate_limits';
 import * as migration_20261022_090732_schema_guards from './20261022_090732_schema_guards';
+import * as migration_20261022_121601_arena_city_required from './20261022_121601_arena_city_required';
 
 export const migrations = [
   {
@@ -70,6 +71,11 @@ export const migrations = [
   {
     up: migration_20261022_090732_schema_guards.up,
     down: migration_20261022_090732_schema_guards.down,
-    name: '20261022_090732_schema_guards'
+    name: '20261022_090732_schema_guards',
+  },
+  {
+    up: migration_20261022_121601_arena_city_required.up,
+    down: migration_20261022_121601_arena_city_required.down,
+    name: '20261022_121601_arena_city_required'
   },
 ];

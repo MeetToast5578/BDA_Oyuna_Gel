@@ -27,7 +27,7 @@ describe.skipIf(!process.env.DATABASE_URL)('schema guards (Postgres)', () => {
         data: { email: `guards-${suffix}@oyunagel.test`, password: 'guards-test-password', fullName: 'Guards' },
       })
     ).id
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Guards Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Guards Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
     gameId = (
       await payload.create({
         collection: 'games',

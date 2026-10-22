@@ -74,10 +74,9 @@ export async function getPayloadClient() {
 }
 
 function cityWhere(field: 'arena.city' | 'city', city: string): Where {
-  // Venues created before the city field existed have no value and are in the default city.
-  return city === DEFAULT_CITY
-    ? { or: [{ [field]: { equals: city } }, { [field]: { exists: false } }] }
-    : { [field]: { equals: city } }
+  // Every venue has a city (required since migration 20261022_121601_arena_city_required), so a plain
+  // match; the old "or no city" branch made Payload join arenas twice for every list count.
+  return { [field]: { equals: city } }
 }
 
 function upcomingOpenWhere(city: string, from: Date, to?: Date): Where {

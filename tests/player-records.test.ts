@@ -35,7 +35,7 @@ describe.skipIf(!process.env.DATABASE_URL)('playerRecords (Postgres)', () => {
       })
     ).id
     arenaId = (
-      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Records Arena ${suffix}`, location: 'Bakı' } })
+      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Records Arena ${suffix}`, location: 'Bakı', city: 'baku' } })
     ).id
   })
 

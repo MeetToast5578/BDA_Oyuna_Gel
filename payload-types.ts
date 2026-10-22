@@ -218,7 +218,7 @@ export interface Arena {
   /**
    * Used by the city filter on the /api/v1 sports, games and venues endpoints.
    */
-  city?: 'baku' | null;
+  city: 'baku';
   /**
    * City district or neighborhood where the venue is located.
    */

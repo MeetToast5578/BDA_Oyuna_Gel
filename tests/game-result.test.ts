@@ -40,7 +40,7 @@ describe.skipIf(!process.env.DATABASE_URL)('reporting and confirming a score (Po
       tokens[who] = (await payload.login({ collection: 'users', data: { email, password: 'result-test-password' } })).token ?? ''
     }
     arenaId = (
-      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Result Arena ${suffix}`, location: 'Bakı' } })
+      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Result Arena ${suffix}`, location: 'Bakı', city: 'baku' } })
     ).id
   })
 

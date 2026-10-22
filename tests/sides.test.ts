@@ -48,7 +48,7 @@ describe.skipIf(!process.env.DATABASE_URL)('moving players between sides (Postgr
     tokens.admin = (await makeUser('admin', 'admin')).token
     for (const n of [1, 2, 3, 4, 5]) players.push((await makeUser(`p${n}`)).id)
     arenaId = (
-      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Sides Arena ${suffix}`, location: 'Bakı' } })
+      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Sides Arena ${suffix}`, location: 'Bakı', city: 'baku' } })
     ).id
   })
 

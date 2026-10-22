@@ -49,7 +49,7 @@ describe.skipIf(!process.env.DATABASE_URL)('profile backend (Postgres)', () => {
       await payload.create({
         collection: 'arenas',
         overrideAccess: true,
-        data: { name: `Profile Arena ${suffix}`, location: 'Bakı' },
+        data: { name: `Profile Arena ${suffix}`, location: 'Bakı', city: 'baku' },
       })
     ).id
   })

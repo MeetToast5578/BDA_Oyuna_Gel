@@ -23,7 +23,7 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
     userId = (
       await payload.create({ collection: 'users', overrideAccess: true, data: { email: `cleanup-${suffix}@oyunagel.test`, password: 'cleanup-test-password', fullName: 'Cleanup' } })
     ).id
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Cleanup Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Cleanup Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
     for (const [key, offset] of [['old', -40 * DAY_MS], ['recent', -10 * DAY_MS], ['upcoming', 2 * DAY_MS]] as const) {
       games[key] = (
         await payload.create({

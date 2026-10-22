@@ -49,7 +49,7 @@ describe.skipIf(!process.env.DATABASE_URL)('records and standings (Postgres)', (
     }
     u1 = await user('one')
     u2 = await user('two')
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Records Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Records Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
 
     const club = async (name: string, members: number[]) => {
       const created = await payload.create({

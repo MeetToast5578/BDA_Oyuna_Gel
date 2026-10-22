@@ -1,6 +1,24 @@
 import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
-import { checkSides, type Side } from '../lib/team-logic'
+type Side = 'home' | 'away'
+
+/**
+ * `checkSides` from lib/team-logic.ts as it was when this migration was written, frozen here so a
+ * later change to the app can't change what replaying this migration on a new database does. No game
+ * has clubs at this point, so only the side sizes can fail: guests stand with the host until that
+ * side is full, then on the other one, and neither side may pass half the game.
+ */
+function sidesFit(maxPlayers: number, players: { userId: number; side: Side }[], guests: number, hostId: number | null) {
+  const cap = Math.floor(maxPlayers / 2)
+  const counts = { home: 0, away: 0 }
+  for (const player of players) counts[player.side] += 1
+  const hostSide: Side = players.find((player) => player.userId === hostId)?.side ?? 'home'
+  const extra = Math.max(Math.floor(guests), 0)
+  const withHost = Math.min(extra, Math.max(cap - counts[hostSide], 0))
+  counts[hostSide] += withHost
+  counts[hostSide === 'home' ? 'away' : 'home'] += extra - withHost
+  return counts.home <= cap && counts.away <= cap
+}
 
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
@@ -51,10 +69,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   FROM "games" g LEFT JOIN "game_participants" p ON p.game_id = g.id
   GROUP BY g.id`)
   for (const game of rows) {
-    const players = (game.players ?? []).map((player) => ({ ...player, memberOf: [] }))
+    const players = game.players ?? []
     const guests = game.max_players - game.available_players - players.length
-    const check = checkSides({ maxPlayers: game.max_players, homeTeamId: null, awayTeamId: null }, players, guests, game.host_id)
-    if (!check.ok) throw new Error(`Game ${game.id} fails checkSides after the backfill: ${check.code}`)
+    if (!sidesFit(Number(game.max_players), players, guests, game.host_id)) {
+      throw new Error(`Game ${game.id} fails checkSides after the backfill: SIDE_FULL`)
+    }
   }
 }
 

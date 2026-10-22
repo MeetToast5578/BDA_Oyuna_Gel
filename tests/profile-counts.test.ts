@@ -22,7 +22,7 @@ describe.skipIf(!process.env.DATABASE_URL)('profile counts (Postgres)', () => {
       (await payload.create({ collection: 'users', overrideAccess: true, data: { email: `counts-${suffix}-${name}@oyunagel.test`, password: 'counts-test-password', fullName: name } })).id
     me = await user('me')
     other = await user('other')
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Counts Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Counts Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
 
     const game = async (host: number | null, days: number, sport: 'football' | 'tennis', players: number[], cancelled = false) => {
       const id = (

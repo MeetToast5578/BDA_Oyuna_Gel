@@ -33,7 +33,7 @@ describe.skipIf(!process.env.DATABASE_URL)('the host removing a player (Postgres
     payload = await getPayload({ config })
     for (const name of ['host', 'player', 'other', 'stranger'] as const) who[name] = await makeUser(name)
     who.admin = await makeUser('admin', 'admin')
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Remove Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Remove Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
   })
 
   afterAll(async () => {
