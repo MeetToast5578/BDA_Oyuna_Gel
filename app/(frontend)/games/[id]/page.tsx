@@ -6,16 +6,20 @@ import { cache, Suspense } from 'react'
 import { Avatar, LevelBadge, ProgressBar, SportBadge } from '@/components/games/bits'
 import { BackLink } from '@/components/games/BackLink'
 import { CoverImage } from '@/components/games/CoverImage'
+import { DeclineClub } from '@/components/games/DeclineClub'
+import { HostInvites } from '@/components/games/HostInvites'
 import styles from '@/components/games/GameDetail.module.css'
 import { JoinPanel } from '@/components/games/JoinPanel'
 import { PlayersButton } from '@/components/games/PlayersButton'
+import { ResultPanel } from '@/components/games/ResultPanel'
 import { ShareButton } from '@/components/games/ShareButton'
 import { GameDetailSkeleton } from '@/components/games/skeletons'
 import { buttonClass } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { googleCalendarUrl } from '@/lib/calendar'
-import { isUpcoming, shareText } from '@/lib/game-backend'
-import { getGameDetail } from '@/lib/game-queries'
+import { isUpcoming, matchupLabel, shareText } from '@/lib/game-backend'
+import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
+import { listGameInvites } from '@/lib/invites'
 import { formatPhone } from '@/lib/phone'
 import { loginHref } from '@/lib/safe-redirect'
 import { getCurrentUser } from '@/lib/session'
@@ -77,16 +81,22 @@ async function GameDetailContent({ params, searchParams }: Props) {
   const { game, user } = loaded
 
   const canJoin = game.status === 'open' && !game.viewer.joined && !game.viewer.isHost
-  const wantsToJoin = (await searchParams).join === '1'
+  const query = await searchParams
+  const wantsToJoin = query.join === '1'
+  // A link to one side (see the share buttons) opens the join form with that side picked.
+  const linkedSide = query.side === 'home' || query.side === 'away' ? query.side : undefined
   // "Qoşul" on a card while signed out: sign in first, then come back with the join modal open.
   // proxy.ts already sends visitors without a session cookie; this catches an expired one.
-  if (wantsToJoin && canJoin && !user) redirect(loginHref(`/games/${game.id}?join=1`))
+  if (wantsToJoin && canJoin && !user) redirect(loginHref(`/games/${game.id}?join=1${linkedSide ? `&side=${linkedSide}` : ''}`))
 
   const location = [game.venue.name, game.venue.district].filter(Boolean).join(', ')
   const { participants, host } = game
   // Once it has started, the page describes a game that happened rather than one to join.
   const upcoming = isUpcoming(game.status)
   const gameUrl = `${SITE_URL}/games/${game.id}`
+  const sideLabels = { home: game.teams.home?.name ?? 'A komandası', away: game.teams.away?.name ?? 'B komandası' }
+  // Only the host sees who has been invited, and only while the game can still be joined.
+  const invites = game.viewer.isHost && upcoming ? await listGameInvites(await getPayloadClient(), Number(game.id)) : null
   const googleCalendar = googleCalendarUrl(game, gameUrl)
 
   return (
@@ -110,6 +120,7 @@ async function GameDetailContent({ params, searchParams }: Props) {
             <h1 id="game-title" className={styles.title}>
               {game.title}
             </h1>
+            {matchupLabel(game.teams) && <p className={styles.muted}>{matchupLabel(game.teams)}</p>}
             <ul className={styles.facts}>
               <li>
                 <Icon name="calendar" />
@@ -216,12 +227,35 @@ async function GameDetailContent({ params, searchParams }: Props) {
           </Link>
         )}
 
+        {invites && (
+          <HostInvites gameId={game.id} initial={invites} sideLabels={sideLabels} clubs={{ home: Boolean(game.teams.home), away: Boolean(game.teams.away) }} />
+        )}
+
+        {game.viewer.canDeclineClub && (
+          <DeclineClub gameId={game.id} clubName={(game.hostSide === 'home' ? game.teams.away : game.teams.home)?.name ?? ''} />
+        )}
+
         {/* Keyed like the create form: a page kept mounted since a profile change prefills the new number. */}
-        <JoinPanel key={user?.phoneNumber ?? 'no-phone'} game={game} user={user} autoOpen={wantsToJoin && canJoin} />
+        <JoinPanel key={user?.phoneNumber ?? 'no-phone'} game={game} user={user} autoOpen={wantsToJoin && canJoin} initialSide={linkedSide} />
+
+        {/* The score of a game that is over: entered by the host, confirmed from the other side. */}
+        {(game.status === 'finished' || game.result) && <ResultPanel game={game} />}
 
         {upcoming && (
           <section className={styles.panel} aria-label="Paylaş">
-            <ShareButton title={game.title} text={shareText(game)} url={gameUrl} />
+            <ShareButton
+              title={game.title}
+              text={shareText(game)}
+              url={gameUrl}
+              sideLinks={
+                game.status === 'open'
+                  ? [
+                      { label: `${game.teams.home?.name ?? 'A komandası'} üçün link`, url: `${gameUrl}?join=1&side=home` },
+                      { label: `${game.teams.away?.name ?? 'B komandası'} üçün link`, url: `${gameUrl}?join=1&side=away` },
+                    ]
+                  : []
+              }
+            />
             {/* Only for those coming: the calendar reminds them two hours before kick-off. */}
             {(game.viewer.joined || game.viewer.isHost) && (
               <p className={styles.calendarLinks}>

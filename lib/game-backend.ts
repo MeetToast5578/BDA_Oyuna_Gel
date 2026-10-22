@@ -1,5 +1,7 @@
 // Pure game logic shared by the API routes, collections and tests. No Payload or Next imports here.
 
+import { parseInviteEntries, type InviteEntry } from '@/lib/team-logic'
+
 export type AvailabilityStatus = 'open' | 'full' | 'live' | 'finished' | 'cancelled'
 
 type Doc = Record<string, unknown>
@@ -292,6 +294,13 @@ export type CreateGameInput = {
   maxCount: number
   currentCount: number
   contactPhone: string | null
+  /** The clubs standing on each side, or null for a side open to anyone. */
+  homeTeamId: number | null
+  awayTeamId: number | null
+  /** The side the host stands on when creating the game (an edit ignores it: the host moves like anyone). */
+  hostSide: 'home' | 'away'
+  /** Players the host names at creation, each invited to a side; empty on an edit (the game page invites later). */
+  invites: InviteEntry[]
 }
 
 type CreateGameParseResult = { ok: true; input: CreateGameInput } | { ok: false; code: string; message: string }
@@ -355,7 +364,27 @@ function parseGameForm(body: unknown, now: Date, fixedCurrentCount?: number): Cr
 
   const title = nonEmptyString(data.title)?.trim().slice(0, 120) ?? `${SPORT_META[sport].label} oyunu`
 
-  return { ok: true, input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone } }
+  // A club per side, both optional: absent, null or "" leaves the side open to anyone.
+  const teamId = (value: unknown) =>
+    value === undefined || value === null || value === ''
+      ? null
+      : (typeof value === 'number' || typeof value === 'string') && Number.isSafeInteger(Number(value)) && Number(value) > 0
+        ? Number(value)
+        : Number.NaN
+  const homeTeamId = teamId(data.homeTeamId)
+  const awayTeamId = teamId(data.awayTeamId)
+  if (Number.isNaN(homeTeamId) || Number.isNaN(awayTeamId)) return fail('INVALID_TEAM', 'homeTeamId and awayTeamId must be club ids.')
+
+  const hostSide = data.hostSide === undefined || data.hostSide === null || data.hostSide === '' ? 'home' : data.hostSide
+  if (hostSide !== 'home' && hostSide !== 'away') return fail('INVALID_SIDE', 'hostSide must be home or away.')
+
+  const invites = fixedCurrentCount === undefined ? parseInviteEntries(data.invites) : { ok: true as const, entries: [] as InviteEntry[] }
+  if (!invites.ok) return fail('INVALID_INVITES', 'invites must be a list of { userId, side }, one entry per player.')
+
+  return {
+    ok: true,
+    input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, homeTeamId, awayTeamId, hostSide, invites: invites.entries },
+  }
 }
 
 export function parseCreateGameBody(body: unknown, now = new Date()) {
@@ -443,6 +472,17 @@ function resolveCoverImage(game: Doc, fallbackUrl: string) {
   return { thumbnailUrl: fallbackUrl, fullUrl: fallbackUrl, fallbackUrl }
 }
 
+/** A game's club as the card shows it; null for an open side (or a relationship that wasn't populated). */
+function teamRef(value: unknown) {
+  const team = asDoc(value)
+  return team && typeof team.name === 'string' ? { id: String(team.id), name: team.name } : null
+}
+
+/** "Qarabağ vs Açıq": the clubs on each side of a game, an open side being "Açıq"; null when neither side has a club. */
+export function matchupLabel(teams: { home: { name: string } | null; away: { name: string } | null }) {
+  return teams.home || teams.away ? `${teams.home?.name ?? 'Açıq'} vs ${teams.away?.name ?? 'Açıq'}` : null
+}
+
 export function normalizeGameRecord(raw: unknown, now = Date.now()) {
   const game = asDoc(raw) ?? {}
   const sport = String(game.sport ?? 'football')
@@ -467,6 +507,7 @@ export function normalizeGameRecord(raw: unknown, now = Date.now()) {
     timeLabel: formatBakuTime(startsAt),
     relativeTimeLabel: formatBakuLabel(startsAt, new Date(now)),
     ...deriveAvailability(game, now),
+    teams: { home: teamRef(game.homeTeam), away: teamRef(game.awayTeam) },
     cover: resolveCoverImage(game, sportMeta.image),
     host: {
       /** For linking to `/users/{id}`; null only for a game whose host account is gone. */
@@ -499,6 +540,7 @@ export function toGameCard(game: GameRecord) {
     maxCount: game.maxCount,
     remainingSpots: game.remainingSpots,
     status: game.status,
+    teams: game.teams,
     coverImageUrl: game.cover.fullUrl,
     coverImage: game.cover,
     host: game.host,
@@ -779,4 +821,17 @@ export function shareText(game: {
   const spots = game.status === 'open' ? `${game.remainingSpots} yer qalıb` : game.status === 'full' ? 'Oyun doludur' : null
   const when = [game.dateLabel, game.timeLabel].filter(Boolean).join(', ')
   return [game.title, when, game.venue.name, spots].filter(Boolean).join(' · ')
+}
+
+/**
+ * "Siz 3-cüsünüz": a place in a queue, with the ordinal and "you are" suffixes in vowel harmony with
+ * how the number is read. That is decided by its last spoken word: the units (üç → -cü), else the
+ * tens (otuz → -cu), else yüz / min.
+ */
+export function placeLabel(n: number) {
+  const UNITS = ['', 'i', 'i', 'ü', 'ü', 'i', 'ı', 'i', 'i', 'u'] // bir iki üç dörd beş altı yeddi səkkiz doqquz
+  const TENS = ['', 'u', 'i', 'u', 'ı', 'i', 'ı', 'i', 'i', 'ı'] // on iyirmi otuz qırx əlli altmış yetmiş səksən doxsan
+  const vowel = n % 10 ? UNITS[n % 10] : Math.floor(n / 10) % 10 ? TENS[Math.floor(n / 10) % 10] : n % 1000 ? 'ü' : 'i'
+  const you = { i: 'siniz', ı: 'sınız', u: 'sunuz', ü: 'sünüz' }[vowel]
+  return `${n}-c${vowel}${you}`
 }

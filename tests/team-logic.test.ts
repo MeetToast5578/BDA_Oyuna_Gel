@@ -11,9 +11,14 @@ import {
   effectiveResultStatus,
   nextResultStatus,
   occupancy,
+  parseCreateTeamBody,
+  parseInviteEntries,
+  parseInviteRequest,
+  parseJoinTeamBody,
   parseResultBody,
   parseSideChoice,
   parseSidesBody,
+  parseUpdateTeamBody,
   pickSide,
   resultCounts,
   summarize,
@@ -86,12 +91,12 @@ describe('score confirmation', () => {
   const rival: ResultActor = { isHost: false, isAdmin: false, side: 'away', hostSide: 'home' }
   const teammate: ResultActor = { isHost: false, isAdmin: false, side: 'home', hostSide: 'home' }
   const now = Date.parse('2026-10-14T12:00:00Z')
-  const reported = { status: 'reported' as const, reportedAt: '2026-10-14T10:00:00Z' }
+  const reported = { status: 'reported' as const, reportedAt: '2026-10-14T10:00:00Z', rivalsCanAnswer: true }
 
   it('lets the host report only after the game', () => {
-    expect(nextResultStatus({ status: null, reportedAt: null }, 'report', host, false, now)).toEqual({ ok: false, code: 'GAME_NOT_FINISHED' })
-    expect(nextResultStatus({ status: null, reportedAt: null }, 'report', host, true, now)).toEqual({ ok: true, status: 'reported' })
-    expect(nextResultStatus({ status: null, reportedAt: null }, 'report', rival, true, now)).toEqual({ ok: false, code: 'FORBIDDEN' })
+    expect(nextResultStatus({ status: null, reportedAt: null, rivalsCanAnswer: true }, 'report', host, false, now)).toEqual({ ok: false, code: 'GAME_NOT_FINISHED' })
+    expect(nextResultStatus({ status: null, reportedAt: null, rivalsCanAnswer: true }, 'report', host, true, now)).toEqual({ ok: true, status: 'reported' })
+    expect(nextResultStatus({ status: null, reportedAt: null, rivalsCanAnswer: true }, 'report', rival, true, now)).toEqual({ ok: false, code: 'FORBIDDEN' })
   })
 
   it('needs the other side to confirm or dispute', () => {
@@ -101,15 +106,21 @@ describe('score confirmation', () => {
   })
 
   it('sends a dispute back to the host and locks a confirmed score', () => {
-    expect(nextResultStatus({ status: 'disputed', reportedAt: reported.reportedAt }, 'report', host, true, now)).toEqual({ ok: true, status: 'reported' })
-    expect(nextResultStatus({ status: 'confirmed', reportedAt: null }, 'report', host, true, now)).toEqual({ ok: false, code: 'RESULT_LOCKED' })
-    expect(nextResultStatus({ status: 'confirmed', reportedAt: null }, 'report', { ...host, isAdmin: true }, true, now)).toEqual({ ok: true, status: 'confirmed' })
+    expect(nextResultStatus({ status: 'disputed', reportedAt: reported.reportedAt, rivalsCanAnswer: true }, 'report', host, true, now)).toEqual({ ok: true, status: 'reported' })
+    expect(nextResultStatus({ status: 'confirmed', reportedAt: null, rivalsCanAnswer: true }, 'report', host, true, now)).toEqual({ ok: false, code: 'RESULT_LOCKED' })
+    expect(nextResultStatus({ status: 'confirmed', reportedAt: null, rivalsCanAnswer: true }, 'report', { ...host, isAdmin: true }, true, now)).toEqual({ ok: true, status: 'confirmed' })
   })
 
   it('confirms an undisputed report after 48 hours', () => {
     expect(effectiveResultStatus(reported, now)).toBe('reported')
     expect(effectiveResultStatus(reported, now + 48 * 3_600_000)).toBe('confirmed')
     expect(nextResultStatus(reported, 'dispute', rival, true, now + 48 * 3_600_000)).toEqual({ ok: false, code: 'NOTHING_TO_CONFIRM' })
+  })
+
+  it('never auto-confirms when nobody with an account stands on the other side', () => {
+    const unanswerable = { ...reported, rivalsCanAnswer: false }
+    expect(effectiveResultStatus(unanswerable, now + 1000 * 3_600_000)).toBe('reported')
+    expect(resultCounts('finished', unanswerable, now + 1000 * 3_600_000)).toBe(false)
   })
 })
 
@@ -223,12 +234,12 @@ describe('request bodies', () => {
 })
 
 describe('what counts toward stats', () => {
-  const confirmed = { status: 'confirmed' as const, reportedAt: null }
+  const confirmed = { status: 'confirmed' as const, reportedAt: null, rivalsCanAnswer: true }
   it('drops cancelled games and unconfirmed scores', () => {
     expect(resultCounts('finished', confirmed)).toBe(true)
     expect(resultCounts('cancelled', confirmed)).toBe(false)
-    expect(resultCounts('finished', { status: 'disputed', reportedAt: null })).toBe(false)
-    expect(resultCounts('finished', { status: null, reportedAt: null })).toBe(false)
+    expect(resultCounts('finished', { status: 'disputed', reportedAt: null, rivalsCanAnswer: true })).toBe(false)
+    expect(resultCounts('finished', { status: null, reportedAt: null, rivalsCanAnswer: true })).toBe(false)
   })
 
   it('keeps every sport in the per-sport breakdown', () => {
@@ -251,5 +262,74 @@ describe('clubs', () => {
     expect(afterMemberLeaves([5, 8, 9], 5, 5)).toEqual({ members: [8, 9], captainId: 8 })
     expect(afterMemberLeaves([5, 8, 9], 5, 9)).toEqual({ members: [5, 8], captainId: 5 })
     expect(afterMemberLeaves([5], 5, 5)).toEqual({ members: [], captainId: null })
+  })
+})
+
+describe('club requests', () => {
+  it('parses a new club: a trimmed name of 2 to 40 characters and a known sport', () => {
+    expect(parseCreateTeamBody({ name: '  Qarabağ   Veteranlar ', sport: 'football' })).toEqual({ ok: true, name: 'Qarabağ Veteranlar', sport: 'football' })
+    for (const body of [{ name: 'A', sport: 'football' }, { name: 'x'.repeat(41), sport: 'football' }, { name: '   ', sport: 'tennis' }, { sport: 'tennis' }, null]) {
+      expect(parseCreateTeamBody(body)).toEqual({ ok: false, code: 'INVALID_NAME' })
+    }
+    expect(parseCreateTeamBody({ name: 'Duo', sport: 'chess' })).toEqual({ ok: false, code: 'INVALID_SPORT' })
+  })
+
+  it('parses an edit: a new name and/or a new invite code, nothing else', () => {
+    expect(parseUpdateTeamBody({ name: ' Yeni ad ' })).toEqual({ ok: true, name: 'Yeni ad', regenerateInviteCode: false })
+    expect(parseUpdateTeamBody({ regenerateInviteCode: true })).toEqual({ ok: true, name: undefined, regenerateInviteCode: true })
+    expect(parseUpdateTeamBody({ name: 'A' })).toEqual({ ok: false, code: 'INVALID_NAME' })
+    for (const body of [{}, null, { regenerateInviteCode: false }, { regenerateInviteCode: 'yes' }]) {
+      expect(parseUpdateTeamBody(body)).toEqual({ ok: false, code: 'INVALID_TEAM' })
+    }
+  })
+
+  it('parses an invite code: a short non-empty string', () => {
+    expect(parseJoinTeamBody({ code: 'abc_123-XYZ' })).toEqual({ ok: true, code: 'abc_123-XYZ' })
+    for (const body of [{}, null, { code: '' }, { code: 5 }, { code: 'x'.repeat(65) }]) {
+      expect(parseJoinTeamBody(body)).toEqual({ ok: false })
+    }
+  })
+})
+
+describe('invite requests', () => {
+  it('reads the create body\'s invites: none, or one entry per player', () => {
+    expect(parseInviteEntries(undefined)).toEqual({ ok: true, entries: [] })
+    expect(parseInviteEntries(null)).toEqual({ ok: true, entries: [] })
+    expect(parseInviteEntries([])).toEqual({ ok: true, entries: [] })
+    expect(parseInviteEntries([{ userId: 4, side: 'away' }, { userId: 9, side: 'home' }])).toEqual({
+      ok: true,
+      entries: [{ userId: 4, side: 'away' }, { userId: 9, side: 'home' }],
+    })
+  })
+
+  it('refuses anything else instead of trimming it', () => {
+    const bad: unknown[] = [
+      'all',
+      {},
+      [null],
+      [{ userId: 4 }],
+      [{ userId: 4, side: 'middle' }],
+      [{ userId: '4', side: 'home' }],
+      [{ userId: 0, side: 'home' }],
+      [{ userId: 1.5, side: 'home' }],
+      [{ userId: 4, side: 'home' }, { userId: 4, side: 'away' }],
+      Array.from({ length: 22 }, (_, i) => ({ userId: i + 1, side: 'home' })),
+    ]
+    for (const value of bad) expect(parseInviteEntries(value), JSON.stringify(value)).toEqual({ ok: false })
+    expect(parseInviteEntries(Array.from({ length: 21 }, (_, i) => ({ userId: i + 1, side: 'home' }))).ok).toBe(true)
+  })
+
+  it('tells one player, several, and a whole club apart', () => {
+    expect(parseInviteRequest({ userId: 4, side: 'away' })).toEqual({ ok: true, club: false, entries: [{ userId: 4, side: 'away' }] })
+    expect(parseInviteRequest({ invites: [{ userId: 4, side: 'away' }, { userId: 5, side: 'home' }] })).toEqual({
+      ok: true,
+      club: false,
+      entries: [{ userId: 4, side: 'away' }, { userId: 5, side: 'home' }],
+    })
+    expect(parseInviteRequest({ clubSide: 'home' })).toEqual({ ok: true, club: true, side: 'home' })
+    const bad: unknown[] = [null, {}, { clubSide: 'both' }, { userId: 4 }, { userId: 4, side: 'x' }, { invites: [] }, { invites: [{ userId: 4, side: 'x' }] }, { invites: [{ userId: 4, side: 'home' }, { userId: 4, side: 'away' }] }]
+    for (const body of bad) {
+      expect(parseInviteRequest(body), JSON.stringify(body)).toEqual({ ok: false })
+    }
   })
 })

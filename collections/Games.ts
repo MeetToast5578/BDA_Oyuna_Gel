@@ -108,6 +108,8 @@ export const Games: CollectionConfig = {
       name: 'scheduledAt',
       type: 'date',
       required: true,
+      // Every game list filters and sorts on it.
+      index: true,
     },
     {
       name: 'maxPlayers',

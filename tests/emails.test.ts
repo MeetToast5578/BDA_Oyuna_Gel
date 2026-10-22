@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { escapeHtml, gameCancelledEmail, gameChangedEmail, joinedEmail } from '@/lib/emails'
+import { escapeHtml, gameCancelledEmail, gameChangedEmail, invitedEmail, joinedEmail, removedFromGameEmail } from '@/lib/emails'
 import { parseProfileUpdate } from '@/lib/game-backend'
 
 const GAME = {
@@ -38,6 +38,23 @@ describe('game emails', () => {
     const cancelled = gameCancelledEmail(GAME)
     expect(cancelled.subject).toBe('Oyun ləğv edildi: Axşam futbolu')
     expect(cancelled.text).toContain('(Şən, 18 Okt, 19:00, Aku Arena)')
+  })
+
+  it('invites a player to a side, linking to the join form on that side, and says it holds no spot', () => {
+    const invited = invitedEmail({ ...GAME, hostName: '<i>Elvin</i>' }, 'away', 'B komandası')
+    expect(invited.subject).toBe('Oyuna dəvət: Axşam futbolu')
+    expect(invited.text).toContain('(B komandası)')
+    expect(invited.text).toContain('/games/42?join=1&side=away')
+    expect(invited.text).toContain('yer tutmur')
+    expect(invited.html).toContain('&lt;i&gt;Elvin&lt;/i&gt;')
+  })
+
+  it('tells a player the host took them out, with the game\'s title escaped', () => {
+    const removed = removedFromGameEmail({ ...GAME, title: '<b>Axşam</b>' })
+    expect(removed.subject).toBe('Oyundan çıxarıldınız: <b>Axşam</b>')
+    expect(removed.text).toContain('(Şən, 18 Okt, 19:00, Aku Arena)')
+    expect(removed.html).toContain('&lt;b&gt;Axşam&lt;/b&gt;')
+    expect(removed.html).not.toContain('<b>Axşam</b>')
   })
 })
 

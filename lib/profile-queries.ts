@@ -14,16 +14,16 @@ import {
   type ProfileUpdate,
 } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
+import { promoteWaiting } from '@/lib/join-game'
+import type { Promotions } from '@/lib/promotions'
+import { playerRecords } from '@/lib/records'
+import { leaveAllClubs, userClubs } from '@/lib/teams'
+import { summarize, summarizeBySport } from '@/lib/team-logic'
 
 /**
  * A profile is always read for one signed-in person, so nothing here is cached: it would key on the
  * viewer and the entries would never be reused.
  */
-
-/** Participations are read in one go rather than paged; a player has tens of games, not thousands. */
-// ponytail: unbounded read of one user's participations, fine at MVP scale. If someone ever joins
-// thousands of games, page this query instead of pulling every row.
-const MAX_PARTICIPATIONS = 500
 
 function upcomingWhere(when: MyGamesQuery['when'], now: Date): Where {
   return when === 'upcoming'
@@ -39,14 +39,16 @@ function playedWhere(now: Date): Where {
   return { and: [upcomingWhere('past', now), { status: { not_equals: 'cancelled' } }] }
 }
 
-/** Game ids this user holds a participant row for, newest participation first. */
+/**
+ * Game ids this user holds a participant row for, for the "Qoşulduğum" list. Only the ids, so even a
+ * few thousand stay cheap; the list itself is paged by the games query.
+ */
 async function participatedGameIds(payload: Payload, userId: number) {
   const { docs } = await payload.find({
     collection: 'game-participants',
     where: { user: { equals: userId } },
     select: { game: true },
     depth: 0,
-    limit: MAX_PARTICIPATIONS,
     pagination: false,
     overrideAccess: true,
   })
@@ -123,72 +125,64 @@ export async function findMyGames(userId: number, query: MyGamesQuery, now = new
 }
 
 /**
- * How many games the user hosts and has joined. The upcoming counts match the "Qarşıdakı" lists; the
- * past ones (`hostedPast`, `played`) leave out cancelled games, which nobody played.
+ * How many games the user hosts and has joined, and the games played per sport, in one query over
+ * everything they ever hosted or joined. The upcoming counts match the "Qarşıdakı" lists; the past ones
+ * (`hostedPast`, `played`) leave out cancelled games, which nobody played. A host is a participant in
+ * their own game, so "joined" means games hosted by someone else (or by a deleted account).
  */
-async function countGames(payload: Payload, userId: number, joinedIds: number[], now: Date) {
-  const notHostedByMe: Where[] = [{ host: { not_equals: userId } }]
-
-  const count = async (where: Where) =>
-    (await payload.count({ collection: 'games', where, overrideAccess: true })).totalDocs
-
-  const joinedWhere = (window: Where): Where =>
-    joinedIds.length === 0
-      ? { id: { equals: -1 } }
-      : { and: [{ id: { in: joinedIds } }, ...notHostedByMe, window] }
-
-  const [hostingUpcoming, hostedPast, joinedUpcoming, played] = await Promise.all([
-    count({ and: [{ host: { equals: userId } }, upcomingWhere('upcoming', now)] }),
-    count({ and: [{ host: { equals: userId } }, playedWhere(now)] }),
-    count(joinedWhere(upcomingWhere('upcoming', now))),
-    count(joinedWhere(playedWhere(now))),
-  ])
-
-  return { hostingUpcoming, hostedPast, joinedUpcoming, played }
+async function gameCounts(payload: Payload, userId: number, now: Date) {
+  const at = now.toISOString()
+  const { rows } = await (payload.db as unknown as PostgresAdapter).drizzle.execute<{
+    sport: string
+    hosting_upcoming: string
+    hosted_past: string
+    joined_upcoming: string
+    played: string
+  }>(sql`
+    SELECT g.sport,
+      count(*) FILTER (WHERE g.host_id = ${userId} AND g.status = 'scheduled' AND g.scheduled_at > ${at}) AS hosting_upcoming,
+      count(*) FILTER (WHERE g.host_id = ${userId} AND g.scheduled_at <= ${at} AND g.status <> 'cancelled') AS hosted_past,
+      count(*) FILTER (WHERE g.host_id IS DISTINCT FROM ${userId} AND g.status = 'scheduled' AND g.scheduled_at > ${at}) AS joined_upcoming,
+      count(*) FILTER (WHERE g.host_id IS DISTINCT FROM ${userId} AND g.scheduled_at <= ${at} AND g.status <> 'cancelled') AS played
+    FROM games g
+    WHERE g.host_id = ${userId} OR EXISTS (SELECT 1 FROM game_participants p WHERE p.game_id = g.id AND p.user_id = ${userId})
+    GROUP BY g.sport
+  `)
+  const sum = (key: Exclude<keyof (typeof rows)[number], 'sport'>) => rows.reduce((total, row) => total + Number(row[key]), 0)
+  const bySport = SPORTS.map((sport) => {
+    const row = rows.find((candidate) => candidate.sport === sport)
+    return {
+      sport,
+      label: SPORT_META[sport].label,
+      iconKey: SPORT_META[sport].iconKey,
+      // Played, hosted or joined: adds up to `played + hostedPast`.
+      playedCount: row ? Number(row.hosted_past) + Number(row.played) : 0,
+    }
+  })
+  return {
+    counts: { hostingUpcoming: sum('hosting_upcoming'), hostedPast: sum('hosted_past'), joinedUpcoming: sum('joined_upcoming'), played: sum('played') },
+    bySport,
+  }
 }
 
 /**
- * Games actually played, hosted or joined, broken down by sport, for the profile's stats panel.
- * The per-sport counts add up to `played + hostedPast`.
+ * A person's win/draw/loss record from games with a confirmed score (their side in each), overall and
+ * per sport, and the clubs they are in. Games without a confirmed score count as played in the other
+ * stats but have no result to add here.
  */
-async function playedBySport(payload: Payload, userId: number, joinedIds: number[], now: Date) {
-  const counts = Object.fromEntries(SPORTS.map((sport) => [sport, 0])) as Record<string, number>
-  const ids = joinedIds.length ? joinedIds : []
-
-  const { docs } = await payload.find({
-    collection: 'games',
-    where: {
-      and: [
-        { or: [{ host: { equals: userId } }, ...(ids.length ? [{ id: { in: ids } } as Where] : [])] },
-        playedWhere(now),
-      ],
-    },
-    select: { sport: true },
-    depth: 0,
-    limit: MAX_PARTICIPATIONS,
-    pagination: false,
-    overrideAccess: true,
-  })
-
-  for (const doc of docs) {
-    const sport = String(doc.sport)
-    if (sport in counts) counts[sport] += 1
-  }
-
-  return SPORTS.map((sport) => ({
-    sport,
-    label: SPORT_META[sport].label,
-    iconKey: SPORT_META[sport].iconKey,
-    playedCount: counts[sport],
-  }))
+async function recordAndClubs(payload: Payload, userId: number) {
+  const [records, clubs] = await Promise.all([
+    playerRecords((payload.db as unknown as PostgresAdapter).drizzle, [userId]),
+    userClubs(payload, userId),
+  ])
+  const games = records.get(userId) ?? []
+  return { record: { ...summarize(games), bySport: summarizeBySport(games, SPORTS) }, clubs }
 }
 
 /** The signed-in user's own profile: identity, counts and stats in one request. */
 export async function getMyProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
-  // Two rounds instead of four: the user and their participations need only the id, and the counts
-  // and per-sport stats need only those participations. Each round is a full database latency.
-  const [user, joinedIds] = await Promise.all([
+  const [user, { counts, bySport }, results] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -196,14 +190,11 @@ export async function getMyProfile(userId: number, now = new Date()) {
       overrideAccess: true,
       disableErrors: true,
     }),
-    participatedGameIds(payload, userId),
+    gameCounts(payload, userId, now),
+    recordAndClubs(payload, userId),
   ])
   if (!user) return null
 
-  const [counts, bySport] = await Promise.all([
-    countGames(payload, userId, joinedIds, now),
-    playedBySport(payload, userId, joinedIds, now),
-  ])
   const fullName = user.fullName?.trim() || user.email
 
   return {
@@ -233,6 +224,7 @@ export async function getMyProfile(userId: number, now = new Date()) {
       totalPlayed: bySport.reduce((sum, sport) => sum + sport.playedCount, 0),
       playedBySport: bySport,
     },
+    ...results,
   }
 }
 
@@ -399,8 +391,14 @@ export async function deleteMyAccount(userId: number) {
 
   const transactionID = (await payload.db.beginTransaction()) ?? undefined
   const req = { transactionID }
+  const promotions: Promotions = []
+  const adapter = payload.db as unknown as PostgresAdapter
+  const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
   try {
     if (hostedIds.length > 0) {
+      // Joins take these rows' locks too: one landing mid-delete waits, then finds no game, instead of
+      // leaving a participant row behind. Locked in id order, like everything else that locks games.
+      await db.execute(sql`SELECT id FROM games WHERE id IN (${sql.join(hostedIds.map((id) => sql`${id}`), sql`, `)}) ORDER BY id FOR UPDATE`)
       await payload.delete({
         collection: 'game-participants',
         where: { game: { in: hostedIds } },
@@ -413,8 +411,14 @@ export async function deleteMyAccount(userId: number) {
     // if they had left each one ("Oyundan çıx"); past games keep their numbers as they were played.
     // Runs before the participant rows go, since it finds the games through them. LEAST keeps a
     // game from ever showing more free spots than it has places.
-    const adapter = payload.db as unknown as PostgresAdapter
-    const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
+    // The games where their leaving frees a spot, read (and locked, in id order, so two deletions sharing
+    // games can't deadlock) before their rows go: whoever is waiting for each takes it once the rows are gone.
+    const freeing = await db.execute<{ id: number }>(sql`
+      SELECT g.id FROM games g JOIN game_participants p ON p.game_id = g.id
+      WHERE p.user_id = ${userId} AND g.host_id IS DISTINCT FROM ${userId} AND g.status = 'scheduled' AND g.scheduled_at > now()
+      ORDER BY g.id
+      FOR UPDATE OF g
+    `)
     // The games that stay keep no trace of how to reach the person who deleted their account.
     await db.execute(sql`UPDATE games SET contact_phone = NULL, updated_at = now() WHERE host_id = ${userId}`)
     await db.execute(sql`
@@ -433,6 +437,10 @@ export async function deleteMyAccount(userId: number) {
       overrideAccess: true,
       req,
     })
+    for (const { id } of freeing.rows) promotions.push({ gameId: id, userIds: await promoteWaiting(db, id) })
+    // Each club they captain goes to its longest-standing member first: once the account is gone the
+    // captain column only empties, which would leave a club with members and nobody in charge.
+    await leaveAllClubs(db, userId)
     await payload.delete({ collection: 'users', id: userId, overrideAccess: true, req })
     if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
   } catch (error) {
@@ -445,7 +453,7 @@ export async function deleteMyAccount(userId: number) {
   // collected before.
   if (uploadIds.length > 0) await deleteUploads(payload, { id: { in: uploadIds } })
 
-  return { deletedGames: hostedIds.length }
+  return { deletedGames: hostedIds.length, promotions }
 }
 
 /**
@@ -455,7 +463,7 @@ export async function deleteMyAccount(userId: number) {
 export async function getPublicProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
   // All three need only the id, so they go out together rather than the games waiting on the user.
-  const [user, hosting, hostedPast] = await Promise.all([
+  const [user, hosting, hostedPast, results] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -479,6 +487,7 @@ export async function getPublicProfile(userId: number, now = new Date()) {
       where: { and: [{ host: { equals: userId } }, playedWhere(now)] },
       overrideAccess: true,
     }),
+    recordAndClubs(payload, userId),
   ])
   if (!user) return null
 
@@ -493,5 +502,6 @@ export async function getPublicProfile(userId: number, now = new Date()) {
     memberSinceLabel: formatBakuMonthYear(user.createdAt),
     counts: { hostingUpcoming: hosting.totalDocs, hostedPast: hostedPast.totalDocs },
     hostedGames: hosting.docs.map((doc) => toGameCard(normalizeGameRecord(doc, now.getTime()))),
+    ...results,
   }
 }

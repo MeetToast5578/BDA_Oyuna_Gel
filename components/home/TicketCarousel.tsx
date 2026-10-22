@@ -33,7 +33,11 @@ function centerOf(track: HTMLElement, slide: HTMLElement) {
   return slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2
 }
 
-/** Hero "ticket" carousel: native scroll-snap (so touch swipe just works) with synced arrows and dots. */
+/**
+ * Hero "ticket" carousel: native scroll-snap (so touch swipe just works) with synced arrows and dots,
+ * looping endlessly in both directions. Keyboard users get the arrows and each card's title and
+ * "Qoşul"; the dots and the players button take a click but stay out of the Tab order.
+ */
 export function TicketCarousel({ games }: { games: FeaturedGame[] }) {
   const trackRef = useRef<HTMLUListElement>(null)
   const frame = useRef(0)
@@ -224,6 +228,7 @@ export function TicketCarousel({ games }: { games: FeaturedGame[] }) {
                 <button
                   type="button"
                   className={styles.dot}
+                  tabIndex={-1}
                   onClick={() => goToGame(index)}
                   aria-label={`${index + 1}. oyuna keç`}
                   aria-current={index === current ? 'true' : undefined}
@@ -294,7 +299,7 @@ const Ticket = memo(function Ticket({ game, clone }: { game: FeaturedGame; clone
             overlap={8}
             moreStyle={{ bg: '#cee9d9', color: '#082016' }}
             className={styles.players}
-            tabIndex={tabIndex}
+            tabIndex={-1}
           />
           {/* Not prefetched, like the "Qoşul" on game cards: the title link already covers this game. */}
           <Link

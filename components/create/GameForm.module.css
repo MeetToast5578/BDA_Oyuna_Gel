@@ -54,6 +54,22 @@
   min-width: 0;
 }
 
+/* "Host məlumatları", "Oyun məlumatları": the long form's visible outline, styled like the game page's panel labels. */
+.sectionTitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* What a sport change cleared, so it isn't a silent surprise at submit. */
+.notice {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
 .section {
   display: flex;
   flex-direction: column;
@@ -162,6 +178,18 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text);
+}
+
+/* "Mən A komandasındayam" is long: two to a row, and tall enough to wrap on a phone. */
+.hostSideChoices {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hostSideChoice {
+  height: auto;
+  min-height: 40px;
+  padding: 8px 10px;
+  line-height: 1.25;
 }
 
 .levelChoice:has(input:checked) {

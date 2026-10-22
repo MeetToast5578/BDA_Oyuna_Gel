@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api-response'
+import { authorizeHost } from '@/lib/authorize-host'
 import { gameCancelledEmail, gameChangedEmail } from '@/lib/emails'
 import { isUpcoming, parseEditGameBody } from '@/lib/game-backend'
-import { deleteGame, getGameDetail, getGameHostId, getPayloadClient, updateGame } from '@/lib/game-queries'
+import { deleteGame, getGameDetail, getPayloadClient, updateGame } from '@/lib/game-queries'
 import { afterResponse, notify, participantIds } from '@/lib/notify'
+import { notifyPromoted } from '@/lib/promotions'
 
 /** "Oyun Detalı". Signing in is optional; it only affects `viewer` and whether the host's phone is shown. */
 export async function GET(
@@ -23,30 +25,6 @@ export async function GET(
     console.error(error)
     return apiError('INTERNAL_ERROR', 'Oyunu yükləmək mümkün olmadı.', 500)
   }
-}
-
-/**
- * Resolves the game and checks the caller may change it. Only the host and admins can, and the
- * answer is the same 404 either way so a signed-in stranger can't probe which games exist.
- */
-async function authorizeHost(request: Request, rawId: string) {
-  const gameId = Number(rawId)
-  if (!Number.isSafeInteger(gameId) || gameId <= 0) {
-    return { error: apiError('INVALID_GAME_ID', 'Oyun ID-si yanlışdır.', 400) } as const
-  }
-
-  const payload = await getPayloadClient()
-  const { user } = await payload.auth({ headers: request.headers })
-  if (!user) return { error: apiError('UNAUTHENTICATED', 'Bu əməliyyat üçün daxil olun.', 401) } as const
-
-  const hostId = await getGameHostId(gameId)
-  if (hostId === null) return { error: apiError('GAME_NOT_FOUND', 'Oyun tapılmadı.', 404) } as const
-
-  const isAdmin = (user as { role?: string }).role === 'admin'
-  const isOwner = hostId === Number(user.id) || isAdmin
-  if (!isOwner) return { error: apiError('NOT_GAME_HOST', 'Yalnız oyunun hostu bu oyunu dəyişə bilər.', 403) } as const
-
-  return { gameId, userId: Number(user.id), isAdmin } as const
 }
 
 /**
@@ -76,7 +54,7 @@ export async function PATCH(
 
     const result = await updateGame(auth.gameId, parsed.input)
     if (!result.ok && result.code === 'GAME_STARTED') return gameStarted()
-    if (!result.ok) return apiError(result.code, result.message, result.code === 'GAME_NOT_FOUND' ? 404 : result.code === 'SIDE_FULL' ? 409 : 400)
+    if (!result.ok) return apiError(result.code, result.message, result.code === 'GAME_NOT_FOUND' ? 404 : result.code === 'SIDE_FULL' || result.code === 'NOT_A_MEMBER' ? 409 : 400)
 
     // A new time or place is news to everyone who planned around the old one.
     const { game } = result
@@ -85,6 +63,10 @@ export async function PATCH(
         const payload = await getPayloadClient()
         await notify(payload, await participantIds(payload, auth.gameId, auth.userId), gameChangedEmail(game))
       })
+    }
+
+    if (result.promoted?.length) {
+      afterResponse(async () => notifyPromoted(await getPayloadClient(), [{ gameId: auth.gameId, userIds: result.promoted ?? [] }]))
     }
 
     return NextResponse.json({ game: result.game })

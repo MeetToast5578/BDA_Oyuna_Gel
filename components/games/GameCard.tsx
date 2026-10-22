@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 import type { GameCard as GameCardData } from '@/lib/api-types'
-import { isUpcoming } from '@/lib/game-backend'
+import { isUpcoming, matchupLabel } from '@/lib/game-backend'
 import { buttonClass } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { Avatar, LevelBadge, ProgressBar, SportBadge } from './bits'
@@ -60,6 +60,14 @@ export function GameCard({
               {game.title}
             </Link>
           </Heading>
+          {matchupLabel(game.teams) && (
+            <p className={styles.metaRow}>
+              <span className={styles.metaItem}>
+                <span className="visually-hidden">Komandalar:</span>
+                {matchupLabel(game.teams)}
+              </span>
+            </p>
+          )}
           {location && (
             <p className={styles.metaRow}>
               <span className={styles.metaItem}>

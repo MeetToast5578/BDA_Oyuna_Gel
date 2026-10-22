@@ -74,6 +74,9 @@ export interface Config {
     games: Game;
     'game-participants': GameParticipant;
     'join-attempts': JoinAttempt;
+    'game-invites': GameInvite;
+    'game-waitlist': GameWaitlist;
+    'rate-limits': RateLimit;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -88,6 +91,9 @@ export interface Config {
     games: GamesSelect<false> | GamesSelect<true>;
     'game-participants': GameParticipantsSelect<false> | GameParticipantsSelect<true>;
     'join-attempts': JoinAttemptsSelect<false> | JoinAttemptsSelect<true>;
+    'game-invites': GameInvitesSelect<false> | GameInvitesSelect<true>;
+    'game-waitlist': GameWaitlistSelect<false> | GameWaitlistSelect<true>;
+    'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -147,6 +153,7 @@ export interface User {
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
+  resetPasswordRequestedAt?: string | null;
   loginAttempts?: number | null;
   lockUntil?: string | null;
   sessions?:
@@ -211,7 +218,7 @@ export interface Arena {
   /**
    * Used by the city filter on the /api/v1 sports, games and venues endpoints.
    */
-  city?: 'baku' | null;
+  city: 'baku';
   /**
    * City district or neighborhood where the venue is located.
    */
@@ -311,6 +318,10 @@ export interface GameParticipant {
    */
   side: 'home' | 'away';
   /**
+   * Set when the player took a spot that came back to a full game from its waitlist, not by joining.
+   */
+  promotedAt?: string | null;
+  /**
    * Number the player gave in the join form. Visible to admins only.
    */
   phone?: string | null;
@@ -350,6 +361,55 @@ export interface JoinAttempt {
    */
   remainingSpots?: number | null;
   ip?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Invitations to a game. Created by the invite endpoints; the invited player answers by joining or declining.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-invites".
+ */
+export interface GameInvite {
+  id: number;
+  game: number | Game;
+  user: number | User;
+  invitedBy?: (number | null) | User;
+  side: 'home' | 'away';
+  status: 'pending' | 'accepted' | 'declined';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Players waiting for a spot in a full game. Created by the waitlist endpoint; promoted when a spot frees up.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-waitlist".
+ */
+export interface GameWaitlist {
+  id: number;
+  game: number | Game;
+  user: number | User;
+  /**
+   * Name given when signing up for the list; it becomes the participant row's name.
+   */
+  name: string;
+  /**
+   * Number given when signing up for the list. Visible to admins only.
+   */
+  phone: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limits".
+ */
+export interface RateLimit {
+  id: number;
+  key: string;
+  windowStart: string;
+  count: number;
   updatedAt: string;
   createdAt: string;
 }
@@ -404,6 +464,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'join-attempts';
         value: number | JoinAttempt;
+      } | null)
+    | ({
+        relationTo: 'game-invites';
+        value: number | GameInvite;
+      } | null)
+    | ({
+        relationTo: 'game-waitlist';
+        value: number | GameWaitlist;
+      } | null)
+    | ({
+        relationTo: 'rate-limits';
+        value: number | RateLimit;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -466,6 +538,7 @@ export interface UsersSelect<T extends boolean = true> {
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
+  resetPasswordRequestedAt?: T;
   loginAttempts?: T;
   lockUntil?: T;
   sessions?:
@@ -587,6 +660,7 @@ export interface GameParticipantsSelect<T extends boolean = true> {
   user?: T;
   name?: T;
   side?: T;
+  promotedAt?: T;
   phone?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -601,6 +675,42 @@ export interface JoinAttemptsSelect<T extends boolean = true> {
   user?: T;
   remainingSpots?: T;
   ip?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-invites_select".
+ */
+export interface GameInvitesSelect<T extends boolean = true> {
+  game?: T;
+  user?: T;
+  invitedBy?: T;
+  side?: T;
+  status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-waitlist_select".
+ */
+export interface GameWaitlistSelect<T extends boolean = true> {
+  game?: T;
+  user?: T;
+  name?: T;
+  phone?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limits_select".
+ */
+export interface RateLimitsSelect<T extends boolean = true> {
+  key?: T;
+  windowStart?: T;
+  count?: T;
   updatedAt?: T;
   createdAt?: T;
 }

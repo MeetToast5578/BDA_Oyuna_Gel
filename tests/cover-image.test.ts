@@ -54,7 +54,7 @@ describe.skipIf(!process.env.DATABASE_URL)('venue photo as game cover (Postgres)
       await payload.create({
         collection: 'arenas',
         overrideAccess: true,
-        data: { name: `Cover Test Arena ${suffix}`, location: 'Bakı', image: mediaId },
+        data: { name: `Cover Test Arena ${suffix}`, location: 'Bakı', city: 'baku', image: mediaId },
       })
     ).id
 

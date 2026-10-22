@@ -1,12 +1,17 @@
 import type { CollectionConfig } from 'payload'
 
 import { invalidateGamesCache } from '../lib/cache-tags'
+import { isAdmin } from './access'
 import { CITY_OPTIONS, DEFAULT_CITY, parseCoordinates } from '../lib/game-backend'
 
 export const Arena: CollectionConfig = {
   slug: 'arenas',
   access: {
     read: () => true,
+    // Payload's default for the rest is "any signed-in user", which let anyone delete venues.
+    create: isAdmin,
+    update: isAdmin,
+    delete: isAdmin,
   },
   admin: {
     useAsTitle: 'name',
@@ -26,6 +31,7 @@ export const Arena: CollectionConfig = {
     {
       name: 'city',
       type: 'select',
+      required: true,
       defaultValue: DEFAULT_CITY,
       index: true,
       options: CITY_OPTIONS,

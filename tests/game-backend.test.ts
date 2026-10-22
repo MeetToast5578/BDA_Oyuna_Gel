@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   countOpenGamesBySport,
+  placeLabel,
   deriveAvailability,
   foldForSearch,
   formatBakuLabel,
@@ -18,6 +19,7 @@ import {
   parseGameListParams,
   datePresetWindow,
   mapsUrl,
+  matchupLabel,
   venueImageUrl,
   parseMyGamesParams,
   parseProfileTabs,
@@ -620,6 +622,10 @@ describe('parseCreateGameBody', () => {
         maxCount: 10,
         currentCount: 2,
         contactPhone: '+994502103456',
+        homeTeamId: null,
+        awayTeamId: null,
+        hostSide: 'home',
+        invites: [],
       },
     })
   })
@@ -835,6 +841,7 @@ describe('normalizeGameRecord / toGameCard', () => {
       maxCount: 10,
       remainingSpots: 1,
       status: 'open',
+      teams: { home: null, away: null },
       coverImageUrl: '/images/game-football-1-7880cc.png',
       coverImage: {
         thumbnailUrl: '/images/game-football-1-7880cc.png',
@@ -924,5 +931,66 @@ describe('normalizeGameRecord / toGameCard', () => {
 
     const uploaded = normalizeGameRecord({ ...raw, arena: { ...raw.arena, image: venuePhoto, imagePath } }, NOW)
     expect(uploaded.cover.fullUrl).toBe('/api/media/file/inter-1600x900.webp')
+  })
+})
+
+describe('clubs on a game', () => {
+  const club = (name: string) => ({ id: '1', name })
+
+  it('labels the matchup, an open side reading "Açıq", and nothing when neither side has a club', () => {
+    expect(matchupLabel({ home: club('Qarabağ'), away: club('Neftçi') })).toBe('Qarabağ vs Neftçi')
+    expect(matchupLabel({ home: club('Qarabağ'), away: null })).toBe('Qarabağ vs Açıq')
+    expect(matchupLabel({ home: null, away: club('Neftçi') })).toBe('Açıq vs Neftçi')
+    expect(matchupLabel({ home: null, away: null })).toBeNull()
+  })
+
+  it('reads the clubs off a populated game and ignores an unpopulated id', () => {
+    const base = { id: 3, title: 'T', sport: 'football', scheduledAt: '2030-01-01T10:00:00Z', maxPlayers: 10, availablePlayers: 5 }
+    const card = toGameCard(normalizeGameRecord({ ...base, homeTeam: { id: 8, name: 'Qarabağ' }, awayTeam: 9 }))
+    expect(card.teams).toEqual({ home: { id: '8', name: 'Qarabağ' }, away: null })
+    expect(toGameCard(normalizeGameRecord(base)).teams).toEqual({ home: null, away: null })
+  })
+
+  it('parses a club per side, reading absent, null and empty as open, and refuses anything else', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const parse = (extra: object) => parseCreateGameBody({ ...body, ...extra }, new Date('2029-12-01'))
+    expect(parse({})).toMatchObject({ ok: true, input: { homeTeamId: null, awayTeamId: null } })
+    expect(parse({ homeTeamId: '', awayTeamId: null })).toMatchObject({ ok: true, input: { homeTeamId: null, awayTeamId: null } })
+    expect(parse({ homeTeamId: 4, awayTeamId: '7' })).toMatchObject({ ok: true, input: { homeTeamId: 4, awayTeamId: 7 } })
+    for (const bad of [0, -1, 1.5, 'abc', true, {}]) {
+      expect(parse({ homeTeamId: bad })).toMatchObject({ ok: false, code: 'INVALID_TEAM' })
+    }
+  })
+
+  it('reads the host\'s side, defaulting to home, and refuses anything but home or away', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const parse = (extra: object) => parseCreateGameBody({ ...body, ...extra }, new Date('2029-12-01'))
+    expect(parse({})).toMatchObject({ ok: true, input: { hostSide: 'home' } })
+    expect(parse({ hostSide: '' })).toMatchObject({ ok: true, input: { hostSide: 'home' } })
+    expect(parse({ hostSide: 'away' })).toMatchObject({ ok: true, input: { hostSide: 'away' } })
+    expect(parse({ hostSide: 'random' })).toMatchObject({ ok: false, code: 'INVALID_SIDE' })
+  })
+
+  it('reads the players to invite on create, ignores them on an edit, and refuses a bad list', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const now = new Date('2029-12-01')
+    const invites = [{ userId: 4, side: 'away' }]
+    expect(parseCreateGameBody({ ...body, invites }, now)).toMatchObject({ ok: true, input: { invites } })
+    expect(parseCreateGameBody({ ...body, invites: [{ userId: 4, side: 'x' }] }, now)).toMatchObject({ ok: false, code: 'INVALID_INVITES' })
+    // The edit form has no invites: whatever is sent is not read, so it can't invite anyone.
+    expect(parseEditGameBody({ ...body, invites }, 1, now)).toMatchObject({ ok: true, input: { invites: [] } })
+    expect(parseEditGameBody({ ...body, invites: 'garbage' }, 1, now)).toMatchObject({ ok: true, input: { invites: [] } })
+  })
+})
+
+describe('placeLabel', () => {
+  it('follows the vowel of the last spoken word of the number', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9].map(placeLabel)).toEqual([
+      '1-cisiniz', '2-cisiniz', '3-cüsünüz', '4-cüsünüz', '5-cisiniz', '6-cısınız', '7-cisiniz', '8-cisiniz', '9-cusunuz',
+    ])
+    expect([10, 20, 30, 40, 60, 90, 100, 1000].map(placeLabel)).toEqual([
+      '10-cusunuz', '20-cisiniz', '30-cusunuz', '40-cısınız', '60-cısınız', '90-cısınız', '100-cüsünüz', '1000-cisiniz',
+    ])
+    expect([13, 26, 29].map(placeLabel)).toEqual(['13-cüsünüz', '26-cısınız', '29-cusunuz'])
   })
 })

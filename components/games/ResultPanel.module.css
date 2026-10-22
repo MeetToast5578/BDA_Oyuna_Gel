@@ -1,0 +1,49 @@
+.score {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 48px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-heading);
+}
+
+.status {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--color-muted);
+}
+
+.confirmed {
+  color: var(--color-success-text);
+}
+
+.disputed {
+  color: var(--color-danger);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.input {
+  text-align: center;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}

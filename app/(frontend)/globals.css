@@ -48,12 +48,16 @@
   --color-footer-logo: rgba(255, 255, 255, 0.7);
 
   /* Levels: semantic colors (Başlanğıc green, Yüksək red), deliberately not the brand color. */
-  --level-beginner-bg: rgba(102, 210, 0, 0.7);
+  /* Solid, so the 11px label keeps at least 4.5:1 contrast over any cover photo. */
+  --level-beginner-bg: #dff4c9;
+  --level-beginner-text: #2c5a07;
   --level-beginner-border: #6db926;
-  --level-medium-bg: rgba(228, 160, 16, 0.7);
+  --level-medium-bg: #fcecc4;
+  --level-medium-text: #6e4a00;
   --level-medium-border: #c69731;
-  --level-high-bg: rgba(220, 38, 38, 0.7);
-  --level-high-border: #c81e1e;
+  --level-high-bg: #b91c1c;
+  --level-high-text: #fff;
+  --level-high-border: #991b1b;
 
   /* Hero */
   --hero-gradient: linear-gradient(104.13deg, var(--color-primary) 46.78%, var(--color-primary-deep) 109.51%);

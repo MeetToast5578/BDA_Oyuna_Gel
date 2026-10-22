@@ -1,0 +1,115 @@
+/* The lineup being built on the create form: two teams side by side, one row per slot. */
+.sheet {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 639px) {
+  .sheet {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-muted);
+  text-transform: uppercase;
+}
+
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-tint);
+}
+
+.empty {
+  border: 1px dashed var(--color-primary-border);
+  background: transparent;
+  font-size: 13px;
+  color: var(--color-placeholder);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-chip);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.iconButton {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font-size: 15px;
+  line-height: 1;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--color-primary-tint);
+}
+
+.iconButton:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.remove:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.warning {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-danger);
+}

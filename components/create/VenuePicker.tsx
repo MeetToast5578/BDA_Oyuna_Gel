@@ -70,6 +70,14 @@ export function VenuePicker({
   }, [highlight, open])
 
   function openList() {
+    // A failed load is retried each time the list opens, instead of sticking until a reload.
+    if (list === 'error') {
+      setLists((current) => {
+        const rest = { ...current }
+        delete rest[sport]
+        return rest
+      })
+    }
     setOpen(true)
     setQuery('')
     const selectedIndex = value && Array.isArray(list) ? list.findIndex((venue) => venue.id === value.id) : -1
@@ -151,7 +159,7 @@ export function VenuePicker({
         {open && (
           <ul ref={listRef} id={listId} role="listbox" aria-label="Meydançalar" className={styles.listbox}>
             {list === undefined && <li className={styles.optionEmpty}>Yüklənir…</li>}
-            {list === 'error' && <li className={styles.optionEmpty}>Meydançaları yükləmək mümkün olmadı.</li>}
+            {list === 'error' && <li className={styles.optionEmpty}>Meydançaları yükləmək mümkün olmadı. Siyahını bağlayıb yenidən açın.</li>}
             {Array.isArray(list) && options.length === 0 && (
               <li className={styles.optionEmpty}>
                 {list.length === 0 ? 'Bu idman növü üçün meydança yoxdur.' : 'Heç nə tapılmadı.'}

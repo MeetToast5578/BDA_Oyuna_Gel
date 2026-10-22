@@ -4,12 +4,11 @@ import type { Payload } from 'payload'
 
 import { POST as join } from '@/app/api/v1/games/[id]/join/route'
 import { POST as leave } from '@/app/api/v1/games/[id]/leave/route'
-import { tooManyRecentAttempts } from '@/lib/join-game'
+import { isRateLimited } from '@/lib/rate-limit'
 
 /**
- * Join and leave answer 429 once a user or an IP has made 10 requests in the last minute, counted
- * from the `join-attempts` log. Runs against the database in DATABASE_URL; every record it creates
- * is removed afterwards.
+ * Join and leave answer 429 once a user or an IP has made 10 requests in a minute, counted in
+ * `rate_limits`. Runs against the database in DATABASE_URL; every record it creates is removed afterwards.
  */
 describe.skipIf(!process.env.DATABASE_URL)('join and leave rate limit (Postgres)', () => {
   const suffix = Date.now()
@@ -37,7 +36,7 @@ describe.skipIf(!process.env.DATABASE_URL)('join and leave rate limit (Postgres)
       })
     ).id
     token = (await payload.login({ collection: 'users', data: { email, password: 'rate-test-password' } })).token ?? ''
-    arenaId = (await payload.create({ collection: 'arenas', data: { name: `Rate Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', data: { name: `Rate Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
     gameId = (
       await payload.create({
         collection: 'games',
@@ -58,7 +57,7 @@ describe.skipIf(!process.env.DATABASE_URL)('join and leave rate limit (Postgres)
 
   afterAll(async () => {
     if (!payload) return
-    await clearLog()
+    await clearCounts()
     await payload.delete({ collection: 'games', where: { id: { equals: gameId } } })
     await payload.delete({ collection: 'arenas', where: { id: { equals: arenaId } } })
     await payload.delete({ collection: 'users', where: { id: { in: [userId, otherUserId] } } })
@@ -67,18 +66,8 @@ describe.skipIf(!process.env.DATABASE_URL)('join and leave rate limit (Postgres)
 
   const db = () => (payload.db as unknown as PostgresAdapter).drizzle
 
-  async function clearLog() {
-    await db().execute(sql`DELETE FROM join_attempts WHERE user_id IN (${userId}, ${otherUserId}) OR ip = ${ip}`)
-  }
-
-  async function logAttempts(count: number, entry: { userId: number | null; ip: string | null }) {
-    for (let i = 0; i < count; i++) {
-      await payload.create({
-        collection: 'join-attempts',
-        overrideAccess: true,
-        data: { outcome: 'GAME_FULL', gameId, user: entry.userId, ip: entry.ip },
-      })
-    }
+  async function clearCounts() {
+    await db().execute(sql`DELETE FROM rate_limits WHERE key LIKE ${`%:user:${userId}`} OR key LIKE ${`%:user:${otherUserId}`} OR key LIKE ${`%:ip:${ip}`}`)
   }
 
   const call = (handler: (request: Request, context: { params: Promise<{ id: string }> }) => Promise<Response>) =>
@@ -96,16 +85,20 @@ describe.skipIf(!process.env.DATABASE_URL)('join and leave rate limit (Postgres)
   }
 
   it('lets the tenth request in a minute through, and refuses the eleventh', async () => {
-    await clearLog()
-    await logAttempts(9, { userId, ip: null })
-    expect(await tooManyRecentAttempts(payload, userId, ip)).toBe(false)
-    await logAttempts(1, { userId, ip: null })
-    expect(await tooManyRecentAttempts(payload, userId, ip)).toBe(true)
+    await clearCounts()
+    for (let i = 0; i < 10; i++) expect(await isRateLimited(payload, 'spot', { userId })).toBe(false)
+    expect(await isRateLimited(payload, 'spot', { userId })).toBe(true)
+  })
+
+  it('lets exactly ten of twenty parallel requests through', async () => {
+    await clearCounts()
+    const answers = await Promise.all(Array.from({ length: 20 }, () => isRateLimited(payload, 'spot', { userId })))
+    expect(answers.filter((limited) => !limited)).toHaveLength(10)
   })
 
   it('answers 429 on join and leave without touching the game', async () => {
-    await clearLog()
-    await logAttempts(10, { userId, ip: null })
+    await clearCounts()
+    for (let i = 0; i < 10; i++) await isRateLimited(payload, 'spot', { userId })
     const before = await spotsLeft()
 
     for (const handler of [join, leave]) {
@@ -121,17 +114,18 @@ describe.skipIf(!process.env.DATABASE_URL)('join and leave rate limit (Postgres)
     expect(joined.totalDocs).toBe(0)
   })
 
-  it('counts an IP across accounts', async () => {
-    await clearLog()
-    await logAttempts(10, { userId: otherUserId, ip })
-    expect(await tooManyRecentAttempts(payload, userId, ip)).toBe(true)
-    expect(await tooManyRecentAttempts(payload, userId, '198.51.100.1')).toBe(false)
+  it('counts an IP across accounts, and keeps actions apart', async () => {
+    await clearCounts()
+    for (let i = 0; i < 10; i++) await isRateLimited(payload, 'spot', { userId: otherUserId, ip })
+    expect(await isRateLimited(payload, 'spot', { userId, ip })).toBe(true)
+    expect(await isRateLimited(payload, 'spot', { userId, ip: '198.51.100.1' })).toBe(false)
+    expect(await isRateLimited(payload, 'createGame', { userId, ip })).toBe(false)
   })
 
-  it('forgets attempts older than a minute', async () => {
-    await clearLog()
-    await logAttempts(10, { userId, ip })
-    await db().execute(sql`UPDATE join_attempts SET created_at = now() - interval '61 seconds' WHERE user_id = ${userId}`)
-    expect(await tooManyRecentAttempts(payload, userId, ip)).toBe(false)
+  it('starts afresh in the next window', async () => {
+    await clearCounts()
+    for (let i = 0; i < 11; i++) await isRateLimited(payload, 'spot', { userId })
+    await db().execute(sql`UPDATE rate_limits SET window_start = window_start - interval '1 minute' WHERE key = ${`spot:user:${userId}`}`)
+    expect(await isRateLimited(payload, 'spot', { userId })).toBe(false)
   })
 })

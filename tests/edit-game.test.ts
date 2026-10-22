@@ -33,7 +33,7 @@ describe.skipIf(!process.env.DATABASE_URL)('editing a game while players join (P
       userIds.push(user.id)
     }
     arenaId = (
-      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Edit Arena ${suffix}`, location: 'Bakı' } })
+      await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Edit Arena ${suffix}`, location: 'Bakı', city: 'baku' } })
     ).id
   })
 
@@ -81,6 +81,10 @@ describe.skipIf(!process.env.DATABASE_URL)('editing a game while players join (P
     maxCount,
     currentCount: staleCount,
     contactPhone: '+994501234567',
+    homeTeamId: null,
+    awayTeamId: null,
+    hostSide: 'home',
+    invites: [],
   })
 
   const available = async (gameId: number) =>

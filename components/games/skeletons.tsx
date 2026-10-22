@@ -84,6 +84,30 @@ export function SportTabsSkeleton() {
   )
 }
 
+/** `/teams` before its clubs arrive: the sport tabs and a grid of club cards, so the footer stays put. */
+export function TeamListSkeleton() {
+  return (
+    <div aria-busy="true">
+      <SportTabsSkeleton />
+      <ul className={grid.grid}>
+        {Array.from({ length: 6 }, (_, index) => (
+          <li key={index}>
+            <div className={`${card.card} ${sk.inert}`}>
+              <div className={card.body}>
+                <div className={card.meta}>
+                  <Bone className={sk.line} style={{ width: '60%', height: 22 }} />
+                  <Bone className={sk.line} style={{ width: 50, height: 15 }} />
+                </div>
+                <Bone className={sk.line} style={{ width: 80, height: 24 }} />
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /**
  * The shape of `GamesSection` before its data arrives. The title is known up front, so it is real
  * text rather than a placeholder; only the tab counters, the filter line and the cards shimmer.

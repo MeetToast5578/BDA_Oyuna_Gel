@@ -22,8 +22,19 @@ import {
   type CreateGameInput,
   type GameListQuery,
 } from '@/lib/game-backend'
-import { readSides } from '@/lib/join-game'
-import { checkSides, occupancy, sideCapacity } from '@/lib/team-logic'
+import { addInvites, INVITE_ERRORS } from '@/lib/invites'
+import { promoteWaiting, readSides } from '@/lib/join-game'
+import { waitlistInfo } from '@/lib/waitlist'
+import {
+  checkSides,
+  clubSidesError,
+  effectiveResultStatus,
+  nextResultStatus,
+  occupancy,
+  sideCapacity,
+  type ResultState,
+  type ResultStatus,
+} from '@/lib/team-logic'
 
 /**
  * Cached reads refresh at least this often; game, venue and join writes expire them immediately.
@@ -48,9 +59,11 @@ const CARD_SELECT = {
   status: true,
   coverImage: true,
   image: true,
+  homeTeam: true,
+  awayTeam: true,
 } as const
 
-const CARD_POPULATE = { users: { fullName: true, profilePicture: true, avatarUrl: true } } as const
+const CARD_POPULATE = { users: { fullName: true, profilePicture: true, avatarUrl: true }, teams: { name: true } } as const
 
 type ParticipantPreview = ReturnType<typeof toPlayer>
 
@@ -61,10 +74,9 @@ export async function getPayloadClient() {
 }
 
 function cityWhere(field: 'arena.city' | 'city', city: string): Where {
-  // Venues created before the city field existed have no value and are in the default city.
-  return city === DEFAULT_CITY
-    ? { or: [{ [field]: { equals: city } }, { [field]: { exists: false } }] }
-    : { [field]: { equals: city } }
+  // Every venue has a city (required since migration 20261022_121601_arena_city_required), so a plain
+  // match; the old "or no city" branch made Payload join arenas twice for every list count.
+  return { [field]: { equals: city } }
 }
 
 function upcomingOpenWhere(city: string, from: Date, to?: Date): Where {
@@ -370,11 +382,11 @@ export async function getGameDetail(
 
   // All three only need `gameId`, so they go out together: against a remote database each extra
   // sequential round trip costs a full network latency.
-  const [doc, previews, [resolvedViewerId, joined], sides] = await Promise.all([
+  const [doc, previews, [resolvedViewerId, joined], sides, waiting] = await Promise.all([
     payload.findByID({
       collection: 'games',
       id: gameId,
-      select: { ...CARD_SELECT, contactPhone: true },
+      select: { ...CARD_SELECT, contactPhone: true, homeScore: true, awayScore: true, resultStatus: true, resultReportedAt: true },
       populate: CARD_POPULATE,
       depth: 2,
       overrideAccess: true,
@@ -391,6 +403,7 @@ export async function getGameDetail(
       return [id, totalDocs > 0] as const
     }),
     readSides((payload.db as unknown as PostgresAdapter).drizzle, gameId),
+    viewer.then((id) => waitlistInfo((payload.db as unknown as PostgresAdapter).drizzle, gameId, id)),
   ])
   if (!doc) return null
 
@@ -402,12 +415,47 @@ export async function getGameDetail(
   const hostId = typeof doc.host === 'object' ? doc.host?.id : doc.host
   const isHost = resolvedViewerId !== null && hostId === resolvedViewerId
 
+  // The score and what this viewer may do with it, decided by the same rules the result routes use.
+  const resultState: ResultState = {
+    status: doc.resultStatus ?? null,
+    reportedAt: doc.resultReportedAt ?? null,
+    rivalsCanAnswer: sides.players.some((player) => player.side !== sides.hostSide),
+  }
+  const scored = typeof doc.homeScore === 'number' && typeof doc.awayScore === 'number' && resultState.status !== null
+  const resultActor = {
+    isHost,
+    isAdmin: false,
+    side: sides.players.find((player) => player.userId === resolvedViewerId)?.side ?? null,
+    hostSide: sides.hostSide,
+  }
+  const finished = game.status === 'finished'
+  const can = (action: 'report' | 'confirm') => nextResultStatus(resultState, action, resultActor, finished, now).ok
+
+  // The club the host put against their own side; its captain may take it out of the game.
+  const opponentClubId = sides.hostSide === 'home' ? sides.game.awayTeamId : sides.game.homeTeamId
+  const canDeclineClub =
+    resolvedViewerId !== null && opponentClubId !== null && isUpcoming(game.status) &&
+    (await payload.count({
+      collection: 'teams',
+      where: { and: [{ id: { equals: opponentClubId } }, { captain: { equals: resolvedViewerId } }] },
+      overrideAccess: true,
+    }).then(({ totalDocs }) => totalDocs > 0))
+
   return {
     ...toGameCard(game),
     host: { ...game.host, phone: joined || isHost ? doc.contactPhone ?? null : null },
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
-    viewer: { joined, isHost },
+    viewer: { joined, isHost, canDeclineClub },
+    /** People waiting for a spot in a full game, and the viewer's place on that list (1 is next). */
+    waitlist: waiting,
     freeBySide: { home: Math.max(cap - taken.home, 0), away: Math.max(cap - taken.away, 0) },
+    /** The side the host stands on, where their guests stand too. */
+    hostSide: sides.hostSide,
+    result: scored
+      ? { homeScore: doc.homeScore as number, awayScore: doc.awayScore as number, status: effectiveResultStatus(resultState, now) as ResultStatus }
+      : null,
+    canReport: isHost && can('report'),
+    canConfirm: resolvedViewerId !== null && can('confirm'),
   }
 }
 
@@ -459,14 +507,46 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
   return {
     game: { id: game.id, title: game.title, currentCount: game.currentCount, maxCount: game.maxCount },
     host: { ...game.host, side: hostSide, you: isViewer(game.host.id) },
+    // Only the host moves players, and only until kick-off; the sides route enforces the same.
+    canMove: isViewer(game.host.id) && isUpcoming(game.status),
+    // The clubs' names, where a side has one; the dialog says "A komandası" for an open side.
+    sideNames: { home: game.teams.home?.name ?? null, away: game.teams.away?.name ?? null },
     players,
     others: Math.max(0, game.currentCount - players.length - 1),
   }
 }
 
 type CreateGameResult =
-  | { ok: true; game: NonNullable<Awaited<ReturnType<typeof getGameDetail>>> }
+  | { ok: true; game: NonNullable<Awaited<ReturnType<typeof getGameDetail>>>; /** Waiting players who took the spots a bigger game opened. */ promoted?: number[] }
   | { ok: false; code: string; message: string }
+
+/** Why a game's clubs were refused, as the message the form shows. */
+const CLUB_ERRORS = {
+  TEAM_NOT_FOUND: 'Komanda tapılmadı.',
+  TEAM_SPORT_MISMATCH: 'Seçilən komanda bu idman növünü oynamır.',
+  SAME_TEAM: 'A və B komandaları eyni ola bilməz.',
+} as const
+
+/**
+ * Checks the clubs a create or edit form picked: they exist, play the game's sport, and aren't the
+ * same club. Who may stand on which side is `checkSides`' job once the game row holds the clubs.
+ */
+async function clubsError(payload: Awaited<ReturnType<typeof getPayloadClient>>, input: CreateGameInput): Promise<CreateGameResult | null> {
+  const find = async (id: number | null) =>
+    id === null ? null : await payload.findByID({ collection: 'teams', id, depth: 0, overrideAccess: true, disableErrors: true })
+  const [home, away] = await Promise.all([find(input.homeTeamId), find(input.awayTeamId)])
+  if ((input.homeTeamId !== null && !home) || (input.awayTeamId !== null && !away)) {
+    return { ok: false, code: 'TEAM_NOT_FOUND', message: CLUB_ERRORS.TEAM_NOT_FOUND }
+  }
+  const code = clubSidesError(input.sport, home && { id: home.id, sport: home.sport }, away && { id: away.id, sport: away.sport })
+  return code ? { ok: false, code, message: CLUB_ERRORS[code] } : null
+}
+
+/** The transaction's own database handle, so reads inside it see what it has written so far. */
+function transactionDb(payload: Awaited<ReturnType<typeof getPayloadClient>>, transactionID: string | number | undefined) {
+  const adapter = payload.db as unknown as PostgresAdapter
+  return (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
+}
 
 /** Creates a game hosted by the signed-in user from a validated create-game form. */
 export async function createGame(host: { id: number; phoneNumber?: string | null }, input: CreateGameInput): Promise<CreateGameResult> {
@@ -486,6 +566,8 @@ export async function createGame(host: { id: number; phoneNumber?: string | null
   // The design reveals this number to players after they join ("Bir addım qaldı").
   const contactPhone = input.contactPhone ?? normalizePhone(host.phoneNumber)
   if (!contactPhone) return { ok: false, code: 'PHONE_REQUIRED', message: 'Host telefon nömrəsi tələb olunur.' }
+  const clubs = await clubsError(payload, input)
+  if (clubs) return clubs
 
   // One transaction: the game and its first player, the host, are created together or not at all.
   const transactionID = (await payload.db.beginTransaction()) ?? undefined
@@ -508,14 +590,28 @@ export async function createGame(host: { id: number; phoneNumber?: string | null
         availablePlayers: input.maxCount - input.currentCount,
         contactPhone,
         status: 'scheduled',
+        homeTeam: input.homeTeamId,
+        awayTeam: input.awayTeamId,
       },
     })
     await payload.create({
       collection: 'game-participants',
       overrideAccess: true,
       req,
-      data: { game: created.id, user: host.id, phone: contactPhone, side: 'home' },
+      data: { game: created.id, user: host.id, phone: contactPhone, side: input.hostSide },
     })
+    // The host stands on the side they chose, so that side's club, if it has one, must be one of theirs.
+    const sides = await readSides(transactionDb(payload, transactionID), created.id)
+    if (!checkSides(sides.game, sides.players, sides.guests, sides.hostId).ok) {
+      if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+      return { ok: false, code: 'NOT_A_MEMBER', message: 'Seçdiyiniz tərəfin komandasının üzvü olmalısınız.' }
+    }
+    // The players the host named: checked and written with the game, so a refusal leaves no game behind.
+    const refused = await addInvites(transactionDb(payload, transactionID), created.id, sides.game, host.id, input.invites)
+    if (refused) {
+      if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
+      return { ok: false, code: refused.code, message: INVITE_ERRORS[refused.code].message }
+    }
     if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)
     gameId = created.id
   } catch (error) {
@@ -568,15 +664,21 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
     return { ok: false, code: 'VENUE_SPORT_MISMATCH', message: 'Bu meydançada seçilmiş idman növü oynanmır.' }
   }
   if (!input.contactPhone) return { ok: false, code: 'PHONE_REQUIRED', message: 'Host telefon nömrəsi tələb olunur.' }
+  const clubs = await clubsError(payload, input)
+  if (clubs) return clubs
 
   const transactionID = (await payload.db.beginTransaction()) ?? undefined
   const adapter = payload.db as unknown as PostgresAdapter
-  const db = (transactionID !== undefined ? adapter.sessions[String(transactionID)]?.db : undefined) ?? adapter.drizzle
+  const db = transactionDb(payload, transactionID)
+  let promoted: number[] = []
   try {
+    // The clubs are written with the size, so the side check below sees them as they would stand.
     const resized = await db.execute(sql`
       UPDATE games
       SET max_players = ${input.maxCount},
           available_players = available_players + (${input.maxCount} - max_players),
+          home_team_id = ${input.homeTeamId},
+          away_team_id = ${input.awayTeamId},
           updated_at = now()
       WHERE id = ${gameId}
         AND status = 'scheduled'
@@ -588,12 +690,19 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
       if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
       return await editRejection(adapter.drizzle, gameId)
     }
-    // The resize must leave neither side over half the game; the host moves players first.
+    // The resize must leave neither side over half the game, and each club's side only its members;
+    // the host moves players first.
     const sides = await readSides(db, gameId)
-    if (!checkSides(sides.game, sides.players, sides.guests, sides.hostId).ok) {
+    const checked = checkSides(sides.game, sides.players, sides.guests, sides.hostId)
+    if (!checked.ok) {
       if (transactionID !== undefined) await payload.db.rollbackTransaction(transactionID)
-      return { ok: false, code: 'SIDE_FULL', message: 'Komandalardan birində bu saydan çox oyunçu var. Əvvəlcə oyunçuları köçürün.' }
+      return checked.code === 'NOT_A_MEMBER'
+        ? { ok: false, code: 'NOT_A_MEMBER', message: 'Seçilən komandanın üzvü olmayan oyunçular var. Əvvəlcə onları köçürün.' }
+        : { ok: false, code: 'SIDE_FULL', message: 'Komandalardan birində bu saydan çox oyunçu var. Əvvəlcə oyunçuları köçürün.' }
     }
+
+    // A bigger game has spots the waitlist is waiting for.
+    promoted = await promoteWaiting(db, gameId)
 
     await payload.update({
       collection: 'games',
@@ -619,7 +728,7 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
 
   const game = await getGameDetail(gameId, null)
   if (!game) return { ok: false, code: 'GAME_NOT_FOUND', message: 'Oyun tapılmadı.' }
-  return { ok: true, game }
+  return { ok: true, game, promoted }
 }
 
 /** Why the resize in `updateGame` matched no row, read after its transaction was rolled back. */
@@ -653,6 +762,9 @@ export async function deleteGame(gameId: number) {
   const transactionID = (await payload.db.beginTransaction()) ?? undefined
   const req = { transactionID }
   try {
+    // A join takes this row's lock too, so one landing mid-delete waits and then finds no game,
+    // instead of leaving a participant row behind with its game gone.
+    await transactionDb(payload, transactionID).execute(sql`SELECT id FROM games WHERE id = ${gameId} FOR UPDATE`)
     await payload.delete({
       collection: 'game-participants',
       where: { game: { equals: gameId } },

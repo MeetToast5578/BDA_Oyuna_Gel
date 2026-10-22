@@ -41,7 +41,7 @@ describe.skipIf(!process.env.DATABASE_URL)('started games are frozen (Postgres)'
       await payload.create({
         collection: 'arenas',
         overrideAccess: true,
-        data: { name: `Freeze Arena ${suffix}`, location: 'Bakı' },
+        data: { name: `Freeze Arena ${suffix}`, location: 'Bakı', city: 'baku' },
       })
     ).id
   })

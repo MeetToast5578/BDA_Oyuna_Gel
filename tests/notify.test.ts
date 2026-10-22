@@ -31,7 +31,7 @@ describe.skipIf(!process.env.DATABASE_URL)('notify (Postgres)', () => {
         })
       ).id
     }
-    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Notify Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Notify Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
     gameId = (
       await payload.create({
         collection: 'games',

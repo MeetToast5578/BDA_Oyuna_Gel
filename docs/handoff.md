@@ -1,5 +1,33 @@
 # Handoff: teams, fixes and UX work on `Branch-1`
 
+> **Update, 22 October 2026 (review fixes):** a full review (security, backend, UI/UX, database) led to:
+> - **Security:** Next 16.4.2 and Payload 3.91 (published advisories; migration
+>   `20261022_081608_payload_3_91_reset_password_requested_at`). Payload's own API: venues and user
+>   rows are admin-only writes. Google sign-in matches on the Google id. The sign-in redirect compares
+>   origins. Security headers are set in `next.config.ts`.
+> - **Abuse:** atomic rate limits in `lib/rate-limit.ts` (table `rate_limits`, migration
+>   `20261022_082941_rate_limits`) on join/leave/waitlist, create game, create club, uploads and user
+>   lookups. Only the host can list players by `gameId`. Deletes lock the game rows.
+> - **Club records** take only scores the other side confirmed. The 48h auto-confirm needs someone with
+>   an account on the other side (owner's decision).
+> - **UX:** the notice badge on the phone menu, readable level badges, the filter reset, the publish
+>   button always enabled, a branded 404, a `/teams` skeleton, one-step join, side names and a confirm
+>   step on the score, a docked waitlist button, Azerbaijani ordinals, focus after join/confirm.
+> - **Since then:** database guards (CHECK constraints, delete rules, unique membership, a
+>   `scheduled_at` index, a required venue city), a daily cleanup job (`/api/cron/cleanup`, needs
+>   `CRON_SECRET` on Vercel), uncapped profile counts, CI (`.github/workflows/ci.yml`), new uploads kept
+>   out of git, one confirmation dialog everywhere, a clearer create form (the date/time format
+>   switches stay, at the owner's request), and phone filters behind "Filtr".
+> - **Left out on purpose:** a trigger tying `available_players` to the participant rows (it would turn
+>   joins into errors on any game whose counters already drifted; 5 test fixtures would need fixing first).
+> - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`.
+
+> **Update:** PR #14 (everything in §2 below) was merged into `main`. `Branch-1` was restarted from `main`
+> and carries the teams phases 3–7 in draft PR #15; §3 says what each added. The game-setup phases 8–10
+> (`docs/game-setup-teams-and-players-plan.md`: clubs on the form, remove a player, side links, invites by
+> name) are on it too, with migration `20261019_185819_game_invites`. The waitlist for full games (stage 5) is built too, in-app:
+> migration `20261019_192039_game_waitlist`, `lib/waitlist.ts`, `promoteWaiting` in `lib/join-game.ts`.
+
 Written at the end of the session of 14 October 2026, so the next session can pick up without
 re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComponents`; read
 `node_modules/next/dist/docs/` before using a Next API).
@@ -43,7 +71,8 @@ re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComp
 | `2c236f5` | **Teams phases 1–2:** migrations `20261014_114826_teams_sides_and_results` (sides backfilled and proved with `checkSides`; scores and games' clubs emptied) and `20261014_115147_join_outcome_side_codes`; sides picked in `claimSpot`; `SIDE_FULL` on edit; side picker and two-column players list |
 | `b6814be` | Polish: level/venue filters on the past list, "Silinmiş istifadəçi" for a deleted host, `/api/v1/me/games` no longer logs the prerender bail-out |
 
-**Tests:** 206 passing across 17 files (`npx vitest run` against a local Postgres; see §6).
+**Tests:** 313 passing across 27 files on the latest `Branch-1` (`npx vitest run` against a local
+Postgres; see §6).
 
 ---
 
@@ -51,15 +80,44 @@ re-deriving anything. Read this first, then `AGENTS.md` (Next 16 with `cacheComp
 
 Items 1–3 of the previous list (rate limits, teams phases 1–2, polish) are built. Next:
 
-1. **Teams phase 3:** the host moves players between sides and "Balansla"
-   (`docs/teams-and-stats-plan.md` §4). `readSides` in `lib/join-game.ts` already reads a game's
-   sides under its row lock; `applyAssignments`, `autoBalance` and `checkSides` are ready.
-2. **Teams phases 4–7** in order (score report and confirm, clubs, club sides, stats).
-3. Left out of phase 2 on purpose: `hostSide` on create (the host is always `home`), and club
-   names on the side picker (no game has clubs until phase 6).
-4. **Blocked:**
-   - the waitlist (stage 5) needs email, which is on hold;
-   - Russian and English (stage 7) need D5 (which languages, which URLs);
+1. **Teams phases 3–7** are built:
+   - phase 3: `lib/sides.ts`, `PATCH /api/v1/games/{id}/sides`, the host's buttons in
+     `components/games/PlayersButton.tsx`;
+   - phase 4: `lib/results.ts`, the two `/result` routes, `components/games/ResultPanel.tsx`;
+   - phase 5: `lib/teams.ts`, `/api/v1/teams/**`, the `/teams` pages;
+   - phase 6: clubs on a game (`homeTeamId`, `awayTeamId` in `parseGameForm`, `createGame` and
+     `updateGame`, `clubOptions` for the form, `matchupLabel` for the cards).
+   - phase 7: `lib/records.ts` (`playerRecords`, `teamRecords`, `recentTeamResults`), `record` and `clubs` on
+     the profiles, the standings on `/teams?sport=`, the club's record, `components/profile/RecordPanel.tsx`.
+   - phases 8–10 (game setup): `decline-club`, `players/{userId}` (remove) and `invites` routes,
+     `lib/invites.ts`, `components/games/{PlayerSearch,HostInvites,DeclineClub}.tsx`,
+     `components/profile/PendingInvites.tsx`, the badge in `components/site/Header.tsx`.
+2. Nothing is left of the teams plan. Open items are below and in `tasks.md`.
+3. `hostSide` on create (the host picks the side they play on) is built too, in the same change as phase 6.
+4. **Blocked on the owner:**
+   - (the waitlist, stage 5, is built: it tells people in the app, and its email starts going out
+     once email is on);
+   - turning email on: a dedicated Gmail account with an App Password, `GMAIL_USER` and
+     `GMAIL_APP_PASSWORD` in Vercel (never ask for them);
+   - Russian and English (stage 7) need D5 (which languages, which URLs); then `lib/i18n/az.ts`, a
+     `[locale]` segment, a switcher, `hreflang`;
+   - a native-speaker read of the new Azerbaijani strings (listed in each commit and in PR #15);
+   - teams plan decisions D1–D12: the code assumes the recommended options.
+5. **Owner / ops:**
+   - add `https://bda-oyuna-gel.vercel.app/api/auth/google/callback` as a redirect URI in Google Cloud;
+   - rotate the database password and the Google client secret (pasted into an earlier chat);
+   - confirm stage 0 (Vercel preview fix) and update `docs/fixes-and-ux-plan.md`, which says "Not started";
+   - add a Blob token if uploads should work on `bda-oyuna-gel`;
+   - run `npm run migrate` before the profile-picture version serves traffic (`20260925_065346`);
+   - review and merge draft PR #15; test it on `bda-oyuna-gel`, not a `bda-next` preview (shared live DB).
+6. **Optional / unverified:**
+   - browser-check the server error text under "Balansla" (server tests cover every refusal, the UI
+     message was never looked at);
+   - cache `getPublicProfile`; a "starts in 2 hours" email (needs cron and `remindedAt`); a
+     `(user_id, created_at)` index on `join-attempts`;
+   - club names aren't unique, and the away-club picker lists every club of the sport;
+   - the `authorizeHost` comment says 404 for strangers, the code returns 403;
+   - not planned: Elo, per-player goals and assists, seasons, club chat, club logos.
 
 ---
 

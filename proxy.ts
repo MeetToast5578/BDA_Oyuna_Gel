@@ -33,6 +33,8 @@ export const config = {
   matcher: [
     '/profile',
     '/games/new',
+    '/teams/new',
+    '/teams/join/:code',
     '/games/:id/edit',
     { source: '/games/:id', has: [{ type: 'query', key: 'join', value: '1' }] },
   ],

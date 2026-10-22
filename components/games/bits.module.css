@@ -32,23 +32,26 @@
 }
 
 .level {
-  color: #fff;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+  /* Opaque like .sportSolid: nothing shows through to blur. */
+  backdrop-filter: none;
 }
 
 .beginner {
   background: var(--level-beginner-bg);
   border-color: var(--level-beginner-border);
+  color: var(--level-beginner-text);
 }
 
 .medium {
   background: var(--level-medium-bg);
   border-color: var(--level-medium-border);
+  color: var(--level-medium-text);
 }
 
 .high {
   background: var(--level-high-bg);
   border-color: var(--level-high-border);
+  color: var(--level-high-text);
 }
 
 /* Progress */
