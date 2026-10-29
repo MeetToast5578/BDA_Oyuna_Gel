@@ -29,6 +29,8 @@ export type CreateGameRequest = {
   currentCount: number
   maxCount: number
   hostPhone?: string
+  /** A WhatsApp (chat.whatsapp.com) or Telegram (t.me) group invite; "" or null removes it. */
+  groupLink?: string | null
   title?: string
   /** The club on each side (home must be one of the host's); absent or null leaves the side open. */
   homeTeamId?: number | null

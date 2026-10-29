@@ -79,6 +79,13 @@ export const Games: CollectionConfig = {
       },
     },
     {
+      name: 'groupLink',
+      type: 'text',
+      admin: {
+        description: 'WhatsApp or Telegram group invite link. Shown only to the host and players who joined; emptied 30 days after the game.',
+      },
+    },
+    {
       name: 'contactPhone',
       type: 'text',
       admin: {

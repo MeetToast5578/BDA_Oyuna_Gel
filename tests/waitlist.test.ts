@@ -247,6 +247,7 @@ describe.skipIf(!process.env.DATABASE_URL)('the waitlist (Postgres)', () => {
       maxCount: 6,
       currentCount: 4,
       contactPhone: '+994501234567',
+      groupLink: null,
       homeTeamId: null,
       awayTeamId: null,
       hostSide: 'home',

@@ -35,6 +35,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="az" data-scroll-behavior="smooth" className={`${spaceGrotesk.variable} ${inter.variable}`}>
       <body>
+        {/* When a newer view transition (a navigation, a section loading) replaces one still running, the
+            browser rejects the old one with "Transition was skipped" and nothing handles it. Harmless, so
+            it is kept out of the console and error reports; every other error still shows. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "addEventListener('unhandledrejection',function(e){var r=e.reason;if(r&&r.name==='AbortError'&&r.message==='Transition was skipped')e.preventDefault()})",
+          }}
+        />
         {/* It reads the URL, which a prerender doesn't have; the bar simply starts after hydration. */}
         <Suspense fallback={null}>
           <NavigationProgress />

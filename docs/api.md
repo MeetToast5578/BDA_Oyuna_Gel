@@ -596,6 +596,7 @@ Options for the "Meydança" picker.
 | `currentCount`  | "Mövcud iştirakçı sayı": players already in, including the host, `1 … maxCount − 1` (0 or missing counts as 1). The game opens with `maxCount − currentCount` spots |
 | `maxCount`      | Even (two equal sides), from 2 up to the sport's full size: football 22, basketball 10, tennis 4 |
 | `hostPhone`     | Optional if the profile has a phone number; shown to players after they join |
+| `groupLink`     | Optional WhatsApp (`https://chat.whatsapp.com/…`) or Telegram (`https://t.me/…`) group invite; like the phone, `GET /games/{id}` shows it only to the host and players who joined. `""` or `null` removes it. 400 `INVALID_GROUP_LINK` otherwise |
 | `title`         | Optional, defaults to "Futbol oyunu" etc. (the design has no title field)  |
 | `homeTeamId`, `awayTeamId` | Optional club ids, one per side ("Komandalar"); absent, `null` or `""` leaves the side open to anyone. The club on the host's own side must be one the host is in. Both must play the game's sport, and not be the same club. A side with a club admits only its members |
 | `hostSide` | Optional `home` (default) or `away`: the side the host stands on, where their `currentCount − 1` guests stand too until it is full. Create only: an edit ignores it, and the host moves like any player (`PATCH /sides`) |

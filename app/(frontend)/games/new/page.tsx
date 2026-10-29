@@ -10,7 +10,7 @@ import { DEFAULT_CITY, formatBakuDateKey, SPORTS } from '@/lib/game-backend'
 import { listFiltersFromSearchParams, sportFromSearchParams } from '@/lib/page-data'
 import { loginHref } from '@/lib/safe-redirect'
 import { getCurrentUser } from '@/lib/session'
-import { getPayloadClient, listVenues } from '@/lib/game-queries'
+import { getGameDetail, getPayloadClient, listVenues } from '@/lib/game-queries'
 import { clubOptions } from '@/lib/teams'
 
 export const metadata: Metadata = { title: 'Yeni oyun yarat' }
@@ -42,28 +42,33 @@ async function CreateGameForm({ searchParams }: { searchParams: SearchParams }) 
   const user = await getCurrentUser()
   // proxy.ts already sends visitors without a session cookie to /login; this catches an expired one.
   if (!user) {
-    const query = new URLSearchParams(Object.entries({ sport: sportFromSearchParams(params), venue: venueId }).filter((entry): entry is [string, string] => entry[1] !== null))
+    const query = new URLSearchParams(Object.entries({ sport: sportFromSearchParams(params), venue: venueId, from: typeof params.from === 'string' ? params.from : null }).filter((entry): entry is [string, string] => entry[1] !== null))
     redirect(loginHref(query.size ? `/games/new?${query}` : '/games/new'))
   }
 
-  const [teams, venue] = await Promise.all([
+  // "Bu oyunu təkrarla" passes ?from=: only the game's own host gets its settings; anyone else a blank form.
+  const fromId = typeof params.from === 'string' && /^[1-9]\d{0,9}$/.test(params.from) ? Number(params.from) : null
+  const [teams, venue, repeated] = await Promise.all([
     clubOptions(await getPayloadClient(), user.id),
     venueId ? listVenues(DEFAULT_CITY, null, null).then((venues) => venues.find((candidate) => candidate.id === venueId) ?? null) : null,
+    fromId ? getGameDetail(fromId, user.id) : null,
   ])
+  const template = repeated?.viewer.isHost ? repeated : undefined
   // A venue's own sport wins over none: its first listed sport, unless ?sport= names one it offers.
   const asked = sportFromSearchParams(params)
   const sport = venue?.sportTypes.length && !(asked && venue.sportTypes.includes(asked)) ? (SPORTS.find((value) => venue.sportTypes.includes(value)) ?? asked) : asked
 
   // Pages stay mounted between navigations (cacheComponents keeps them in <Activity>), so a form seen
   // before would come back with the number it started with. Keyed on the profile's number and the
-  // venue it was opened for, it starts over when either changes.
+  // venue or game it was opened from, it starts over when any of them changes.
   return (
     <GameForm
-      key={`${user.phoneNumber ?? 'no-phone'}-${venue?.id ?? ''}`}
+      key={`${user.phoneNumber ?? 'no-phone'}-${venue?.id ?? ''}-${template?.id ?? ''}`}
       user={user}
       today={formatBakuDateKey(new Date())}
       initialSport={sport ?? undefined}
       initialVenue={venue ?? undefined}
+      template={template}
       teams={teams}
     />
   )

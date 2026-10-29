@@ -218,12 +218,27 @@ async function GameDetailContent({ params, searchParams }: Props) {
               {upcoming ? 'Oyunu yaradıb · Əlaqə oyuna qoşulduqdan sonra görünür' : 'Oyunu təşkil edib'}
             </p>
           )}
+          {/* Only filled in for the host and players who joined, like the number. */}
+          {game.groupLink && (
+            <a className={styles.groupLink} href={game.groupLink} target="_blank" rel="noopener noreferrer">
+              {game.groupLink.includes('t.me/') ? 'Telegram qrupuna qoşul' : 'WhatsApp qrupuna qoşul'}
+              <span aria-hidden="true">↗</span>
+            </a>
+          )}
         </section>
 
-        {game.viewer.isHost && upcoming && (
-          <Link href={`/games/${game.id}/edit`} className={buttonClass('outlinePrimary', 'lg', { block: true })}>
-            Oyunu redaktə et
-          </Link>
+        {game.viewer.isHost && (
+          <div className={styles.hostActions}>
+            {upcoming && (
+              <Link href={`/games/${game.id}/edit`} className={buttonClass('outlinePrimary', 'lg', { block: true })}>
+                Oyunu redaktə et
+              </Link>
+            )}
+            {/* Most groups play the same slot every week: the next one starts from this one's settings. */}
+            <Link href={`/games/new?from=${game.id}`} className={buttonClass(upcoming ? 'outlineDark' : 'primary', 'lg', { block: true })}>
+              Bu oyunu təkrarla
+            </Link>
+          </div>
         )}
 
         {invites && (

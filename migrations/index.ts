@@ -12,6 +12,7 @@ import * as migration_20261022_082941_rate_limits from './20261022_082941_rate_l
 import * as migration_20261022_090732_schema_guards from './20261022_090732_schema_guards';
 import * as migration_20261022_121601_arena_city_required from './20261022_121601_arena_city_required';
 import * as migration_20261029_102657_notifications from './20261029_102657_notifications';
+import * as migration_20261029_103533_game_group_link from './20261029_103533_game_group_link';
 
 export const migrations = [
   {
@@ -82,6 +83,11 @@ export const migrations = [
   {
     up: migration_20261029_102657_notifications.up,
     down: migration_20261029_102657_notifications.down,
-    name: '20261029_102657_notifications'
+    name: '20261029_102657_notifications',
+  },
+  {
+    up: migration_20261029_103533_game_group_link.up,
+    down: migration_20261029_103533_game_group_link.down,
+    name: '20261029_103533_game_group_link'
   },
 ];

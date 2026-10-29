@@ -218,6 +218,18 @@ describe.skipIf(!process.env.DATABASE_URL)('reporting and confirming a score (Po
     expect([await side('host'), await side('opponent'), await side('stranger'), await side(null)]).toEqual(['home', 'away', null, null])
   })
 
+  it('shows the group chat link only to the host and players who joined', async () => {
+    const gameId = await makeGame()
+    await payload.update({ collection: 'games', id: gameId, data: { groupLink: 'https://chat.whatsapp.com/AbCdEf123456' }, overrideAccess: true })
+    const link = async (who: Who | null) => (await getGameDetail(gameId, who ? userIds[who] : null))?.groupLink
+    expect([await link('host'), await link('opponent'), await link('stranger'), await link(null)]).toEqual([
+      'https://chat.whatsapp.com/AbCdEf123456',
+      'https://chat.whatsapp.com/AbCdEf123456',
+      null,
+      null,
+    ])
+  })
+
   it('does not offer a score on a game that is not over', async () => {
     const detail = await getGameDetail(await makeGame({ hoursFromNow: 5 }), userIds.host)
     expect(detail).toMatchObject({ canReport: false, canConfirm: false, result: null })

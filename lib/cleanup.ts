@@ -38,5 +38,9 @@ export async function cleanUpOldData(db: Db) {
     hostPhones: await count(sql`
       UPDATE games SET contact_phone = NULL, updated_at = now()
       WHERE contact_phone IS NOT NULL AND scheduled_at < now() - make_interval(days => ${RETENTION.phonesDays})`),
+    // A group chat is contact details too, kept as long as the phones.
+    groupLinks: await count(sql`
+      UPDATE games SET group_link = NULL, updated_at = now()
+      WHERE group_link IS NOT NULL AND scheduled_at < now() - make_interval(days => ${RETENTION.phonesDays})`),
   }
 }

@@ -152,6 +152,18 @@ export function formatBakuDateKey(date: Date) {
   return bakuDayKey.format(date)
 }
 
+/**
+ * "Bu oyunu təkrarla": the same weekday as `startsAt`, a whole number of weeks later, on `today` or
+ * after (both Baku date keys, "2026-10-29"). At least one week later, so repeating an upcoming game
+ * gives the next one rather than itself.
+ */
+export function repeatDateKey(startsAt: string | Date, today: string) {
+  const day = new Date(`${formatBakuDateKey(new Date(startsAt))}T00:00:00Z`)
+  do day.setUTCDate(day.getUTCDate() + 7)
+  while (day.toISOString().slice(0, 10) < today)
+  return day.toISOString().slice(0, 10)
+}
+
 /** Midnight in Baku of the day containing `date`, shifted by `addDays` days. */
 export function startOfBakuDay(date: Date, addDays = 0) {
   const start = new Date(`${bakuDayKey.format(date)}T00:00:00${BAKU_UTC_OFFSET}`)
@@ -310,6 +322,17 @@ const LEVEL_BY_INPUT: Record<string, string> = {
   yüksək: 'high',
 }
 
+/** A WhatsApp or Telegram group invite. Anything else could send players anywhere, so only these two. */
+const GROUP_LINK = /^https:\/\/(chat\.whatsapp\.com\/[A-Za-z0-9]{10,40}|t\.me\/(\+|joinchat\/)?[A-Za-z0-9_-]{5,64})\/?$/
+
+/** null for none (absent, null or blank), the trimmed link when valid, undefined when not. */
+export function parseGroupLink(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) return null
+  if (typeof value !== 'string') return undefined
+  const link = value.trim()
+  return GROUP_LINK.test(link) ? link : undefined
+}
+
 export type CreateGameInput = {
   title: string
   sport: string
@@ -319,6 +342,8 @@ export type CreateGameInput = {
   maxCount: number
   currentCount: number
   contactPhone: string | null
+  /** A WhatsApp or Telegram group invite, or null (`parseGroupLink`). */
+  groupLink: string | null
   /** The clubs standing on each side, or null for a side open to anyone. */
   homeTeamId: number | null
   awayTeamId: number | null
@@ -387,6 +412,9 @@ function parseGameForm(body: unknown, now: Date, fixedCurrentCount?: number): Cr
   const contactPhone = hasPhone ? normalizePhone(data.hostPhone) : null
   if (hasPhone && !contactPhone) return fail('INVALID_PHONE', 'hostPhone must be an Azerbaijani number, e.g. +994 50 210 34 56.')
 
+  const groupLink = parseGroupLink(data.groupLink)
+  if (groupLink === undefined) return fail('INVALID_GROUP_LINK', 'groupLink must be a chat.whatsapp.com or t.me invite link.')
+
   const title = nonEmptyString(data.title)?.trim().slice(0, 120) ?? `${SPORT_META[sport].label} oyunu`
 
   // A club per side, both optional: absent, null or "" leaves the side open to anyone.
@@ -408,7 +436,7 @@ function parseGameForm(body: unknown, now: Date, fixedCurrentCount?: number): Cr
 
   return {
     ok: true,
-    input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, homeTeamId, awayTeamId, hostSide, invites: invites.entries },
+    input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, groupLink, homeTeamId, awayTeamId, hostSide, invites: invites.entries },
   }
 }
 

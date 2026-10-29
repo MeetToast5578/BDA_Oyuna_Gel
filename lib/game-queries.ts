@@ -386,7 +386,7 @@ export async function getGameDetail(
     payload.findByID({
       collection: 'games',
       id: gameId,
-      select: { ...CARD_SELECT, contactPhone: true, homeScore: true, awayScore: true, resultStatus: true, resultReportedAt: true },
+      select: { ...CARD_SELECT, contactPhone: true, groupLink: true, homeScore: true, awayScore: true, resultStatus: true, resultReportedAt: true },
       populate: CARD_POPULATE,
       depth: 2,
       overrideAccess: true,
@@ -444,6 +444,8 @@ export async function getGameDetail(
   return {
     ...toGameCard(game),
     host: { ...game.host, phone: joined || isHost ? doc.contactPhone ?? null : null },
+    /** The group chat, like the host's number: only for the host and players who joined. */
+    groupLink: joined || isHost ? doc.groupLink ?? null : null,
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
     /** `side`: where the viewer played (the host's side for the host), for "Siz qalib gəldiniz". */
     viewer: { joined, isHost, canDeclineClub, side: resultActor.side ?? (isHost ? sides.hostSide : null) },
@@ -590,6 +592,7 @@ export async function createGame(host: { id: number; phoneNumber?: string | null
         // currentCount includes the host (parseCreateGameBody), so the host's spot is already taken.
         availablePlayers: input.maxCount - input.currentCount,
         contactPhone,
+        groupLink: input.groupLink,
         status: 'scheduled',
         homeTeam: input.homeTeamId,
         awayTeam: input.awayTeamId,
@@ -717,6 +720,7 @@ export async function updateGame(gameId: number, input: CreateGameInput): Promis
         arena: venue.id,
         scheduledAt: input.scheduledAt.toISOString(),
         contactPhone: input.contactPhone,
+        groupLink: input.groupLink,
       },
     })
     if (transactionID !== undefined) await payload.db.commitTransaction(transactionID)

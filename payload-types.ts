@@ -284,6 +284,10 @@ export interface Game {
   level: 'beginner' | 'medium' | 'high';
   host?: (number | null) | User;
   /**
+   * WhatsApp or Telegram group invite link. Shown only to the host and players who joined; emptied 30 days after the game.
+   */
+  groupLink?: string | null;
+  /**
    * Host's contact number. The API only shows it to players who joined and to the host.
    */
   contactPhone?: string | null;
@@ -666,6 +670,7 @@ export interface GamesSelect<T extends boolean = true> {
   arena?: T;
   level?: T;
   host?: T;
+  groupLink?: T;
   contactPhone?: T;
   homeTeam?: T;
   awayTeam?: T;

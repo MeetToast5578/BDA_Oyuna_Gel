@@ -32,7 +32,7 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
           data: {
             title: `Cleanup ${key} ${suffix}`, sport: 'football', level: 'medium', arena: arenaId, host: userId,
             scheduledAt: new Date(Date.now() + offset).toISOString(), maxPlayers: 10, availablePlayers: 9,
-            status: 'scheduled', contactPhone: '+994501234567',
+            status: 'scheduled', contactPhone: '+994501234567', groupLink: 'https://chat.whatsapp.com/AbCdEf123456',
           },
         })
       ).id
@@ -91,6 +91,10 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
       ['+994501234567', '+994501234567'],
       ['+994501234567', '+994501234567'],
     ])
+
+    const links = await db.execute<{ group_link: string | null }>(sql`
+      SELECT group_link FROM games WHERE id IN (${games.old}, ${games.recent}) ORDER BY scheduled_at`)
+    expect(links.rows.map((row) => row.group_link)).toEqual([null, 'https://chat.whatsapp.com/AbCdEf123456'])
 
     const waiting = await db.execute<{ game_id: number }>(sql`SELECT game_id FROM game_waitlist WHERE user_id = ${userId}`)
     expect(waiting.rows.map((row) => row.game_id)).toEqual([games.upcoming])

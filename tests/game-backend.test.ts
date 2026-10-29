@@ -29,6 +29,8 @@ import {
   rankFeatured,
   startOfBakuDay,
   startOfBakuMonth,
+  repeatDateKey,
+  parseGroupLink,
   toGameCard,
   toPlayer,
 } from '@/lib/game-backend'
@@ -54,6 +56,33 @@ const inHours = (hours: number) => new Date(NOW + hours * HOUR_MS).toISOString()
 
 afterEach(() => {
   vi.unstubAllEnvs()
+})
+
+describe('parseGroupLink', () => {
+  it('takes WhatsApp and Telegram invites only', () => {
+    expect(parseGroupLink(' https://chat.whatsapp.com/AbCdEf123456 ')).toBe('https://chat.whatsapp.com/AbCdEf123456')
+    expect(parseGroupLink('https://t.me/+AbCdEf12345')).toBe('https://t.me/+AbCdEf12345')
+    expect(parseGroupLink('https://t.me/joinchat/AbCdEf12345')).toBe('https://t.me/joinchat/AbCdEf12345')
+    expect(parseGroupLink('https://t.me/oyunagel_baku')).toBe('https://t.me/oyunagel_baku')
+    for (const bad of ['http://chat.whatsapp.com/AbCdEf123456', 'https://chat.whatsapp.com.evil.az/AbCdEf123456', 'https://example.com', 'javascript:alert(1)', 'https://chat.whatsapp.com/x', 42]) {
+      expect(parseGroupLink(bad)).toBeUndefined()
+    }
+    expect([parseGroupLink(''), parseGroupLink('  '), parseGroupLink(null), parseGroupLink(undefined)]).toEqual([null, null, null, null])
+  })
+})
+
+describe('repeatDateKey', () => {
+  it('is the same weekday a week or more later, never before today', () => {
+    // Friday 16 Oct 2026 at 19:00 Baku (15:00 UTC).
+    const startsAt = '2026-10-16T15:00:00.000Z'
+    expect(repeatDateKey(startsAt, '2026-10-17')).toBe('2026-10-23')
+    expect(repeatDateKey(startsAt, '2026-10-29')).toBe('2026-10-30')
+    expect(repeatDateKey(startsAt, '2026-10-30')).toBe('2026-10-30')
+    // An upcoming game repeats to the week after it.
+    expect(repeatDateKey('2026-11-05T15:00:00.000Z', '2026-10-29')).toBe('2026-11-12')
+    // 22:00 UTC on the 16th is already the 17th in Baku.
+    expect(repeatDateKey('2026-10-16T22:00:00.000Z', '2026-10-20')).toBe('2026-10-24')
+  })
 })
 
 describe('startOfBakuMonth', () => {
@@ -643,6 +672,7 @@ describe('parseCreateGameBody', () => {
         maxCount: 10,
         currentCount: 2,
         contactPhone: '+994502103456',
+        groupLink: null,
         homeTeamId: null,
         awayTeamId: null,
         hostSide: 'home',
@@ -687,6 +717,9 @@ describe('parseCreateGameBody', () => {
     expect(parse({ currentCount: 10 })).toMatchObject({ ok: false, code: 'INVALID_CURRENT_COUNT' })
     expect(parse({ currentCount: -1 })).toMatchObject({ ok: false, code: 'INVALID_CURRENT_COUNT' })
     expect(parse({ hostPhone: '12345' })).toMatchObject({ ok: false, code: 'INVALID_PHONE' })
+    expect(parse({ groupLink: 'https://example.com/group' })).toMatchObject({ ok: false, code: 'INVALID_GROUP_LINK' })
+    expect(parse({ groupLink: 'https://chat.whatsapp.com/AbCdEf123456' })).toMatchObject({ ok: true, input: { groupLink: 'https://chat.whatsapp.com/AbCdEf123456' } })
+    expect(parse({})).toMatchObject({ ok: true, input: { groupLink: null } })
     expect(parseCreateGameBody(null, new Date(NOW))).toMatchObject({ ok: false, code: 'INVALID_SPORT' })
   })
 })
