@@ -1,5 +1,6 @@
 import { sql } from '@payloadcms/db-postgres'
 
+import { replayElo, type EloGame } from '@/lib/elo'
 import type { Db } from '@/lib/join-game'
 import { AUTO_CONFIRM_HOURS, compareStandings, outcomeFor, summarize, type Outcome, type PlayedGame, type Side } from '@/lib/team-logic'
 
@@ -87,6 +88,55 @@ export async function playerStandings(db: Db, sport: string, since: Date | null 
   return [...players]
     .map(([id, player]) => ({ id: String(id), name: player.name, record: summarize(player.games) }))
     .sort((a, b) => compareStandings(a.record, b.record) || a.record.played - b.record.played || a.name.localeCompare(b.name, 'az'))
+}
+
+/**
+ * Every counted game with its players with an account, for `replayElo`: the same scores as the
+ * records, so a rating moves exactly when a record does.
+ * shortcut: replays every counted game on each call, fine for thousands; past that, store ratings when a score is settled.
+ */
+async function eloGames(db: Db): Promise<EloGame[]> {
+  const { rows } = await db.execute<{ id: number; sport: string; scheduled_at: Date | string; home_score: number; away_score: number; user_id: number; side: Side }>(sql`
+    SELECT g.id, g.sport, g.scheduled_at, g.home_score, g.away_score, p.user_id, p.side
+    FROM games g
+    JOIN game_participants p ON p.game_id = g.id
+    WHERE ${counted} AND p.user_id IS NOT NULL
+  `)
+  const games = new Map<number, EloGame>()
+  for (const row of rows) {
+    const game = games.get(row.id) ?? {
+      id: row.id,
+      sport: row.sport,
+      scheduledAt: iso(row.scheduled_at),
+      homeScore: Number(row.home_score),
+      awayScore: Number(row.away_score),
+      players: [],
+    }
+    game.players.push({ userId: row.user_id, side: row.side })
+    games.set(row.id, game)
+  }
+  return [...games.values()]
+}
+
+/**
+ * A player's Elo per sport (current, peak, games, the rating after each game for the chart) and the
+ * change each game brought, by game id, for the history list.
+ */
+export async function playerElo(db: Db, userId: number) {
+  const changes = replayElo(await eloGames(db)).changes.get(userId) ?? []
+  const round = (value: number) => Math.round(value)
+  const bySport = [...new Set(changes.map((change) => change.sport))].map((sport) => {
+    const mine = changes.filter((change) => change.sport === sport)
+    return {
+      sport,
+      rating: round(mine[mine.length - 1].after),
+      peak: round(Math.max(...mine.map((change) => change.after))),
+      games: mine.length,
+      history: mine.map((change) => ({ gameId: String(change.gameId), at: change.scheduledAt, rating: round(change.after) })),
+    }
+  })
+  const deltas = new Map(changes.map((change) => [change.gameId, round(change.after) - round(change.before)]))
+  return { bySport: bySport.sort((a, b) => b.games - a.games), deltas }
 }
 
 /**

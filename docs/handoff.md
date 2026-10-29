@@ -30,6 +30,10 @@
 > - **Features (29 October):** `docs/features-plan.md`, all six stages built (see its status line): page fixes,
 >   `/notifications` with a header bell, repeat a game and group links, attendance and reliability, phone
 >   notifications and 2-hour reminders, the venue map, venue suggestions and the home page's top 3.
+> - **Elo and history (29 October):** `lib/elo.ts` (`replayElo`: per sport, start 1000, K 32, a side is its
+>   players' average) replays the counted games on each profile load (`playerElo` in `lib/records.ts`;
+>   shortcut noted there). Both profiles show the same stats, an Elo chart per sport and the last 30
+>   played games (`playedHistory` in `lib/profile-queries.ts`).
 > - **Left out on purpose:** a trigger tying `available_players` to the participant rows (it would turn
 >   joins into errors on any game whose counters already drifted; 5 test fixtures would need fixing first).
 > - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`. For phone

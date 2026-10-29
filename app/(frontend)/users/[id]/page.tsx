@@ -6,14 +6,15 @@ import { cache, Suspense, type CSSProperties } from 'react'
 import { BackLink } from '@/components/games/BackLink'
 import { EmptyState } from '@/components/games/EmptyState'
 import { GameCard } from '@/components/games/GameCard'
-import detail from '@/components/games/GameDetail.module.css'
 import grid from '@/components/games/GamesGrid.module.css'
 import section from '@/components/games/GamesSection.module.css'
 import { PublicProfileSkeleton } from '@/components/games/skeletons'
 import styles from '@/components/profile/Profile.module.css'
 import { ProfileIdentity } from '@/components/profile/ProfileIdentity'
+import { EloPanel } from '@/components/profile/EloPanel'
+import { GameHistory } from '@/components/profile/GameHistory'
 import { RecordPanel } from '@/components/profile/RecordPanel'
-import { StatTiles } from '@/components/profile/ProfileStats'
+import { ProfileStats } from '@/components/profile/ProfileStats'
 import { buttonClass } from '@/components/ui/button'
 import { getPublicProfile } from '@/lib/profile-queries'
 import { getCurrentUser } from '@/lib/session'
@@ -83,20 +84,21 @@ async function PublicProfileContent({ params }: Props) {
             )
           }
         />
-        <section className={detail.panel} aria-labelledby="host-stats-title">
-          <h2 id="host-stats-title" className={detail.panelLabel}>
-            Təşkilatçı
-          </h2>
-          <StatTiles
-            tiles={[
-              { value: profile.counts.hostingUpcoming, label: 'qarşıdakı oyun' },
-              { value: profile.counts.hostedPast, label: 'keçirilmiş oyun' },
-            ]}
-          />
-        </section>
+        <ProfileStats
+          tiles={[
+            { value: profile.stats.totalPlayed, label: 'oynanılan oyun' },
+            { value: profile.counts.hostedPast + profile.counts.hostingUpcoming, label: 'təşkil edilən oyun' },
+            { value: profile.stats.upcoming, label: 'qarşıdakı oyun' },
+          ]}
+          stats={profile.stats}
+          reliability={null}
+          emptyText={`${profile.firstName} hələ heç bir oyunda iştirak etməyib.`}
+        />
       </div>
 
       <RecordPanel record={profile.record} clubs={profile.clubs} emptyClubs={`${profile.firstName} heç bir komandada deyil.`} />
+      <EloPanel elo={profile.elo} emptyText={`${profile.firstName} hələ təsdiqlənmiş hesabı olan oyun oynamayıb.`} />
+      <GameHistory history={profile.history} emptyText={`${profile.firstName} hələ oyun oynamayıb.`} />
 
       {/* Its own boundary, so the session lookup never holds up the profile. */}
       <Suspense fallback={null}>

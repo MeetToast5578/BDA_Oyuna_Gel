@@ -17,6 +17,8 @@ import { WaitlistPanel } from '@/components/profile/WaitlistPanel'
 import { ProfileGames } from '@/components/profile/ProfileGames'
 import { ProfileIdentity } from '@/components/profile/ProfileIdentity'
 import { ProfileStats } from '@/components/profile/ProfileStats'
+import { EloPanel } from '@/components/profile/EloPanel'
+import { GameHistory } from '@/components/profile/GameHistory'
 import { RecordPanel } from '@/components/profile/RecordPanel'
 import { parseProfileTabs, profileTabsQuery } from '@/lib/game-backend'
 import { formatPhone } from '@/lib/phone'
@@ -105,7 +107,16 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
             actions={<EditProfileButton>Profili redaktə et</EditProfileButton>}
           />
         </EditProfile>
-        <ProfileStats profile={profile} />
+        <ProfileStats
+          tiles={[
+            { value: profile.stats.totalPlayed, label: 'oynanılan oyun' },
+            { value: profile.counts.hostedPast + profile.counts.hostingUpcoming, label: 'təşkil edilən oyun' },
+            { value: profile.counts.joinedUpcoming + profile.counts.hostingUpcoming, label: 'qarşıdakı oyun' },
+          ]}
+          stats={profile.stats}
+          reliability={profile.reliability}
+          emptyText="Hələ heç bir oyunda iştirak etməmisiniz."
+        />
       </div>
 
       <PendingInvites invites={invites} />
@@ -120,6 +131,9 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
           </>
         }
       />
+
+      <EloPanel elo={profile.elo} emptyText="Təsdiqlənmiş hesabı olan ilk oyununuzdan sonra burada görünəcək." />
+      <GameHistory history={profile.history} emptyText="Hələ oynanmış oyununuz yoxdur." />
 
       <ProfileGames
         role={tabs.role}

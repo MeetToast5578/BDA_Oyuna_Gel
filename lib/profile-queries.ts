@@ -7,6 +7,7 @@ import {
   SPORT_META,
   SPORTS,
   formatBakuMonthYear,
+  formatBakuShortDate,
   initialsOf,
   lastBakuMonths,
   normalizeGameRecord,
@@ -18,9 +19,9 @@ import {
 import { getPayloadClient } from '@/lib/game-queries'
 import { promoteWaiting } from '@/lib/join-game'
 import type { Promotions } from '@/lib/promotions'
-import { playerRecords } from '@/lib/records'
+import { playerElo, playerRecords } from '@/lib/records'
 import { leaveAllClubs, userClubs } from '@/lib/teams'
-import { summarize, summarizeBySport } from '@/lib/team-logic'
+import { outcomeFor, summarize, summarizeBySport, type Side } from '@/lib/team-logic'
 
 /**
  * A profile is always read for one signed-in person, so nothing here is cached: it would key on the
@@ -182,6 +183,56 @@ async function monthlyPlayed(payload: Payload, userId: number, now: Date) {
   return months.map((month) => ({ ...month, played: Number(rows.find((row) => row.month === month.key)?.played ?? 0) }))
 }
 
+/** How many played games the profiles list. */
+const HISTORY_LIMIT = 30
+
+/**
+ * "Oyun tarixçəsi": the games a person played (joined or hosted, started, not cancelled), newest first,
+ * with the score from their side, the result once it counts, and what it did to their Elo.
+ */
+async function playedHistory(payload: Payload, userId: number, now: Date) {
+  const db = (payload.db as unknown as PostgresAdapter).drizzle
+  const [{ rows }, elo] = await Promise.all([
+    db.execute<{
+      id: number
+      title: string
+      sport: string
+      scheduled_at: Date | string
+      home_score: number | null
+      away_score: number | null
+      side: Side
+      venue: string | null
+    }>(sql`
+      SELECT g.id, g.title, g.sport, g.scheduled_at, g.home_score, g.away_score, p.side, a.name AS venue
+      FROM games g
+      JOIN game_participants p ON p.game_id = g.id AND p.user_id = ${userId}
+      LEFT JOIN arenas a ON a.id = g.arena_id
+      WHERE g.status <> 'cancelled' AND g.scheduled_at <= ${now.toISOString()}
+      ORDER BY g.scheduled_at DESC, g.id DESC
+      LIMIT ${HISTORY_LIMIT}
+    `),
+    playerElo(db, userId),
+  ])
+  const history = rows.map((row) => {
+    const scored = row.home_score !== null && row.away_score !== null
+    const eloDelta = elo.deltas.get(row.id) ?? null
+    return {
+      id: String(row.id),
+      title: row.title,
+      sport: row.sport,
+      sportLabel: SPORT_META[row.sport]?.label ?? row.sport,
+      dateLabel: formatBakuShortDate(row.scheduled_at),
+      venue: row.venue,
+      /** From the person's own side: theirs first. */
+      score: scored ? { mine: Number(row.side === 'home' ? row.home_score : row.away_score), theirs: Number(row.side === 'home' ? row.away_score : row.home_score) } : null,
+      // A result only once it counts, which is exactly when it moved the rating.
+      outcome: scored && eloDelta !== null ? outcomeFor(row.side, Number(row.home_score), Number(row.away_score)) : null,
+      eloDelta,
+    }
+  })
+  return { history, elo: elo.bySport.map((sport) => ({ ...sport, label: SPORT_META[sport.sport]?.label ?? sport.sport })) }
+}
+
 /**
  * A person's win/draw/loss record from games with a confirmed score (their side in each), overall and
  * per sport, and the clubs they are in. Games without a confirmed score count as played in the other
@@ -199,7 +250,7 @@ async function recordAndClubs(payload: Payload, userId: number) {
 /** The signed-in user's own profile: identity, counts and stats in one request. */
 export async function getMyProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
-  const [user, { counts, bySport }, byMonth, results, attended] = await Promise.all([
+  const [user, { counts, bySport }, byMonth, results, attended, played] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -211,6 +262,7 @@ export async function getMyProfile(userId: number, now = new Date()) {
     monthlyPlayed(payload, userId, now),
     recordAndClubs(payload, userId),
     reliability(payload, userId),
+    playedHistory(payload, userId, now),
   ])
   if (!user) return null
 
@@ -247,6 +299,10 @@ export async function getMyProfile(userId: number, now = new Date()) {
     },
     /** Games the hosts marked, and how many of them the person came to; null under `RELIABILITY_MIN`. */
     reliability: attended,
+    /** Elo per sport with its history, most-played sport first; empty until a counted result. */
+    elo: played.elo,
+    /** The latest played games, newest first. */
+    history: played.history,
     ...results,
   }
 }
@@ -486,7 +542,7 @@ export async function deleteMyAccount(userId: number) {
 export async function getPublicProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
   // All three need only the id, so they go out together rather than the games waiting on the user.
-  const [user, hosting, hostedPast, results, attended] = await Promise.all([
+  const [user, hosting, hostedPast, results, attended, played, { counts, bySport }, byMonth] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -512,6 +568,9 @@ export async function getPublicProfile(userId: number, now = new Date()) {
     }),
     recordAndClubs(payload, userId),
     reliability(payload, userId),
+    playedHistory(payload, userId, now),
+    gameCounts(payload, userId, now),
+    monthlyPlayed(payload, userId, now),
   ])
   if (!user) return null
 
@@ -526,6 +585,15 @@ export async function getPublicProfile(userId: number, now = new Date()) {
     memberSinceLabel: formatBakuMonthYear(user.createdAt),
     counts: { hostingUpcoming: hosting.totalDocs, hostedPast: hostedPast.totalDocs },
     reliability: attended,
+    /** The same charts as "Profilim": games per sport and in each of the last six months. */
+    stats: {
+      totalPlayed: bySport.reduce((sum, sport) => sum + sport.playedCount, 0),
+      playedBySport: bySport,
+      playedByMonth: byMonth,
+      upcoming: counts.joinedUpcoming + counts.hostingUpcoming,
+    },
+    elo: played.elo,
+    history: played.history,
     hostedGames: hosting.docs.map((doc) => toGameCard(normalizeGameRecord(doc, now.getTime()))),
     ...results,
   }

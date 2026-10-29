@@ -43,26 +43,33 @@ export function ReliabilityMeter({ reliability }: { reliability: { marked: numbe
   )
 }
 
-/** "Statistika" on "Profilim": three totals, reliability, games played per sport, then the last six months. */
-export function ProfileStats({ profile }: { profile: MyProfile }) {
-  const { counts, stats } = profile
+type Stats = Pick<MyProfile['stats'], 'totalPlayed' | 'playedBySport' | 'playedByMonth'>
 
+/**
+ * "Statistika", on every profile: totals, reliability, games played per sport, then the last six
+ * months. `emptyText` speaks to the reader: "you" on your own profile, the person's name on theirs.
+ */
+export function ProfileStats({
+  tiles,
+  stats,
+  reliability,
+  emptyText,
+}: {
+  tiles: Array<{ value: number; label: string }>
+  stats: Stats
+  reliability: MyProfile['reliability']
+  emptyText: string
+}) {
   return (
     <section className={detail.panel} aria-labelledby="stats-title">
       <h2 id="stats-title" className={detail.panelLabel}>
         Statistika
       </h2>
-      <StatTiles
-        tiles={[
-          { value: stats.totalPlayed, label: 'oynanılan oyun' },
-          { value: counts.hostedPast + counts.hostingUpcoming, label: 'təşkil edilən oyun' },
-          { value: counts.joinedUpcoming + counts.hostingUpcoming, label: 'qarşıdakı oyun' },
-        ]}
-      />
-      <ReliabilityMeter reliability={profile.reliability} />
+      <StatTiles tiles={tiles} />
+      <ReliabilityMeter reliability={reliability} />
       <hr className={styles.divider} />
       {stats.totalPlayed === 0 ? (
-        <p className={styles.statsEmpty}>Hələ heç bir oyunda iştirak etməmisiniz.</p>
+        <p className={styles.statsEmpty}>{emptyText}</p>
       ) : (
         <ul className={styles.sports} aria-label="İdman növləri üzrə oynanılan oyunlar">
           {sortSports(stats.playedBySport).map((sport) => (

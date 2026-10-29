@@ -43,6 +43,7 @@ Errors always have the shape:
 | Meydança təklif et                      | `POST /api/v1/venue-suggestions` with `{ name, sports[], district?, address?, note? }`; signed in, 5 a day (429 after), 400 `INVALID_SUGGESTION`. Admins review them in Payload under Venue Suggestions |
 | 2 saat qalmış xatırlatma (scheduler)    | `GET /api/cron/reminders` with `Authorization: Bearer $CRON_SECRET`, every 15 minutes |
 | Başqa oyunçunun profili                 | `GET /api/v1/users/{id}`                             |
+| Elo, tarixçə (both profiles)            | `GET /api/v1/me` and `/users/{id}` also carry `elo` (per sport: `rating`, `peak`, `games`, `history` of ratings after each game; start 1000, K 32, a side is its players' average, from the same counted scores as the record) and `history` (last 30 played games, newest first: `score` from the person's side, `outcome` and `eloDelta` once the score counts); `/users/{id}` also `stats` like `/me` |
 | Daxil ol                                | Google only, see [Accounts](#accounts)               |
 
 Joining and creating games require a signed-in account. The create form asks for the host's phone (prefilled from the profile); the host name is taken from the account. The join modal is a two-step wizard: step 1 collects the player's name and phone, step 2 shows the host and sends them.
