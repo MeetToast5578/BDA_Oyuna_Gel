@@ -16,6 +16,7 @@ export const RATE_LIMITS = {
   userLookup: { limit: 120, windowSeconds: 60 },
   // Turning phone notifications on: a handful of devices, not a list of endpoints to send to.
   pushSubscribe: { limit: 10, windowSeconds: 60 * 60 },
+  suggestVenue: { limit: 5, windowSeconds: 24 * 60 * 60 },
 } as const
 
 export type RateLimitAction = keyof typeof RATE_LIMITS

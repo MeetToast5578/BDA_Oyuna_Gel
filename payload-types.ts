@@ -79,6 +79,7 @@ export interface Config {
     'rate-limits': RateLimit;
     notifications: Notification;
     'push-subscriptions': PushSubscription;
+    'venue-suggestions': VenueSuggestion;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -98,6 +99,7 @@ export interface Config {
     'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
     notifications: NotificationsSelect<false> | NotificationsSelect<true>;
     'push-subscriptions': PushSubscriptionsSelect<false> | PushSubscriptionsSelect<true>;
+    'venue-suggestions': VenueSuggestionsSelect<false> | VenueSuggestionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -471,6 +473,24 @@ export interface PushSubscription {
   createdAt: string;
 }
 /**
+ * Venues players suggested. Add the real ones under Arenas, then mark them added or rejected.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "venue-suggestions".
+ */
+export interface VenueSuggestion {
+  id: number;
+  name: string;
+  district?: string | null;
+  address?: string | null;
+  sports: ('football' | 'basketball' | 'tennis')[];
+  note?: string | null;
+  submittedBy?: (number | null) | User;
+  status: 'pending' | 'added' | 'rejected';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -541,6 +561,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'push-subscriptions';
         value: number | PushSubscription;
+      } | null)
+    | ({
+        relationTo: 'venue-suggestions';
+        value: number | VenueSuggestion;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -804,6 +828,21 @@ export interface PushSubscriptionsSelect<T extends boolean = true> {
   endpoint?: T;
   p256dh?: T;
   auth?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "venue-suggestions_select".
+ */
+export interface VenueSuggestionsSelect<T extends boolean = true> {
+  name?: T;
+  district?: T;
+  address?: T;
+  sports?: T;
+  note?: T;
+  submittedBy?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
 }

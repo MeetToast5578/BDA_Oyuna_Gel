@@ -1,5 +1,10 @@
 # Plan: page fixes and new features (29 October 2026)
 
+> **Status (29 October):** built on `Branch-1` except A5 (Əlaqə, waits on D19) and A6 (wording, waits
+> on D20), and C2 (automatic weekly games, not started per D21's default). Defaults were used for D22–D25.
+> Commits: stage 1 `877ab92`, 2 `6a18990`, 3 `974d5ec`, 4 `428f869`, 5 `e767164`, 6 (this commit).
+> Not built from the plan: the upcoming-game count in the map popup.
+
 How to build everything from the page review of 29 October. Each item says what the user sees, what
 changes in the data, the code it touches, its tests, and its risks. Built on `Branch-1` under the
 rules in `docs/handoff.md` §1: a test that fails on the old code, the full check before every push,

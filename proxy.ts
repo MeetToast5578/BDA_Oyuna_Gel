@@ -33,6 +33,7 @@ export const config = {
   matcher: [
     '/profile',
     '/notifications',
+    '/venues/suggest',
     '/games/new',
     '/teams/new',
     '/teams/join/:code',

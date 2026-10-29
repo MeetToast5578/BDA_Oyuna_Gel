@@ -18,6 +18,7 @@ import { GameWaitlist } from "./collections/GameWaitlist";
 import { RateLimits } from "./collections/RateLimits";
 import { Notifications } from "./collections/Notifications";
 import { PushSubscriptions } from "./collections/PushSubscriptions";
+import { VenueSuggestions } from "./collections/VenueSuggestions";
 import { MAX_UPLOAD_BYTES } from "./lib/uploads";
 
 /**
@@ -47,7 +48,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Arena, Teams, Games, GameParticipants, JoinAttempts, GameInvites, GameWaitlist, RateLimits, Notifications, PushSubscriptions],
+  collections: [Users, Media, Arena, Teams, Games, GameParticipants, JoinAttempts, GameInvites, GameWaitlist, RateLimits, Notifications, PushSubscriptions, VenueSuggestions],
   upload: {
     // Vercel refuses request bodies over 4.5 MB before they reach the app, with a bare error page;
     // stopping at 4 MB here answers with a message instead. The picture pickers check it too.

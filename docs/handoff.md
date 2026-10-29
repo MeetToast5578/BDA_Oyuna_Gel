@@ -27,8 +27,9 @@
 >   the profile's counting rule) or clubs (a club's record is every game it was named on a side of, only
 >   scores the other side confirmed) by points, goal difference, goals; `components/teams/Standings.tsx`
 >   is the table for it and `/teams`. The header moves to the menu below 1024px to fit "Reytinq".
-> - **Next:** `docs/features-plan.md` (29 October): page fixes and new features in six stages, with the
->   owner decisions D19–D25 they wait on.
+> - **Features (29 October):** `docs/features-plan.md`, all six stages built (see its status line): page fixes,
+>   `/notifications` with a header bell, repeat a game and group links, attendance and reliability, phone
+>   notifications and 2-hour reminders, the venue map, venue suggestions and the home page's top 3.
 > - **Left out on purpose:** a trigger tying `available_players` to the participant rows (it would turn
 >   joins into errors on any game whose counters already drifted; 5 test fixtures would need fixing first).
 > - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`. For phone
