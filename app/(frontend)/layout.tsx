@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
-import React, { Suspense } from 'react'
+import React, { Suspense, ViewTransition } from 'react'
 
 import { Footer } from '@/components/site/Footer'
 import { Header } from '@/components/site/Header'
@@ -43,9 +43,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Məzmuna keç
         </a>
         <Header />
-        <main id="main" tabIndex={-1}>
-          {children}
-        </main>
+        {/* Navigations and loading sections crossfade the page body; the header and footer stay put. */}
+        <ViewTransition default="page">
+          <main id="main" tabIndex={-1}>
+            {children}
+          </main>
+        </ViewTransition>
         <Footer />
       </body>
     </html>

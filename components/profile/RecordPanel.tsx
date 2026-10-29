@@ -5,16 +5,16 @@ import type { Outcome } from '@/lib/team-logic'
 import { SportBadge } from '@/components/games/bits'
 import detail from '@/components/games/GameDetail.module.css'
 import styles from './Profile.module.css'
-import { StatTiles } from './ProfileStats'
+import { GoalsBars, RecordBar } from './StatCharts'
 
 const OUTCOME = { win: { letter: 'Q', word: 'qələbə' }, draw: { letter: 'H', word: 'heç-heçə' }, loss: { letter: 'M', word: 'məğlubiyyət' } }
 
-/** The last five outcomes as Q / H / M pills, newest first. */
-export function FormPills({ form }: { form: Outcome[] }) {
+/** The last five outcomes as Q / H / M pills, newest first; `small` for a table row. */
+export function FormPills({ form, small = false }: { form: Outcome[]; small?: boolean }) {
   return (
     <ol className={styles.form} aria-label="Son nəticələr, ən yenisi birinci">
       {form.map((outcome, index) => (
-        <li key={index} className={`${styles.pill} ${styles[`pill${outcome}`]}`}>
+        <li key={index} className={`${styles.pill} ${styles[`pill${outcome}`]} ${small ? styles.pillSmall : ''}`}>
           <span aria-hidden="true">{OUTCOME[outcome].letter}</span>
           <span className="visually-hidden">{OUTCOME[outcome].word}</span>
         </li>
@@ -23,26 +23,17 @@ export function FormPills({ form }: { form: Outcome[] }) {
   )
 }
 
-/** Wins, draws, losses, win rate and goals, from games whose score was confirmed. */
-export function RecordTiles({ record }: { record: MyProfile['record'] }) {
+/** Win rate, wins/draws/losses, goals and the last five results, from games whose score was confirmed. */
+export function RecordCharts({ record }: { record: MyProfile['record'] }) {
   return (
-    <>
-      <StatTiles
-        tiles={[
-          { value: record.wins, label: 'qələbə' },
-          { value: record.draws, label: 'heç-heçə' },
-          { value: record.losses, label: 'məğlubiyyət' },
-          { value: Math.round(record.winRate * 100), label: 'qələbə, %' },
-        ]}
-      />
-      <StatTiles
-        tiles={[
-          { value: record.scored, label: 'vurulan qol' },
-          { value: record.conceded, label: 'buraxılan qol' },
-        ]}
-      />
-      <FormPills form={record.form} />
-    </>
+    <div className={styles.recordGrid}>
+      <RecordBar record={record} />
+      <GoalsBars scored={record.scored} conceded={record.conceded} />
+      <div className={styles.formRow}>
+        <span className={styles.formLabel}>Son nəticələr</span>
+        <FormPills form={record.form} />
+      </div>
+    </div>
   )
 }
 
@@ -67,7 +58,7 @@ export function RecordPanel({
       {record.played === 0 ? (
         <p className={styles.statsEmpty}>Hələ təsdiqlənmiş nəticə yoxdur.</p>
       ) : (
-        <RecordTiles record={record} />
+        <RecordCharts record={record} />
       )}
       <hr className={styles.divider} />
       <h3 className={detail.panelLabel}>Komandalar</h3>

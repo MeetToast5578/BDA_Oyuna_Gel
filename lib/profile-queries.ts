@@ -7,6 +7,7 @@ import {
   SPORTS,
   formatBakuMonthYear,
   initialsOf,
+  lastBakuMonths,
   normalizeGameRecord,
   toGameCard,
   userAvatarUrl,
@@ -165,6 +166,21 @@ async function gameCounts(payload: Payload, userId: number, now: Date) {
   }
 }
 
+/** Games played (hosted or joined, not cancelled) in each of the last six Baku months, oldest first. */
+async function monthlyPlayed(payload: Payload, userId: number, now: Date) {
+  const months = lastBakuMonths(now, 6)
+  const { rows } = await (payload.db as unknown as PostgresAdapter).drizzle.execute<{ month: string; played: string }>(sql`
+    SELECT to_char(g.scheduled_at AT TIME ZONE 'Asia/Baku', 'YYYY-MM') AS month, count(*) AS played
+    FROM games g
+    WHERE (g.host_id = ${userId} OR EXISTS (SELECT 1 FROM game_participants p WHERE p.game_id = g.id AND p.user_id = ${userId}))
+      AND g.status <> 'cancelled'
+      AND g.scheduled_at <= ${now.toISOString()}
+      AND g.scheduled_at >= (${`${months[0].key}-01`}::timestamp AT TIME ZONE 'Asia/Baku')
+    GROUP BY 1
+  `)
+  return months.map((month) => ({ ...month, played: Number(rows.find((row) => row.month === month.key)?.played ?? 0) }))
+}
+
 /**
  * A person's win/draw/loss record from games with a confirmed score (their side in each), overall and
  * per sport, and the clubs they are in. Games without a confirmed score count as played in the other
@@ -182,7 +198,7 @@ async function recordAndClubs(payload: Payload, userId: number) {
 /** The signed-in user's own profile: identity, counts and stats in one request. */
 export async function getMyProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
-  const [user, { counts, bySport }, results] = await Promise.all([
+  const [user, { counts, bySport }, byMonth, results] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -191,6 +207,7 @@ export async function getMyProfile(userId: number, now = new Date()) {
       disableErrors: true,
     }),
     gameCounts(payload, userId, now),
+    monthlyPlayed(payload, userId, now),
     recordAndClubs(payload, userId),
   ])
   if (!user) return null
@@ -223,6 +240,8 @@ export async function getMyProfile(userId: number, now = new Date()) {
       /** Every game played, hosted or joined: the sum of `playedBySport`. */
       totalPlayed: bySport.reduce((sum, sport) => sum + sport.playedCount, 0),
       playedBySport: bySport,
+      /** The last six months, for the activity chart. */
+      playedByMonth: byMonth,
     },
     ...results,
   }

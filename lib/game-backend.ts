@@ -187,6 +187,18 @@ export function formatBakuTime(dateInput?: string | Date | null) {
   return date ? bakuTime.format(date) : null
 }
 
+/** The last `count` Baku calendar months up to `now`, oldest first: `{ key: '2026-10', label: 'Okt' }`. */
+export function lastBakuMonths(now: Date, count: number) {
+  const baku = new Date(now.getTime() + BAKU_OFFSET_MS)
+  return Array.from({ length: count }, (_, index) => {
+    const month = new Date(Date.UTC(baku.getUTCFullYear(), baku.getUTCMonth() - count + 1 + index, 1))
+    return {
+      key: `${month.getUTCFullYear()}-${String(month.getUTCMonth() + 1).padStart(2, '0')}`,
+      label: MONTHS_SHORT[month.getUTCMonth()],
+    }
+  })
+}
+
 /** "fevral 2026", the Baku calendar month, for "Qeydiyyat: fevral 2026" on a profile. */
 export function formatBakuMonthYear(dateInput?: string | Date | null) {
   const date = toDate(dateInput)

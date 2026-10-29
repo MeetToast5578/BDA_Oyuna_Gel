@@ -5,6 +5,7 @@ import { ProgressBar } from '@/components/games/bits'
 import detail from '@/components/games/GameDetail.module.css'
 import { SPORT_EMOJI, sortSports } from '@/components/games/sports'
 import styles from './Profile.module.css'
+import { ActivityChart } from './StatCharts'
 
 /** Big numbers with a label underneath. A <dl>: each label names its number for screen readers. */
 export function StatTiles({ tiles }: { tiles: Array<{ value: number; label: string }> }) {
@@ -21,7 +22,7 @@ export function StatTiles({ tiles }: { tiles: Array<{ value: number; label: stri
   )
 }
 
-/** "Statistika" on "Profilim": three totals, then games played per sport. */
+/** "Statistika" on "Profilim": three totals, games played per sport, then the last six months. */
 export function ProfileStats({ profile }: { profile: MyProfile }) {
   const { counts, stats } = profile
 
@@ -58,6 +59,12 @@ export function ProfileStats({ profile }: { profile: MyProfile }) {
             </li>
           ))}
         </ul>
+      )}
+      {stats.totalPlayed > 0 && (
+        <>
+          <hr className={styles.divider} />
+          <ActivityChart months={stats.playedByMonth} />
+        </>
       )}
     </section>
   )

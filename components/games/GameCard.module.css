@@ -170,14 +170,17 @@
   min-width: 0;
 }
 
+/* Up to two lines, so a long name next to the button isn't cut to "Ceyhun Cəfə…". */
 .hostName {
+  display: -webkit-box;
   overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   font-size: 12px;
   font-weight: 500;
   line-height: 16px;
   color: var(--color-text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 /* The host's name opens their profile. It sits above the title link that covers the card. */
@@ -199,6 +202,13 @@
   flex-shrink: 0;
 }
 
+.pastLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-subtle);
+  white-space: nowrap;
+}
+
 /* The venue sits above the card-wide title link, like the host. */
 .venueLink {
   composes: hostLink;
@@ -206,7 +216,8 @@
 
 /* Phones: a photo strip on the left instead of a 192px banner, so 4–5 games fit on a screen, not 2. */
 @media (max-width: 599px) {
-  .card {
+  /* Only cards with a photo: the club list reuses this card without one. */
+  .card:has(> .media) {
     display: grid;
     grid-template-columns: 104px minmax(0, 1fr);
   }

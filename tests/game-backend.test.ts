@@ -18,6 +18,7 @@ import {
   parseEditGameBody,
   parseGameListParams,
   datePresetWindow,
+  lastBakuMonths,
   mapsUrl,
   matchupLabel,
   venueImageUrl,
@@ -52,6 +53,17 @@ const inHours = (hours: number) => new Date(NOW + hours * HOUR_MS).toISOString()
 
 afterEach(() => {
   vi.unstubAllEnvs()
+})
+
+describe('lastBakuMonths', () => {
+  it('counts back across the new year in Baku time', () => {
+    // 31 Dec 21:00 UTC is already 1 January in Baku.
+    expect(lastBakuMonths(new Date('2026-12-31T21:00:00Z'), 3)).toEqual([
+      { key: '2026-11', label: 'Noy' },
+      { key: '2026-12', label: 'Dek' },
+      { key: '2027-01', label: 'Yan' },
+    ])
+  })
 })
 
 describe('deriveAvailability', () => {

@@ -251,6 +251,8 @@
 .sportBar {
   --progress-height: 8px;
   --progress-track: var(--color-track-warm);
+  /* The same indigo as the other profile charts. */
+  --progress-fill: var(--color-win);
 }
 
 .sportCount {
@@ -410,15 +412,45 @@
 }
 
 .pillwin {
-  background: var(--color-success-text);
+  background: var(--color-win);
 }
 
+/* The light middle colour takes dark text. */
 .pilldraw {
-  background: var(--color-muted);
+  background: var(--color-draw);
+  color: var(--color-heading);
 }
 
 .pillloss {
-  background: var(--color-danger);
+  background: var(--color-loss);
+}
+
+.pillSmall {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+
+/* Side by side where the panel is wide, so no bar stretches across a whole laptop screen. */
+.recordGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-items: start;
+  gap: 20px 40px;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-heading);
 }
 
 .clubs {

@@ -19,6 +19,11 @@
   --color-accent-hover: #f0b458;
   --color-on-accent: #5c3a0e;
   --color-success: #00d26a;
+  /* Results in charts and form pills: two hues and a neutral middle, checked for colour blindness
+     (indigo/orange stay apart; green/red don't). */
+  --color-win: #4433d6;
+  --color-draw: #c9c7d3;
+  --color-loss: #c2410c;
   --color-success-text: #047a3f; /* AA: #00d26a on white is 2.0:1 */
   --color-danger: #b42318;
   --color-danger-tint: #fef3f2;
@@ -128,9 +133,23 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Page changes and loading sections crossfade (see layout.tsx). The browser's own crossfade blends
+   the two snapshots, so whatever didn't change stays perfectly still; only the timing is ours. */
+::view-transition-old(.page),
+::view-transition-new(.page) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-out);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 
   *,

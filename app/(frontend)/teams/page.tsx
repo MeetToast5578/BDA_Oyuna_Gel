@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/games/EmptyState'
 import card from '@/components/games/GameCard.module.css'
 import grid from '@/components/games/GamesGrid.module.css'
 import { BackHomeLink } from '@/components/games/GamesSection'
+import { FormPills } from '@/components/profile/RecordPanel'
 import section from '@/components/games/GamesSection.module.css'
 import { SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 import { SportTabs } from '@/components/games/SportTabs'
@@ -56,6 +57,7 @@ function Standings({ teams, sport }: { teams: Team[]; sport: string }) {
             <th scope="col">
               <abbr title="Xal: qələbə 3, heç-heçə 1">Xal</abbr>
             </th>
+            <th scope="col">Forma</th>
           </tr>
         </thead>
         <tbody>
@@ -73,6 +75,9 @@ function Standings({ teams, sport }: { teams: Team[]; sport: string }) {
                 {team.record.scored}:{team.record.conceded}
               </td>
               <td>{team.record.points}</td>
+              <td>
+                <FormPills form={team.record.form} small />
+              </td>
             </tr>
           ))}
         </tbody>

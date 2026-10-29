@@ -6,7 +6,7 @@ import { cache, Suspense } from 'react'
 import { Avatar, SportBadge } from '@/components/games/bits'
 import { BackLink } from '@/components/games/BackLink'
 import styles from '@/components/games/GameDetail.module.css'
-import { FormPills, RecordTiles } from '@/components/profile/RecordPanel'
+import { FormPills, RecordCharts } from '@/components/profile/RecordPanel'
 import { InviteLink, LeaveTeam, RemoveMember, RenameTeam } from '@/components/teams/TeamTools'
 import teams from '@/components/teams/Teams.module.css'
 import { getPayloadClient } from '@/lib/game-queries'
@@ -88,7 +88,7 @@ async function TeamContent({ params }: Props) {
             <p className={styles.muted}>Hələ təsdiqlənmiş nəticə yoxdur.</p>
           ) : (
             <>
-              <RecordTiles record={{ ...team.record, bySport: [] }} />
+              <RecordCharts record={{ ...team.record, bySport: [] }} />
               <ul className={teams.recent} aria-label="Son oyunlar">
                 {team.recent.map((game) => (
                   <li key={game.id} className={teams.recentRow}>

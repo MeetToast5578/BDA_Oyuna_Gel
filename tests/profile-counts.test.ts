@@ -65,4 +65,11 @@ describe.skipIf(!process.env.DATABASE_URL)('profile counts (Postgres)', () => {
     expect(profile?.stats.totalPlayed).toBe(3)
     expect(Object.fromEntries(profile!.stats.playedBySport.map((row) => [row.sport, row.playedCount]))).toEqual({ football: 1, tennis: 2, basketball: 0 })
   })
+
+  it('spreads the played games over the last six months, the current one last', async () => {
+    const months = (await getMyProfile(me))!.stats.playedByMonth
+    expect(months).toHaveLength(6)
+    expect(months.reduce((sum, month) => sum + month.played, 0)).toBe(3)
+    expect(months[5].key).toBe(new Date(Date.now() + 4 * 3600_000).toISOString().slice(0, 7))
+  })
 })

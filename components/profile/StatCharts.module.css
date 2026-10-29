@@ -1,0 +1,243 @@
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.win {
+  background: var(--color-win);
+}
+
+.draw {
+  background: var(--color-draw);
+}
+
+.loss {
+  background: var(--color-loss);
+}
+
+.headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hero {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-heading);
+}
+
+.heroLabel {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.aside {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.aside strong {
+  color: var(--color-heading);
+}
+
+/* One bar, three parts; the 2px gaps are the page's surface, not borders. */
+.stack {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+}
+
+.segment {
+  flex-basis: 0;
+  min-width: 6px;
+  transform-origin: left;
+  animation: grow-x var(--duration-slow) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+.segment:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.segment:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.segment:only-child {
+  border-radius: 4px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend strong {
+  color: var(--color-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* Goals: two bars on one scale, value at the tip. */
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.barLabel {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.barTrack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+.bar {
+  height: 10px;
+  min-width: 4px;
+  max-width: calc(100% - 4ch);
+  border-radius: 0 4px 4px 0;
+  transform-origin: left;
+  animation: grow-x var(--duration-slow) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 80ms);
+}
+
+.barValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Activity: six columns over a hairline baseline. */
+.chartTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.column {
+  display: grid;
+  grid-template-rows: 18px 88px auto;
+  justify-items: center;
+}
+
+.columnValue {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.columnTrack {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  border-bottom: 1px solid var(--color-primary-border);
+}
+
+.columnBar {
+  width: min(24px, 70%);
+  border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--color-win) 45%, var(--color-surface));
+  transform-origin: bottom;
+  animation: grow-y var(--duration-slow) var(--ease-out) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* This month in full colour; the earlier ones are context. */
+.current {
+  background: var(--color-win);
+}
+
+.columnLabel {
+  padding-top: 6px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.column:last-child .columnLabel {
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@media (max-width: 599px) {
+  .hero {
+    font-size: 34px;
+  }
+
+  .barRow {
+    grid-template-columns: 100px minmax(0, 1fr);
+  }
+}

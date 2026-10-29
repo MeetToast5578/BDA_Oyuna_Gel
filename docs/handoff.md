@@ -18,6 +18,11 @@
 >   `CRON_SECRET` on Vercel), uncapped profile counts, CI (`.github/workflows/ci.yml`), new uploads kept
 >   out of git, one confirmation dialog everywhere, a clearer create form (the date/time format
 >   switches stay, at the owner's request), and phone filters behind "Filtr".
+> - **Frontend, 29 October:** compact game cards on phones, waitlist on full cards, quiet back links,
+>   venues in the laptop header, football defaulting to 10 players; profile charts (`components/profile/StatCharts.tsx`:
+>   win/draw/loss bar, goals, last six months from `monthlyPlayed`), a "Forma" column in the standings,
+>   and page crossfades via React's `<ViewTransition>` in `app/(frontend)/layout.tsx`. Results use
+>   `--color-win/draw/loss` (indigo/grey/orange: green and red fail the colour-blindness check).
 > - **Left out on purpose:** a trigger tying `available_players` to the participant rows (it would turn
 >   joins into errors on any game whose counters already drifted; 5 test fixtures would need fixing first).
 > - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`.

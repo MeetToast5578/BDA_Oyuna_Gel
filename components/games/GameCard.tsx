@@ -152,7 +152,8 @@ function CardAction({
 }) {
   if (context === 'past') {
     const label = game.status === 'cancelled' ? 'Ləğv edilib' : game.status === 'live' ? 'Davam edir' : 'Keçmiş oyun'
-    return <span className={buttonClass('muted', 'sm')}>{label}</span>
+    // A label, not a button: there is nothing left to do, and the host's name needs the room.
+    return <span className={styles.pastLabel}>{label}</span>
   }
 
   // The edit page refuses a game that has started.
