@@ -3,6 +3,8 @@ import type { Payload } from 'payload'
 
 import type { NOTICE_KINDS } from '@/collections/Notifications'
 import { invitedEmail, type Email } from '@/lib/emails'
+import { NOTICE_TEXT } from '@/lib/notifications'
+import { sendPush } from '@/lib/push'
 import type { InviteEntry } from '@/lib/team-logic'
 
 export type NoticeKind = (typeof NOTICE_KINDS)[number]
@@ -18,8 +20,8 @@ export const noticeFor = (kind: NoticeKind, game: { id: string | number; title: 
 })
 
 /**
- * Tells each of these users: one row each on their `/notifications` (none when `notice` is null: the
- * person did it themselves), then `email` to those who have
+ * Tells each of these users: one row each on their `/notifications` and a phone notification where they
+ * turned that on (neither when `notice` is null: the person did it themselves), then `email` to those who have
  * an address and haven't turned emails off. Never throws: a notice is a courtesy, and a failure must
  * never fail the join, edit or delete that caused it. Returns how many emails reached the mail server.
  */
@@ -34,6 +36,14 @@ export async function notify(payload: Payload, userIds: number[], notice: Notice
       )
   } catch (error) {
     console.error('Failed to save notices', error)
+  }
+  // The same notice on their phones, where they turned that on. sendPush never throws.
+  if (notice) {
+    await sendPush(payload, userIds, {
+      title: notice.gameTitle,
+      body: NOTICE_TEXT[notice.kind],
+      url: notice.gameId ? `/games/${notice.gameId}` : '/notifications',
+    })
   }
   if (!email) return 0
   try {

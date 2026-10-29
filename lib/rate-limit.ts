@@ -14,6 +14,8 @@ export const RATE_LIMITS = {
   upload: { limit: 20, windowSeconds: 60 * 60 },
   // The player picker searches as the host types.
   userLookup: { limit: 120, windowSeconds: 60 },
+  // Turning phone notifications on: a handful of devices, not a list of endpoints to send to.
+  pushSubscribe: { limit: 10, windowSeconds: 60 * 60 },
 } as const
 
 export type RateLimitAction = keyof typeof RATE_LIMITS

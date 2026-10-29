@@ -31,7 +31,9 @@
 >   owner decisions D19–D25 they wait on.
 > - **Left out on purpose:** a trigger tying `available_players` to the participant rows (it would turn
 >   joins into errors on any game whose counters already drifted; 5 test fixtures would need fixing first).
-> - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`.
+> - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`. For phone
+>   notifications set the three `VAPID_*` variables (README) and call `/api/cron/reminders` every 15 minutes
+>   from an outside scheduler (Vercel's free cron is daily only).
 
 > **Update:** PR #14 (everything in §2 below) was merged into `main`. `Branch-1` was restarted from `main`
 > and carries the teams phases 3–7 in draft PR #15; §3 says what each added. The game-setup phases 8–10

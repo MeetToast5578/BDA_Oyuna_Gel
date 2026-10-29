@@ -79,6 +79,14 @@ export const Games: CollectionConfig = {
       },
     },
     {
+      name: 'remindedAt',
+      type: 'date',
+      admin: {
+        readOnly: true,
+        description: 'When its players were sent "Oyununuz 2 saata başlayır" (/api/cron/reminders), so they get it once.',
+      },
+    },
+    {
       name: 'groupLink',
       type: 'text',
       admin: {

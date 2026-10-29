@@ -78,6 +78,7 @@ export interface Config {
     'game-waitlist': GameWaitlist;
     'rate-limits': RateLimit;
     notifications: Notification;
+    'push-subscriptions': PushSubscription;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -96,6 +97,7 @@ export interface Config {
     'game-waitlist': GameWaitlistSelect<false> | GameWaitlistSelect<true>;
     'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
     notifications: NotificationsSelect<false> | NotificationsSelect<true>;
+    'push-subscriptions': PushSubscriptionsSelect<false> | PushSubscriptionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -284,6 +286,10 @@ export interface Game {
   level: 'beginner' | 'medium' | 'high';
   host?: (number | null) | User;
   /**
+   * When its players were sent "Oyununuz 2 saata başlayır" (/api/cron/reminders), so they get it once.
+   */
+  remindedAt?: string | null;
+  /**
    * WhatsApp or Telegram group invite link. Shown only to the host and players who joined; emptied 30 days after the game.
    */
   groupLink?: string | null;
@@ -441,10 +447,26 @@ export interface Notification {
     | 'resultReported'
     | 'resultConfirmed'
     | 'resultDisputed'
-    | 'markedAbsent';
+    | 'markedAbsent'
+    | 'reminder';
   game?: (number | null) | Game;
   gameTitle: string;
   readAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Devices that turned on phone notifications. Created from the profile; removed when the push service drops them.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-subscriptions".
+ */
+export interface PushSubscription {
+  id: number;
+  user: number | User;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -515,6 +537,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'notifications';
         value: number | Notification;
+      } | null)
+    | ({
+        relationTo: 'push-subscriptions';
+        value: number | PushSubscription;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -675,6 +701,7 @@ export interface GamesSelect<T extends boolean = true> {
   arena?: T;
   level?: T;
   host?: T;
+  remindedAt?: T;
   groupLink?: T;
   contactPhone?: T;
   homeTeam?: T;
@@ -765,6 +792,18 @@ export interface NotificationsSelect<T extends boolean = true> {
   game?: T;
   gameTitle?: T;
   readAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-subscriptions_select".
+ */
+export interface PushSubscriptionsSelect<T extends boolean = true> {
+  user?: T;
+  endpoint?: T;
+  p256dh?: T;
+  auth?: T;
   updatedAt?: T;
   createdAt?: T;
 }

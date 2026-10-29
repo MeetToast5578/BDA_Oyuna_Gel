@@ -39,6 +39,8 @@ Errors always have the shape:
 | Profil                                  | `GET` / `PATCH` / `DELETE /api/v1/me`                |
 | Mənim oyunlarım                         | `GET /api/v1/me/games?role=…&when=…`                 |
 | Bildirişləri oxunmuş et                 | `POST /api/v1/me/notifications/read` (the `/notifications` page calls it) |
+| Telefona bildiriş (this device)         | `POST /api/v1/me/push` with the browser's `PushSubscription` JSON (`endpoint` https, `keys.p256dh`, `keys.auth`); 400 `INVALID_SUBSCRIPTION`, 429 after 10 an hour. `DELETE` with `{ endpoint }` removes the caller's own |
+| 2 saat qalmış xatırlatma (scheduler)    | `GET /api/cron/reminders` with `Authorization: Bearer $CRON_SECRET`, every 15 minutes |
 | Başqa oyunçunun profili                 | `GET /api/v1/users/{id}`                             |
 | Daxil ol                                | Google only, see [Accounts](#accounts)               |
 

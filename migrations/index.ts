@@ -14,6 +14,7 @@ import * as migration_20261022_121601_arena_city_required from './20261022_12160
 import * as migration_20261029_102657_notifications from './20261029_102657_notifications';
 import * as migration_20261029_103533_game_group_link from './20261029_103533_game_group_link';
 import * as migration_20261029_104048_attendance from './20261029_104048_attendance';
+import * as migration_20261029_104811_push_and_reminders from './20261029_104811_push_and_reminders';
 
 export const migrations = [
   {
@@ -94,6 +95,11 @@ export const migrations = [
   {
     up: migration_20261029_104048_attendance.up,
     down: migration_20261029_104048_attendance.down,
-    name: '20261029_104048_attendance'
+    name: '20261029_104048_attendance',
+  },
+  {
+    up: migration_20261029_104811_push_and_reminders.up,
+    down: migration_20261029_104811_push_and_reminders.down,
+    name: '20261029_104811_push_and_reminders'
   },
 ];

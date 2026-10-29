@@ -23,7 +23,16 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
    # On Vercel: any long random string. Vercel Cron sends it to /api/cron/cleanup (vercel.json),
    # the daily job that deletes old logs and phone numbers; without it the job refuses to run.
    CRON_SECRET=<random string>
+   # Optional: phone notifications. Generate once with `npx web-push generate-vapid-keys`; without
+   # both keys the profile hides the switch and nothing is sent. The subject is a mailto: or https URL.
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY=<public key>
+   VAPID_PRIVATE_KEY=<private key>
+   VAPID_SUBJECT=mailto:<an address you read>
    ```
+
+   "Oyununuz 2 saata başlayır" needs `/api/cron/reminders` called every 15 minutes with
+   `Authorization: Bearer $CRON_SECRET`. Vercel's free plan only runs its cron daily, so use an outside
+   scheduler (cron-job.org is free) or a Pro plan.
 
    The App Password comes from the sending Google account: turn on 2-Step Verification, then
    **Security → App passwords**. The Google sign-in keys above can't send mail. A normal Gmail
