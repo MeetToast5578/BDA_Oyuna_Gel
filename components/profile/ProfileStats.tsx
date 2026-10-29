@@ -22,7 +22,28 @@ export function StatTiles({ tiles }: { tiles: Array<{ value: number; label: stri
   )
 }
 
-/** "Statistika" on "Profilim": three totals, games played per sport, then the last six months. */
+/** "Etibarlılıq": how many of the games their hosts marked the person came to. Only shown from 3 marked games. */
+export function ReliabilityMeter({ reliability }: { reliability: { marked: number; came: number } | null }) {
+  if (!reliability) return null
+  return (
+    <div className={styles.reliability}>
+      <p className={styles.reliabilityText}>
+        <span className={styles.reliabilityLabel}>Etibarlılıq</span>
+        <span>
+          {reliability.came}/{reliability.marked} oyuna gəlib
+        </span>
+      </p>
+      <ProgressBar
+        value={reliability.came}
+        max={reliability.marked}
+        label={`Etibarlılıq: ${reliability.marked} oyundan ${reliability.came}`}
+        className={styles.sportBar}
+      />
+    </div>
+  )
+}
+
+/** "Statistika" on "Profilim": three totals, reliability, games played per sport, then the last six months. */
 export function ProfileStats({ profile }: { profile: MyProfile }) {
   const { counts, stats } = profile
 
@@ -38,6 +59,7 @@ export function ProfileStats({ profile }: { profile: MyProfile }) {
           { value: counts.joinedUpcoming + counts.hostingUpcoming, label: 'qarşıdakı oyun' },
         ]}
       />
+      <ReliabilityMeter reliability={profile.reliability} />
       <hr className={styles.divider} />
       {stats.totalPlayed === 0 ? (
         <p className={styles.statsEmpty}>Hələ heç bir oyunda iştirak etməmisiniz.</p>

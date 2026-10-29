@@ -12,6 +12,7 @@ export const NOTICE_TEXT: Record<NoticeKind, string> = {
   resultReported: 'Hesab daxil edildi, təsdiqinizi gözləyir',
   resultConfirmed: 'Rəqib hesabı təsdiqlədi',
   resultDisputed: 'Rəqib hesaba etiraz etdi',
+  markedAbsent: 'Təşkilatçı sizi "gəlmədi" kimi qeyd etdi',
 }
 
 /** How long a notice still looks new after the visit that marked it read: that visit's refresh keeps it. */

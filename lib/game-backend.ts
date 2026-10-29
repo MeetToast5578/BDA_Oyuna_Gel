@@ -473,6 +473,8 @@ export function toPlayer(participant: unknown) {
     initials: initialsOf(name),
     avatarUrl: userAvatarUrl(user),
     side: row?.side === 'away' ? ('away' as const) : ('home' as const),
+    /** Marked by the host after the game; null until then. */
+    attendance: row?.attendance === 'came' || row?.attendance === 'absent' ? row.attendance : null,
   }
 }
 

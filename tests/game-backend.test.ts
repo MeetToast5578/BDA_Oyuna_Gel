@@ -519,7 +519,7 @@ describe('toPlayer', () => {
       side: 'away',
       user: { id: 7, fullName: 'Rəşad Babayev', profilePicture: { url: '/api/media/file/resad.png' } },
     })
-    expect(player).toEqual({ id: '7', name: 'Rəşad Babayev', initials: 'RB', avatarUrl: '/api/media/file/resad.png', side: 'away' })
+    expect(player).toEqual({ id: '7', name: 'Rəşad Babayev', initials: 'RB', avatarUrl: '/api/media/file/resad.png', side: 'away', attendance: null })
   })
 
   it('falls back to the name typed into the join form, then to a placeholder', () => {
@@ -542,6 +542,7 @@ describe('toPlayer', () => {
       initials: 'SƏ',
       avatarUrl: null,
       side: 'home',
+      attendance: null,
     })
   })
 })

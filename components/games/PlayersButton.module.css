@@ -87,6 +87,63 @@
   cursor: progress;
 }
 
+/* "Gəldi" / "Gəlmədi" on a line under the player, after the game, so the name keeps its room. */
+.withMove:has(.attendance) {
+  flex-wrap: wrap;
+}
+
+.attendance {
+  display: flex;
+  flex-basis: 100%;
+  gap: 6px;
+  padding: 0 0 6px 56px;
+}
+
+.attend {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.attend:hover:not(:disabled) {
+  background: var(--color-primary-tint);
+}
+
+.attend:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.attend:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+.came {
+  border-color: var(--color-win);
+  background: var(--color-win);
+  color: #fff;
+}
+
+.absent {
+  border-color: var(--color-loss);
+  background: var(--color-loss);
+  color: #fff;
+}
+
+.came:hover:not(:disabled) {
+  background: var(--color-win);
+}
+
+.absent:hover:not(:disabled) {
+  background: var(--color-loss);
+}
+
 /* The list: one column per side, stacked on phones */
 .sides {
   display: grid;

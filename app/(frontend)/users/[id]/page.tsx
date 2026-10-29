@@ -72,7 +72,17 @@ async function PublicProfileContent({ params }: Props) {
   return (
     <>
       <div className={`${styles.overview} fade`}>
-        <ProfileIdentity person={profile} headingLevel="h1" />
+        <ProfileIdentity
+          person={profile}
+          headingLevel="h1"
+          facts={
+            profile.reliability && (
+              <li className={styles.reliabilityFact}>
+                Etibarlılıq: {profile.reliability.came}/{profile.reliability.marked} oyuna gəlib
+              </li>
+            )
+          }
+        />
         <section className={detail.panel} aria-labelledby="host-stats-title">
           <h2 id="host-stats-title" className={detail.panelLabel}>
             Təşkilatçı

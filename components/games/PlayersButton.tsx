@@ -176,6 +176,19 @@ function PlayersList({
     }
   }
 
+  // "Gəldi" / "Gəlmədi" after the game; pressing the chosen one again clears it.
+  async function mark(userId: string, attendance: 'came' | 'absent' | null) {
+    setBusy(true)
+    setError(null)
+    try {
+      onMoved(await patchJson<GamePlayers>(`/api/v1/games/${gameId}/attendance`, { userId: Number(userId), attendance }))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gələnləri qeyd etmək mümkün olmadı.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function remove(userId: string) {
     setBusy(true)
     setError(null)
@@ -216,8 +229,27 @@ function PlayersList({
               {players
                 .filter(({ player }) => player.side === side)
                 .map(({ player, toneIndex }) => (
-                  <li key={player.id ?? `gone-${toneIndex}`} className={list.canMove && player.id ? styles.withMove : undefined}>
+                  <li
+                    key={player.id ?? `gone-${toneIndex}`}
+                    className={(list.canMove || list.canMarkAttendance) && player.id ? styles.withMove : undefined}
+                  >
                     <PlayerRow person={player} toneIndex={toneIndex} onPick={onPick} />
+                    {list.canMarkAttendance && player.id && (
+                      <div className={styles.attendance} role="group" aria-label={`${player.name} oyuna gəldi?`}>
+                        {(['came', 'absent'] as const).map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            className={`${styles.attend} ${player.attendance === value ? styles[value] : ''}`}
+                            disabled={busy}
+                            aria-pressed={player.attendance === value}
+                            onClick={() => mark(player.id as string, player.attendance === value ? null : value)}
+                          >
+                            {value === 'came' ? 'Gəldi' : 'Gəlmədi'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     {list.canMove && player.id && (
                       <button
                         type="button"
@@ -251,6 +283,9 @@ function PlayersList({
           </section>
         ))}
       </div>
+      {list.canMarkAttendance && (
+        <p className={styles.others}>Kim gəldi? Qeyd edin: oyunçuların profilində etibarlılıq kimi görünür. Bir həftə ərzində dəyişmək olar.</p>
+      )}
       {list.others > 0 && <p className={styles.others}>+{list.others} nəfər hostla birlikdə gəlir</p>}
       <ConfirmDialog
         open={removing !== null}

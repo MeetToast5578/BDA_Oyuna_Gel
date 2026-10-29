@@ -53,6 +53,17 @@ export const GameParticipants: CollectionConfig = {
       },
     },
     {
+      name: 'attendance',
+      type: 'select',
+      options: [
+        { label: 'Came', value: 'came' },
+        { label: 'Absent', value: 'absent' },
+      ],
+      admin: {
+        description: 'Marked by the host after kick-off (up to 7 days): did the player come? Empty means not marked. Feeds "Etibarlılıq" on profiles.',
+      },
+    },
+    {
       name: 'promotedAt',
       type: 'date',
       admin: {

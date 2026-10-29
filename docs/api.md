@@ -22,6 +22,7 @@ Errors always have the shape:
 | Oyun Detalı                             | `GET /api/v1/games/{id}`                             |
 | İştirakçılar (the avatar row's list)    | `GET /api/v1/games/{id}/participants`                |
 | Komandaları dəyiş / Balansla (host)     | `PATCH /api/v1/games/{id}/sides`                     |
+| Gəldi / Gəlmədi (host, a week after kick-off) | `PATCH /api/v1/games/{id}/attendance` with `{ userId, attendance }`, attendance `came`, `absent` or `null`; answers like `/sides`. 409 `ATTENDANCE_CLOSED` outside that week or on a cancelled game, `NOT_A_PLAYER` for the host or someone not in it. Profiles show `reliability: { marked, came }` from 3 marked games |
 | Komandalar (list)                       | `GET /api/v1/teams?sport=…`                          |
 | Komanda yarat                           | `POST /api/v1/teams`                                 |
 | Komanda səhifəsi                        | `GET /api/v1/teams/{id}`                             |

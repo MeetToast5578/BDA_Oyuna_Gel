@@ -2,6 +2,7 @@ import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import { cacheLife, cacheTag } from 'next/cache'
 import type { Payload, Where } from 'payload'
 
+import { attendanceOpen } from '@/lib/attendance'
 import { GAMES_CACHE_TAG, invalidateGamesCache } from '@/lib/cache-tags'
 import {
   DEFAULT_CITY,
@@ -488,7 +489,7 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
     payload.find({
       collection: 'game-participants',
       where: { game: { equals: gameId } },
-      select: { user: true, name: true, side: true },
+      select: { user: true, name: true, side: true, attendance: true },
       populate: CARD_POPULATE,
       sort: 'createdAt',
       depth: 2,
@@ -512,6 +513,8 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
     host: { ...game.host, side: hostSide, you: isViewer(game.host.id) },
     // Only the host moves players, and only until kick-off; the sides route enforces the same.
     canMove: isViewer(game.host.id) && isUpcoming(game.status),
+    // After kick-off, for a week, the host marks who came (lib/attendance.ts enforces the same).
+    canMarkAttendance: isViewer(game.host.id) && attendanceOpen({ status: game.status, scheduledAt: game.startsAt ?? '' }),
     // The clubs' names, where a side has one; the dialog says "A komandası" for an open side.
     sideNames: { home: game.teams.home?.name ?? null, away: game.teams.away?.name ?? null },
     players,

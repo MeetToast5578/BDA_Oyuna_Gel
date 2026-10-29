@@ -1,6 +1,7 @@
 import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload, Where } from 'payload'
 
+import { reliability } from '@/lib/attendance'
 import { invalidateGamesCache } from '@/lib/cache-tags'
 import {
   SPORT_META,
@@ -198,7 +199,7 @@ async function recordAndClubs(payload: Payload, userId: number) {
 /** The signed-in user's own profile: identity, counts and stats in one request. */
 export async function getMyProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
-  const [user, { counts, bySport }, byMonth, results] = await Promise.all([
+  const [user, { counts, bySport }, byMonth, results, attended] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -209,6 +210,7 @@ export async function getMyProfile(userId: number, now = new Date()) {
     gameCounts(payload, userId, now),
     monthlyPlayed(payload, userId, now),
     recordAndClubs(payload, userId),
+    reliability(payload, userId),
   ])
   if (!user) return null
 
@@ -243,6 +245,8 @@ export async function getMyProfile(userId: number, now = new Date()) {
       /** The last six months, for the activity chart. */
       playedByMonth: byMonth,
     },
+    /** Games the hosts marked, and how many of them the person came to; null under `RELIABILITY_MIN`. */
+    reliability: attended,
     ...results,
   }
 }
@@ -482,7 +486,7 @@ export async function deleteMyAccount(userId: number) {
 export async function getPublicProfile(userId: number, now = new Date()) {
   const payload = await getPayloadClient()
   // All three need only the id, so they go out together rather than the games waiting on the user.
-  const [user, hosting, hostedPast, results] = await Promise.all([
+  const [user, hosting, hostedPast, results, attended] = await Promise.all([
     payload.findByID({
       collection: 'users',
       id: userId,
@@ -507,6 +511,7 @@ export async function getPublicProfile(userId: number, now = new Date()) {
       overrideAccess: true,
     }),
     recordAndClubs(payload, userId),
+    reliability(payload, userId),
   ])
   if (!user) return null
 
@@ -520,6 +525,7 @@ export async function getPublicProfile(userId: number, now = new Date()) {
     memberSince: user.createdAt,
     memberSinceLabel: formatBakuMonthYear(user.createdAt),
     counts: { hostingUpcoming: hosting.totalDocs, hostedPast: hostedPast.totalDocs },
+    reliability: attended,
     hostedGames: hosting.docs.map((doc) => toGameCard(normalizeGameRecord(doc, now.getTime()))),
     ...results,
   }

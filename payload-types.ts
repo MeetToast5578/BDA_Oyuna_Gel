@@ -324,6 +324,10 @@ export interface GameParticipant {
    */
   side: 'home' | 'away';
   /**
+   * Marked by the host after kick-off (up to 7 days): did the player come? Empty means not marked. Feeds "Etibarlılıq" on profiles.
+   */
+  attendance?: ('came' | 'absent') | null;
+  /**
    * Set when the player took a spot that came back to a full game from its waitlist, not by joining.
    */
   promotedAt?: string | null;
@@ -436,7 +440,8 @@ export interface Notification {
     | 'removed'
     | 'resultReported'
     | 'resultConfirmed'
-    | 'resultDisputed';
+    | 'resultDisputed'
+    | 'markedAbsent';
   game?: (number | null) | Game;
   gameTitle: string;
   readAt?: string | null;
@@ -695,6 +700,7 @@ export interface GameParticipantsSelect<T extends boolean = true> {
   user?: T;
   name?: T;
   side?: T;
+  attendance?: T;
   promotedAt?: T;
   phone?: T;
   updatedAt?: T;

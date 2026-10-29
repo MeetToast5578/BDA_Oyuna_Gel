@@ -264,6 +264,31 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* On someone else's profile, beside "Qeydiyyat". */
+.reliabilityFact {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.reliability {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reliabilityText {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.reliabilityLabel {
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
 .statsEmpty {
   font-size: 14px;
   line-height: 1.45;
