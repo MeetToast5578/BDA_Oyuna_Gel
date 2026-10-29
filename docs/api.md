@@ -37,6 +37,7 @@ Errors always have the shape:
 | Oyundan çıx (game page, profile cards)  | `POST /api/v1/games/{id}/leave`                      |
 | Profil                                  | `GET` / `PATCH` / `DELETE /api/v1/me`                |
 | Mənim oyunlarım                         | `GET /api/v1/me/games?role=…&when=…`                 |
+| Bildirişləri oxunmuş et                 | `POST /api/v1/me/notifications/read` (the `/notifications` page calls it) |
 | Başqa oyunçunun profili                 | `GET /api/v1/users/{id}`                             |
 | Daxil ol                                | Google only, see [Accounts](#accounts)               |
 

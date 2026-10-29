@@ -7,8 +7,7 @@ import { cache } from 'react'
 import type { CurrentUser } from '@/lib/api-types'
 import { initialsOf, userAvatarUrl } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
-import { pendingInviteCount } from '@/lib/invites'
-import { promotionCount } from '@/lib/waitlist'
+import { unreadNotificationCount } from '@/lib/notifications'
 
 /**
  * The signed-in user (Payload session or Google session cookie), or null.
@@ -52,11 +51,7 @@ export function sessionTag(userId: number) {
 }
 
 /**
- * What is waiting for the person to look at, for the header's badge: invitations to games, and spots
- * handed to them from a waitlist in the last few days. Once per request: the header renders it twice.
+ * The header's badge: notices on `/notifications` the person hasn't opened yet (invitations, spots
+ * from a waitlist, changed or cancelled games, scores). Once per request: the header renders it twice.
  */
-export const getNoticeCount = cache(async (userId: number) => {
-  const payload = await getPayloadClient()
-  const [invites, promotions] = await Promise.all([pendingInviteCount(payload, userId), promotionCount(payload, userId)])
-  return invites + promotions
-})
+export const getNoticeCount = cache(async (userId: number) => unreadNotificationCount(await getPayloadClient(), userId))

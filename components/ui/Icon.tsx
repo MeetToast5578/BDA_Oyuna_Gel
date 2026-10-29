@@ -72,6 +72,21 @@ const ICONS = {
       />
     ),
   },
+  bell: {
+    width: 18,
+    height: 18,
+    color: '#141b2b',
+    body: (
+      <path
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4.5 7.5a4.5 4.5 0 0 1 9 0c0 4 1.75 5.25 1.75 5.25H2.75S4.5 11.5 4.5 7.5M7.4 15.25a1.75 1.75 0 0 0 3.2 0"
+      />
+    ),
+  },
 } satisfies Record<string, IconDef>
 
 export type IconName = keyof typeof ICONS

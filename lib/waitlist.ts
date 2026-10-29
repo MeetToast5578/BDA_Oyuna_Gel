@@ -137,12 +137,3 @@ export async function myWaitlist(payload: Payload, userId: number) {
   }
 }
 
-/** Spots handed to this person from a waitlist that they may not have seen yet, for the header's count. */
-export async function promotionCount(payload: Payload, userId: number) {
-  const { rows } = await drizzle(payload).execute<{ n: string }>(sql`
-    SELECT count(*) AS n FROM game_participants p JOIN games g ON g.id = p.game_id
-    WHERE p.user_id = ${userId} AND g.status = 'scheduled' AND g.scheduled_at > now()
-      AND p.promoted_at > now() - make_interval(days => ${PROMOTION_NOTICE_DAYS})
-  `)
-  return Number(rows[0]?.n ?? 0)
-}

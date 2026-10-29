@@ -5,7 +5,7 @@ import { authorizeHost } from '@/lib/authorize-host'
 import { gameCancelledEmail, gameChangedEmail } from '@/lib/emails'
 import { isUpcoming, parseEditGameBody } from '@/lib/game-backend'
 import { deleteGame, getGameDetail, getPayloadClient, updateGame } from '@/lib/game-queries'
-import { afterResponse, notify, participantIds } from '@/lib/notify'
+import { afterResponse, noticeFor, notify, participantIds } from '@/lib/notify'
 import { notifyPromoted } from '@/lib/promotions'
 
 /** "Oyun Detalı". Signing in is optional; it only affects `viewer` and whether the host's phone is shown. */
@@ -61,7 +61,7 @@ export async function PATCH(
     if (game.startsAt !== existing.startsAt || game.venue.id !== existing.venue.id) {
       afterResponse(async () => {
         const payload = await getPayloadClient()
-        await notify(payload, await participantIds(payload, auth.gameId, auth.userId), gameChangedEmail(game))
+        await notify(payload, await participantIds(payload, auth.gameId, auth.userId), noticeFor('changed', game), gameChangedEmail(game))
       })
     }
 
@@ -93,7 +93,8 @@ export async function DELETE(
     const payload = await getPayloadClient()
     const players = isUpcoming(game.status) ? await participantIds(payload, auth.gameId, auth.userId) : []
     await deleteGame(auth.gameId)
-    if (players.length > 0) afterResponse(() => notify(payload, players, gameCancelledEmail(game)))
+    // Deleted by then: the notice keeps only the name.
+    if (players.length > 0) afterResponse(() => notify(payload, players, { kind: 'cancelled', gameId: null, gameTitle: game.title }, gameCancelledEmail(game)))
     return NextResponse.json({ ok: true, id: String(auth.gameId) })
   } catch (error) {
     console.error(error)

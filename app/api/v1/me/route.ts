@@ -65,7 +65,10 @@ export async function DELETE(request: Request) {
     const players = await Promise.all(cancelled.map((game) => participantIds(payload, Number(game.id), auth.userId)))
 
     const { deletedGames, promotions } = await deleteMyAccount(auth.userId)
-    afterResponse(() => Promise.all(cancelled.map((game, i) => notify(payload, players[i], gameCancelledEmail(game)))))
+    // The games are gone by then, so their notices keep only the name.
+    afterResponse(() =>
+      Promise.all(cancelled.map((game, i) => notify(payload, players[i], { kind: 'cancelled', gameId: null, gameTitle: game.title }, gameCancelledEmail(game)))),
+    )
     // Spots this account gave back went to whoever was waiting.
     afterResponse(() => notifyPromoted(payload, promotions))
 

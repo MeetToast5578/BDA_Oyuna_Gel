@@ -250,15 +250,6 @@ const OPEN_INVITE = sql`
   AND NOT EXISTS (SELECT 1 FROM game_participants p WHERE p.game_id = g.id AND p.user_id = i.user_id)
 `
 
-/** How many invitations are waiting for this person, for the header's badge. */
-export async function pendingInviteCount(payload: Payload, userId: number) {
-  const { rows } = await drizzle(payload).execute<{ n: string }>(sql`
-    SELECT count(*) AS n FROM game_invites i JOIN games g ON g.id = i.game_id
-    WHERE i.user_id = ${userId} AND ${OPEN_INVITE}
-  `)
-  return Number(rows[0]?.n ?? 0)
-}
-
 /** The invitations waiting for this person, soonest game first. A side with a club is named after it. */
 export async function myInvites(payload: Payload, userId: number) {
   const { rows } = await drizzle(payload).execute<{

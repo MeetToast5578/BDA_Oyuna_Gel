@@ -32,6 +32,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/profile',
+    '/notifications',
     '/games/new',
     '/teams/new',
     '/teams/join/:code',

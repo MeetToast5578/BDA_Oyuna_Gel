@@ -94,7 +94,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       console.error(error)
       return null
     })
-    if (game) afterResponse(() => notify(payload, [userId], joinedEmail(game, toIcs(game, `${SITE_URL}/games/${game.id}`))))
+    if (game) afterResponse(() => notify(payload, [userId], null, joinedEmail(game, toIcs(game, `${SITE_URL}/games/${game.id}`))))
     // A number typed in step 1 (not the profile's own fallback) is kept for the next form.
     const typedPhone = normalizePhone(body?.phone)
     const savedToProfile = typedPhone

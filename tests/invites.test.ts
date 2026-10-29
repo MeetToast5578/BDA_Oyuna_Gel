@@ -10,7 +10,7 @@ import { POST as declineRoute } from '@/app/api/v1/invites/[id]/decline/route'
 import { GET as myInvitesRoute } from '@/app/api/v1/me/invites/route'
 import { GET as searchRoute } from '@/app/api/v1/users/route'
 import { formatBakuDateKey } from '@/lib/game-backend'
-import { HOURLY_INVITE_LIMIT, pendingInviteCount } from '@/lib/invites'
+import { HOURLY_INVITE_LIMIT } from '@/lib/invites'
 import type { Side } from '@/lib/team-logic'
 
 // `after()` only exists inside a request; here it just runs the task, so the join route can be called directly.
@@ -245,7 +245,6 @@ describe.skipIf(!process.env.DATABASE_URL)('inviting players (Postgres)', () => 
     expect(found).toMatchObject({ side: 'home', sideLabel: `Invite Club ${suffix}` })
     expect((await mine('stranger')).find((item) => item.gameId === String(gameId))).toMatchObject({ side: 'away', sideLabel: 'B komandası' })
     expect((await mine('kamal')).find((item) => item.gameId === String(gameId))).toBeUndefined()
-    expect(await pendingInviteCount(payload, who.member.id)).toBeGreaterThanOrEqual(1)
     expect((await myInvitesRoute(new Request('http://localhost/x'))).status).toBe(401)
   })
 

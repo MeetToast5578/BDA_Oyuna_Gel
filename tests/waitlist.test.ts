@@ -10,7 +10,7 @@ import { getGameDetail } from '@/lib/game-queries'
 import { type CreateGameInput } from '@/lib/game-backend'
 import { updateGame } from '@/lib/game-queries'
 import { deleteMyAccount } from '@/lib/profile-queries'
-import { MAX_WAITLIST, myWaitlist, promotionCount } from '@/lib/waitlist'
+import { MAX_WAITLIST, myWaitlist } from '@/lib/waitlist'
 
 // `after()` only exists inside a request; here it just runs the task, so the routes can be called directly.
 vi.mock('next/server', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/server')>()), after: (task: () => unknown) => void task() }))
@@ -321,8 +321,6 @@ describe.skipIf(!process.env.DATABASE_URL)('the waitlist (Postgres)', () => {
     const w1 = await myWaitlist(payload, who.w1.id)
     expect(w1.promoted.map((item) => item.gameId)).toContain(String(gameId))
     expect(w1.waiting.some((item) => item.gameId === String(gameId))).toBe(false)
-    expect(await promotionCount(payload, who.w1.id)).toBeGreaterThanOrEqual(1)
     expect((await myWaitlist(payload, who.w2.id)).waiting.find((item) => item.gameId === String(gameId))?.position).toBe(1)
-    expect(await promotionCount(payload, who.outsider.id)).toBe(0)
   })
 })

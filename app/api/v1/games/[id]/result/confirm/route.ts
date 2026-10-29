@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api-response'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
+import { afterResponse, noticeFor, notify } from '@/lib/notify'
 import { RESULT_ERRORS } from '@/lib/result-errors'
 import { submitResult } from '@/lib/results'
 
@@ -27,7 +28,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const { status, message } = RESULT_ERRORS[result.code]
       return apiError(result.code, message, status)
     }
-    return NextResponse.json({ game: await getGameDetail(gameId, userId) })
+    const game = await getGameDetail(gameId, userId)
+    // The host reported it; they hear the answer.
+    const hostId = Number(game?.host.id)
+    if (game && hostId && hostId !== userId) {
+      afterResponse(() => notify(payload, [hostId], noticeFor(action === 'confirm' ? 'resultConfirmed' : 'resultDisputed', game)))
+    }
+    return NextResponse.json({ game })
   } catch (error) {
     console.error(error)
     return apiError('INTERNAL_ERROR', 'Cavabı yadda saxlamaq mümkün olmadı.', 500)

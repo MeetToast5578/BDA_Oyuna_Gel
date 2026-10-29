@@ -313,7 +313,48 @@
   white-space: nowrap;
 }
 
-/* Invitations waiting: a count on the corner of the chip, so it shows with or without the name. */
+/* The bell for /notifications, the same size as the avatar ring beside it. */
+.bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--color-ink);
+  transition: background-color 0.15s ease;
+}
+
+.bell:hover,
+.bell[aria-current='page'] {
+  background: var(--color-primary-tint);
+}
+
+.bell:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* In the phone menu "Bildirişlər" is a line of its own, so the bell stays in the bar only. */
+.menuSession .bell {
+  display: none;
+}
+
+.menuCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Unread notices: a count on the corner of the bell. */
 .badge {
   position: absolute;
   top: -4px;

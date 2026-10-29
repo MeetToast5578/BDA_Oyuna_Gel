@@ -44,6 +44,12 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
       await db.execute(sql`INSERT INTO join_attempts (outcome, user_id, ip, created_at, updated_at) VALUES ('JOINED', ${userId}, ${`cleanup-${suffix}`}, now() - make_interval(days => ${daysAgo}), now())`)
     }
     await db.execute(sql`INSERT INTO rate_limits (key, window_start, count, created_at, updated_at) VALUES (${`cleanup:${suffix}`}, now() - interval '2 days', 1, now(), now())`)
+    // Notices: read 100 days ago (goes), unread 100 days ago (stays), unread 200 days ago (goes).
+    for (const [title, daysAgo, read] of [['read-old', 100, true], ['unread-old', 100, false], ['unread-ancient', 200, false]] as const) {
+      await db.execute(sql`
+        INSERT INTO notifications (user_id, kind, game_title, read_at, created_at, updated_at)
+        VALUES (${userId}, 'changed', ${title}, ${read ? sql`now()` : sql`NULL`}, now() - make_interval(days => ${daysAgo}), now())`)
+    }
   })
 
   afterAll(async () => {
@@ -88,5 +94,8 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
 
     const waiting = await db.execute<{ game_id: number }>(sql`SELECT game_id FROM game_waitlist WHERE user_id = ${userId}`)
     expect(waiting.rows.map((row) => row.game_id)).toEqual([games.upcoming])
+
+    const notices = await db.execute<{ game_title: string }>(sql`SELECT game_title FROM notifications WHERE user_id = ${userId}`)
+    expect(notices.rows.map((row) => row.game_title)).toEqual(['unread-old'])
   })
 })

@@ -8,6 +8,9 @@ export const RETENTION = {
   joinAttemptsDays: 90,
   /** Phone numbers on a game, its players and its waitlist, counted from the game's start. */
   phonesDays: 30,
+  /** Notices already seen; unseen ones stay for `noticesUnreadDays`. */
+  noticesReadDays: 90,
+  noticesUnreadDays: 180,
 } as const
 
 /**
@@ -28,6 +31,10 @@ export async function cleanUpOldData(db: Db) {
     participantPhones: await count(sql`
       UPDATE game_participants p SET phone = NULL, updated_at = now() FROM games g
       WHERE g.id = p.game_id AND p.phone IS NOT NULL AND g.scheduled_at < now() - make_interval(days => ${RETENTION.phonesDays})`),
+    notices: await count(sql`
+      DELETE FROM notifications
+      WHERE created_at < now() - make_interval(days => ${RETENTION.noticesUnreadDays})
+         OR (read_at IS NOT NULL AND created_at < now() - make_interval(days => ${RETENTION.noticesReadDays}))`),
     hostPhones: await count(sql`
       UPDATE games SET contact_phone = NULL, updated_at = now()
       WHERE contact_phone IS NOT NULL AND scheduled_at < now() - make_interval(days => ${RETENTION.phonesDays})`),

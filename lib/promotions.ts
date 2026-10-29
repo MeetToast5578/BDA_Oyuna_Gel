@@ -2,7 +2,7 @@ import type { Payload } from 'payload'
 
 import { promotedEmail } from '@/lib/emails'
 import { getGameDetail } from '@/lib/game-queries'
-import { notify } from '@/lib/notify'
+import { noticeFor, notify } from '@/lib/notify'
 
 /** Games where waiting players just got a spot, and who they are. */
 export type Promotions = { gameId: number; userIds: number[] }[]
@@ -13,7 +13,7 @@ export async function notifyPromoted(payload: Payload, promotions: Promotions) {
     if (userIds.length === 0) continue
     try {
       const game = await getGameDetail(gameId, null)
-      if (game) await notify(payload, userIds, promotedEmail(game))
+      if (game) await notify(payload, userIds, noticeFor('promoted', game), promotedEmail(game))
     } catch (error) {
       console.error('Failed to tell promoted players', error)
     }

@@ -7,6 +7,7 @@ import { buttonClass } from '@/components/ui/button'
 import styles from './Header.module.css'
 import { LogoutButton } from './LogoutButton'
 import { MobileMenu } from './MobileMenu'
+import { Icon } from '@/components/ui/Icon'
 import { NavLink } from './NavLink'
 
 const MENU_LINKS = [
@@ -47,12 +48,17 @@ async function SessionActions() {
 
   return (
     <>
+      {/* New notices show on the bell; it opens /notifications, which marks them seen. */}
+      <NavLink href="/notifications" className={styles.bell} ariaLabel={`Bildirişlər${notices > 0 ? `, ${notices} yeni` : ''}`}>
+        <Icon name="bell" />
+        {notices > 0 && (
+          <span className={styles.badge} aria-hidden="true">
+            {notices}
+          </span>
+        )}
+      </NavLink>
       {/* The name is hidden on narrower bars, so the label carries it; it starts with "Profilim". */}
-      <NavLink
-        href="/profile"
-        className={styles.user}
-        ariaLabel={`Profilim — ${user.fullName}${notices > 0 ? `, ${notices} bildiriş` : ''}`}
-      >
+      <NavLink href="/profile" className={styles.user} ariaLabel={`Profilim — ${user.fullName}`}>
         <Avatar
           person={{ name: user.fullName, initials: user.initials, avatarUrl: user.avatarUrl }}
           size={34}
@@ -60,11 +66,6 @@ async function SessionActions() {
           className={styles.avatar}
         />
         <span className={styles.userName}>{user.firstName}</span>
-        {notices > 0 && (
-          <span className={styles.badge} aria-hidden="true">
-            {notices}
-          </span>
-        )}
       </NavLink>
       <LogoutButton className={buttonClass('outlineDark', 'md')} />
     </>
@@ -81,6 +82,26 @@ async function MenuNoticeBadge() {
       <span aria-hidden="true">{notices}</span>
       <span className="visually-hidden">, {notices} bildiriş</span>
     </span>
+  )
+}
+
+/** "Bildirişlər" in the phone menu, signed in only, with the unread count; the bar's bell stays out of the menu. */
+async function MenuNotificationsLink() {
+  const user = await getCurrentUser()
+  if (!user) return null
+  const notices = await getNoticeCount(user.id).catch(() => 0)
+  return (
+    <li>
+      <Link href="/notifications" className={styles.menuLink}>
+        Bildirişlər
+        {notices > 0 && (
+          <span className={styles.menuCount}>
+            {notices}
+            <span className="visually-hidden"> yeni</span>
+          </span>
+        )}
+      </Link>
+    </li>
   )
 }
 
@@ -139,6 +160,9 @@ export function Header() {
                   </Link>
                 </li>
               ))}
+              <Suspense fallback={null}>
+                <MenuNotificationsLink />
+              </Suspense>
             </ul>
             <div className={styles.menuSession}>
               <Suspense fallback={<SessionActionsFallback />}>

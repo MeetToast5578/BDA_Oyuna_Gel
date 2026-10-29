@@ -1,16 +1,41 @@
 import { after } from 'next/server'
 import type { Payload } from 'payload'
 
+import type { NOTICE_KINDS } from '@/collections/Notifications'
 import { invitedEmail, type Email } from '@/lib/emails'
 import type { InviteEntry } from '@/lib/team-logic'
 
+export type NoticeKind = (typeof NOTICE_KINDS)[number]
+
+/** What `/notifications` shows. `gameId` is null for a game that is being deleted, which keeps only its name. */
+export type Notice = { kind: NoticeKind; gameId: number | null; gameTitle: string }
+
+/** A notice about this game, linking to it. */
+export const noticeFor = (kind: NoticeKind, game: { id: string | number; title: string }): Notice => ({
+  kind,
+  gameId: Number(game.id),
+  gameTitle: game.title,
+})
+
 /**
- * Sends `email` to each of these users who has an address and hasn't turned emails off on their
- * profile. Never throws: an email is a courtesy, and a mail-server problem must never fail the join,
- * edit or delete that caused it. Returns how many were handed to the mail server.
+ * Tells each of these users: one row each on their `/notifications` (none when `notice` is null: the
+ * person did it themselves), then `email` to those who have
+ * an address and haven't turned emails off. Never throws: a notice is a courtesy, and a failure must
+ * never fail the join, edit or delete that caused it. Returns how many emails reached the mail server.
  */
-export async function notify(payload: Payload, userIds: number[], email: Email) {
+export async function notify(payload: Payload, userIds: number[], notice: Notice | null, email?: Email) {
   if (userIds.length === 0) return 0
+  try {
+    if (notice)
+      await Promise.all(
+        userIds.map((user) =>
+          payload.create({ collection: 'notifications', data: { user, kind: notice.kind, game: notice.gameId, gameTitle: notice.gameTitle }, overrideAccess: true }),
+        ),
+      )
+  } catch (error) {
+    console.error('Failed to save notices', error)
+  }
+  if (!email) return 0
   try {
     const { docs } = await payload.find({
       collection: 'users',
@@ -43,11 +68,11 @@ export function afterResponse(task: () => Promise<unknown>) {
   }
 }
 
-/** Everyone holding a spot in a game except `exceptUserId` (the host, who made the change). */
-export async function participantIds(payload: Payload, gameId: number, exceptUserId: number | null) {
+/** Everyone holding a spot in a game except `exceptUserId` (the host, who made the change); only `side`'s players when given. */
+export async function participantIds(payload: Payload, gameId: number, exceptUserId: number | null, side?: 'home' | 'away') {
   const { docs } = await payload.find({
     collection: 'game-participants',
-    where: { game: { equals: gameId } },
+    where: side ? { and: [{ game: { equals: gameId } }, { side: { equals: side } }] } : { game: { equals: gameId } },
     select: { user: true },
     depth: 0,
     pagination: false,
@@ -67,6 +92,6 @@ export async function notifyInvited(
   for (const side of ['home', 'away'] as const) {
     const ids = entries.filter((entry) => entry.side === side).map((entry) => entry.userId)
     const label = game.teams[side]?.name ?? (side === 'home' ? 'A komandası' : 'B komandası')
-    await notify(payload, ids, invitedEmail(game, side, label))
+    await notify(payload, ids, noticeFor('invited', game), invitedEmail(game, side, label))
   }
 }

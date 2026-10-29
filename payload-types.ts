@@ -77,6 +77,7 @@ export interface Config {
     'game-invites': GameInvite;
     'game-waitlist': GameWaitlist;
     'rate-limits': RateLimit;
+    notifications: Notification;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -94,6 +95,7 @@ export interface Config {
     'game-invites': GameInvitesSelect<false> | GameInvitesSelect<true>;
     'game-waitlist': GameWaitlistSelect<false> | GameWaitlistSelect<true>;
     'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
+    notifications: NotificationsSelect<false> | NotificationsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -414,6 +416,30 @@ export interface RateLimit {
   createdAt: string;
 }
 /**
+ * In-app notices. Written by the site when something happens to a game a person is in.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications".
+ */
+export interface Notification {
+  id: number;
+  user: number | User;
+  kind:
+    | 'invited'
+    | 'promoted'
+    | 'changed'
+    | 'cancelled'
+    | 'removed'
+    | 'resultReported'
+    | 'resultConfirmed'
+    | 'resultDisputed';
+  game?: (number | null) | Game;
+  gameTitle: string;
+  readAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -476,6 +502,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'rate-limits';
         value: number | RateLimit;
+      } | null)
+    | ({
+        relationTo: 'notifications';
+        value: number | Notification;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -711,6 +741,19 @@ export interface RateLimitsSelect<T extends boolean = true> {
   key?: T;
   windowStart?: T;
   count?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications_select".
+ */
+export interface NotificationsSelect<T extends boolean = true> {
+  user?: T;
+  kind?: T;
+  game?: T;
+  gameTitle?: T;
+  readAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
