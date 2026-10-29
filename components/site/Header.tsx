@@ -95,34 +95,23 @@ export function Header() {
         <Logo />
 
         <ul className={styles.links}>
-          <li>
-            {/* NavLink reads the pathname, which only exists at request time; the plain link is
-                prerendered into the shell and the active-state version swaps in after hydration. */}
-            <Suspense
-              fallback={
-                <Link href="/games" className={styles.link}>
-                  Açıq oyunlar
-                </Link>
-              }
-            >
-              <NavLink href="/games" className={styles.link}>
-                Açıq oyunlar
-              </NavLink>
-            </Suspense>
-          </li>
-          <li>
-            <Suspense
-              fallback={
-                <Link href="/teams" className={styles.link}>
-                  Komandalar
-                </Link>
-              }
-            >
-              <NavLink href="/teams" className={styles.link}>
-                Komandalar
-              </NavLink>
-            </Suspense>
-          </li>
+          {MENU_LINKS.slice(0, 3).map((link) => (
+            <li key={link.href}>
+              {/* NavLink reads the pathname, which only exists at request time; the plain link is
+                  prerendered into the shell and the active-state version swaps in after hydration. */}
+              <Suspense
+                fallback={
+                  <Link href={link.href} className={styles.link}>
+                    {link.label}
+                  </Link>
+                }
+              >
+                <NavLink href={link.href} className={styles.link}>
+                  {link.label}
+                </NavLink>
+              </Suspense>
+            </li>
+          ))}
         </ul>
 
         <div className={styles.actions}>

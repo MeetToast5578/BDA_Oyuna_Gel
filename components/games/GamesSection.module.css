@@ -17,7 +17,7 @@
   align-self: stretch;
 }
 
-/* `.back` and `.seeAll` get their look from buttonClass; these rules only nudge the arrow. */
+/* `.back` looks like `.back-link` and `.seeAll` like a button; these rules only nudge the arrow. */
 .back > span {
   transition: transform 0.2s var(--ease-out);
 }
@@ -70,6 +70,10 @@
   font-weight: 700;
   line-height: 1.25;
   color: var(--color-heading);
+}
+
+.filter:empty {
+  display: none;
 }
 
 .filter {

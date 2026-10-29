@@ -44,7 +44,7 @@ export function GameCard({
           src={game.coverImage.thumbnailUrl}
           fallbackSrc={game.coverImage.fallbackUrl}
           alt=""
-          sizes="(max-width: 859px) 100vw, (max-width: 1023px) 50vw, 339px"
+          sizes="(max-width: 599px) 104px, (max-width: 859px) 100vw, (max-width: 1023px) 50vw, 339px"
           priority={priority}
         />
         <div className={styles.badges}>
@@ -198,6 +198,19 @@ function CardAction({
         aria-label={`${game.title} oyununa qoşul`}
       >
         Qoşul
+      </Link>
+    )
+  }
+
+  // A full game still takes names for its waitlist, on the game's page.
+  if (game.status === 'full') {
+    return (
+      <Link
+        href={href}
+        className={buttonClass('outlinePrimary', 'sm', { className: styles.join })}
+        aria-label={`${game.title}: gözləmə siyahısına yaz`}
+      >
+        Növbəyə yazıl
       </Link>
     )
   }

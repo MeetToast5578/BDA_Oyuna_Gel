@@ -203,7 +203,7 @@ export function GameForm({
   // maxCount − 1, max even and within the sport's limit.
   // When editing, the count is whoever has joined by now and is not the host's to set.
   const [currentCount, setCurrentCount] = useState(game?.currentCount ?? 1)
-  const [maxCount, setMaxCount] = useState(() => game?.maxCount ?? SPORT_META[sport].maxPlayers)
+  const [maxCount, setMaxCount] = useState(() => game?.maxCount ?? SPORT_META[sport].defaultPlayers)
   const sportMax = SPORT_META[sport].maxPlayers
   // The host stands on one side, so that side's club must be one of theirs; the other side may be any club of the sport.
   const clubsOfSport = teams.filter((team) => team.sport === sport)
@@ -264,8 +264,8 @@ export function GameForm({
       cleared.unshift('meydança')
     }
     setSportNotice(cleared.length ? `${SPORT_LABELS[next]} üçün ${cleared.join(' və ')} seçimi sıfırlandı. Yenidən seçin.` : '')
-    // Each sport has its own limit (football 22, basketball 10, tennis 4); start from the full size.
-    changeMaxCount(SPORT_META[next].maxPlayers)
+    // Each sport has its own limit (football 22, basketball 10, tennis 4) and usual size (football 10).
+    changeMaxCount(SPORT_META[next].defaultPlayers)
   }
 
   /** "Mövcud iştirakçı sayı" follows the max down when it would no longer leave a free spot. */

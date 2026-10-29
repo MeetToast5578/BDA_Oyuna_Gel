@@ -65,7 +65,6 @@ export default function GameDetailPage({ params, searchParams }: Props) {
       <BackLink fallback="/" className={styles.back}>
         Geri qayıt
       </BackLink>
-      <p className={styles.pageTitle}>Oyun Detalı</p>
 
       <Suspense fallback={<GameDetailSkeleton />}>
         <GameDetailContent params={params} searchParams={searchParams} />

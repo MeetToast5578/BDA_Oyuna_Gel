@@ -203,3 +203,64 @@
 .venueLink {
   composes: hostLink;
 }
+
+/* Phones: a photo strip on the left instead of a 192px banner, so 4–5 games fit on a screen, not 2. */
+@media (max-width: 599px) {
+  .card {
+    display: grid;
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  .media {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .badges {
+    top: auto;
+    right: 6px;
+    bottom: 6px;
+    left: 6px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .badges > * {
+    height: 20px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .body {
+    gap: 6px;
+    padding: 12px 14px 14px;
+  }
+
+  .title {
+    font-size: 16px;
+    line-height: 21px;
+  }
+
+  .metaRow {
+    font-size: 13px;
+    line-height: 18px;
+    column-gap: 12px;
+  }
+
+  .progress {
+    gap: 5px;
+  }
+
+  .footer {
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  /* Narrower actions leave the host's name readable beside them. */
+  .action > a,
+  .action > button {
+    padding-inline: 14px;
+    font-size: 13px;
+  }
+}

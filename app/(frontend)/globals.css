@@ -309,3 +309,21 @@ html:has(dialog[open]) {
   --skeleton-base: rgba(255, 255, 255, 0.1);
   --skeleton-shine: rgba(255, 255, 255, 0.2);
 }
+
+/* "← Geri qayıt" above a page: a quiet text link with a full-size tap area, not a bordered button. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-left: -4px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-subtle);
+}
+
+.back-link:hover {
+  color: var(--color-primary);
+}

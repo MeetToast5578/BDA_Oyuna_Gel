@@ -21,11 +21,19 @@ const CITY_LABELS: Record<string, string> = Object.fromEntries(CITY_OPTIONS.map(
  */
 export const SPORT_META: Record<
   string,
-  { label: string; iconKey: string; image: string; maxPlayers: number; durationMinutes: number }
+  {
+    label: string
+    iconKey: string
+    image: string
+    maxPlayers: number
+    /** What a new game starts at on the form: most football here is 5- or 6-a-side, not 11. */
+    defaultPlayers: number
+    durationMinutes: number
+  }
 > = {
-  football: { label: 'Futbol', iconKey: 'football', image: '/images/game-football-1-7880cc.png', maxPlayers: 22, durationMinutes: 90 },
-  basketball: { label: 'Basketbol', iconKey: 'basketball', image: '/images/game-basketball-1-4a0ddf.png', maxPlayers: 10, durationMinutes: 60 },
-  tennis: { label: 'Tennis', iconKey: 'tennis', image: '/images/game-tennis-1-3ee73d.png', maxPlayers: 4, durationMinutes: 90 },
+  football: { label: 'Futbol', iconKey: 'football', image: '/images/game-football-1-7880cc.png', maxPlayers: 22, defaultPlayers: 10, durationMinutes: 90 },
+  basketball: { label: 'Basketbol', iconKey: 'basketball', image: '/images/game-basketball-1-4a0ddf.png', maxPlayers: 10, defaultPlayers: 10, durationMinutes: 60 },
+  tennis: { label: 'Tennis', iconKey: 'tennis', image: '/images/game-tennis-1-3ee73d.png', maxPlayers: 4, defaultPlayers: 4, durationMinutes: 90 },
 }
 export const SPORTS = Object.keys(SPORT_META)
 

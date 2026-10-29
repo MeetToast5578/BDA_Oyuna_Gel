@@ -241,9 +241,8 @@ export function JoinPanel({
         </>
       ) : game.status === 'full' ? (
         <>
-          <button type="button" className={buttonClass('muted', 'lg', { block: true, className: styles.cta })} disabled>
-            {STATUS_LABELS.full}
-          </button>
+          {/* A line, not a dead button: the waitlist below is the action. */}
+          <p className={styles.pastNote}>Oyun doludur: bütün yerlər tutulub.</p>
           {game.waitlist.yourPosition !== null ? (
             <>
               <p className={styles.state} role="status">

@@ -77,6 +77,7 @@
   font-size: 14.5px;
   font-weight: 500;
   color: var(--color-ink);
+  white-space: nowrap;
 }
 
 /*
@@ -343,6 +344,15 @@
 
   .userName {
     display: none;
+  }
+
+  /* Three links, the avatar and two buttons share the row down to 860px. */
+  .links {
+    gap: 4px;
+  }
+
+  .link {
+    padding-inline: 10px;
   }
 
   /* Just the avatar in a ring. */

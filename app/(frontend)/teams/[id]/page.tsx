@@ -34,7 +34,6 @@ export default function TeamPage({ params }: Props) {
       <BackLink fallback="/teams" className={styles.back}>
         Geri qayıt
       </BackLink>
-      <p className={styles.pageTitle}>Komanda</p>
       <Suspense fallback={<p className={styles.muted}>Yüklənir…</p>}>
         <TeamContent params={params} />
       </Suspense>

@@ -38,7 +38,6 @@ export default function VenuePage({ params }: Props) {
       <BackLink fallback="/venues" className={styles.back}>
         Geri qayıt
       </BackLink>
-      <p className={styles.pageTitle}>Meydança</p>
       <Suspense fallback={<p className={styles.muted}>Yüklənir…</p>}>
         <VenueContent params={params} />
       </Suspense>

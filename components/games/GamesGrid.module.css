@@ -124,3 +124,10 @@
   line-height: 22px;
   color: var(--color-muted);
 }
+
+/* The phone cards are short strips; a tighter gap keeps them reading as one list. */
+@media (max-width: 599px) {
+  .grid {
+    gap: 12px;
+  }
+}
