@@ -9,7 +9,20 @@ export type StandingRow = { id: string; href: string; name: string; record: WinL
 const MEDALS = [styles.gold, styles.silver, styles.bronze]
 
 /** A league table in the order given: played, wins, draws, losses, goals, points and the last five results (goals and form hide on phones, so points stay in view). */
-export function StandingsTable({ caption, nameHeader, rows }: { caption: string; nameHeader: string; rows: StandingRow[] }) {
+export function StandingsTable({
+  caption,
+  nameHeader,
+  rows,
+  mine = [],
+  mineLabel = 'Siz',
+}: {
+  caption: string
+  nameHeader: string
+  rows: StandingRow[]
+  /** The viewer's own rows (themselves, or their clubs), highlighted with `mineLabel`. */
+  mine?: string[]
+  mineLabel?: string
+}) {
   return (
     <div className={styles.tableWrap}>
       <table className={styles.table}>
@@ -45,12 +58,13 @@ export function StandingsTable({ caption, nameHeader, rows }: { caption: string;
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.id}>
+            <tr key={row.id} className={mine.includes(row.id) ? styles.mine : undefined}>
               <td>
                 <span className={`${styles.rank} ${MEDALS[index] ?? ''}`}>{index + 1}</span>
               </td>
               <td>
                 <Link href={row.href}>{row.name}</Link>
+                {mine.includes(row.id) && <span className={styles.mineTag}>{mineLabel}</span>}
               </td>
               <td>{row.record.played}</td>
               <td>{row.record.wins}</td>

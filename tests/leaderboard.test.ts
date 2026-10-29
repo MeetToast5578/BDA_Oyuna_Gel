@@ -29,14 +29,14 @@ describe.skipIf(!process.env.DATABASE_URL)('player leaderboard (Postgres)', () =
     }
     arenaId = (await payload.create({ collection: 'arenas', overrideAccess: true, data: { name: `Board Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
 
-    const game = async (home: number, away: number, score: [number, number], status: 'confirmed' | 'reported') => {
+    const game = async (home: number, away: number, score: [number, number], status: 'confirmed' | 'reported', daysAgo = 2) => {
       const id = (
         await payload.create({
           collection: 'games',
           overrideAccess: true,
           data: {
             title: `Board ${suffix}`, sport: 'football', level: 'medium', arena: arenaId, host: home,
-            scheduledAt: new Date(Date.now() - 2 * DAY_MS).toISOString(), maxPlayers: 4, availablePlayers: 2,
+            scheduledAt: new Date(Date.now() - daysAgo * DAY_MS).toISOString(), maxPlayers: 4, availablePlayers: 2,
           },
         })
       ).id
@@ -51,6 +51,7 @@ describe.skipIf(!process.env.DATABASE_URL)('player leaderboard (Postgres)', () =
     await game(users.a, users.c, [2, 0], 'confirmed')
     await game(users.b, users.c, [1, 1], 'confirmed')
     await game(users.b, users.a, [2, 0], 'reported') // nobody answered yet: not counted
+    await game(users.c, users.a, [5, 0], 'confirmed', 40) // weeks ago: in "Hamısı", not in a recent window
   })
 
   afterAll(async () => {
@@ -61,13 +62,20 @@ describe.skipIf(!process.env.DATABASE_URL)('player leaderboard (Postgres)', () =
     await payload.db.destroy?.()
   })
 
-  it('ranks by points, then goal difference, then goals scored, from counted scores only', async () => {
-    const ours = (await playerStandings(db(), 'football')).filter((row) => Object.values(users).includes(Number(row.id)))
-    expect(ours.map((row) => [row.name, row.record.played, row.record.points])).toEqual([
+  it('ranks by points, then goal difference, then goals scored, from counted scores in the window', async () => {
+    const ours = async (since: Date | null) =>
+      (await playerStandings(db(), 'football', since)).filter((row) => Object.values(users).includes(Number(row.id)))
+    expect((await ours(new Date(Date.now() - 10 * DAY_MS))).map((row) => [row.name, row.record.played, row.record.points])).toEqual([
       ['Board A', 2, 6],
       // Level on points and goal difference (-2); B scored 2, C scored 1.
       ['Board B', 2, 1],
       ['Board C', 2, 1],
+    ])
+    // All time, the old game counts: C's win lifts C (4 points) over B (1).
+    expect((await ours(null)).map((row) => [row.name, row.record.played, row.record.points])).toEqual([
+      ['Board A', 3, 6],
+      ['Board C', 3, 4],
+      ['Board B', 2, 1],
     ])
     expect(await playerStandings(db(), 'tennis')).not.toContainEqual(expect.objectContaining({ id: String(users.a) }))
   })

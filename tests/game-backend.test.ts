@@ -28,6 +28,7 @@ import {
   profileTabsQuery,
   rankFeatured,
   startOfBakuDay,
+  startOfBakuMonth,
   toGameCard,
   toPlayer,
 } from '@/lib/game-backend'
@@ -53,6 +54,14 @@ const inHours = (hours: number) => new Date(NOW + hours * HOUR_MS).toISOString()
 
 afterEach(() => {
   vi.unstubAllEnvs()
+})
+
+describe('startOfBakuMonth', () => {
+  it('is midnight on the 1st in Baku, which is 20:00 UTC the day before', () => {
+    // 31 Oct 21:00 UTC is already 1 November in Baku.
+    expect(startOfBakuMonth(new Date('2026-10-31T21:00:00Z')).toISOString()).toBe('2026-10-31T20:00:00.000Z')
+    expect(startOfBakuMonth(new Date('2026-10-15T12:00:00Z')).toISOString()).toBe('2026-09-30T20:00:00.000Z')
+  })
 })
 
 describe('lastBakuMonths', () => {

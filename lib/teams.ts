@@ -156,9 +156,10 @@ export async function leaveAllClubs(db: Db, userId: number) {
 
 /**
  * Clubs with at least one member (an emptied club is hidden, D12), biggest first, each with its
- * record from confirmed scores. The standings are these rows put in `compareStandings` order.
+ * record from confirmed scores (from `since` on, when given). The standings are these rows put in
+ * `compareStandings` order.
  */
-export async function listTeams(payload: Payload, sport: string | null) {
+export async function listTeams(payload: Payload, sport: string | null, since: Date | null = null) {
   const { rows } = await drizzle(payload).execute<{ id: number; name: string; sport: string; members: string }>(sql`
     SELECT t.id, t.name, t.sport, count(r.id) AS members
     FROM teams t
@@ -167,7 +168,7 @@ export async function listTeams(payload: Payload, sport: string | null) {
     GROUP BY t.id
     ORDER BY members DESC, t.name, t.id
   `)
-  const records = await teamRecords(drizzle(payload), rows.map((row) => row.id))
+  const records = await teamRecords(drizzle(payload), rows.map((row) => row.id), since)
   return rows.map((row) => ({
     id: String(row.id),
     name: row.name,

@@ -55,6 +55,8 @@
 .overview > .identity {
   flex-direction: row;
   align-items: flex-start;
+  /* Its own height, not the taller stats panel's beside it, so no empty card area. */
+  align-self: start;
   gap: 20px;
 }
 
@@ -289,17 +291,40 @@
 
 .tabs {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
 }
 
-.roleTabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* The role switch holds a count too, so its segments are wider than the 140px default. */
+.tabs .roleSwitch {
+  grid-template-columns: repeat(2, minmax(0, 180px));
+}
+
+@media (max-width: 600px) {
+  .tabs,
+  .tabs > ul {
+    width: 100%;
+  }
+
+  .tabs .roleSwitch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The upcoming count beside each role, a small pill inside the switch. */
+.roleCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 /* Account section: the panel with "Çıxış", then the danger zone. */
@@ -378,10 +403,6 @@
 
   .sport {
     grid-template-columns: 104px minmax(0, 1fr) 3ch;
-    gap: 10px;
-  }
-
-  .roleTabs {
     gap: 10px;
   }
 

@@ -33,6 +33,8 @@ const clubCounted = sql`
 
 const idList = (ids: number[]) => sql.join(ids.map((id) => sql`${id}`), sql`, `)
 const iso = (value: Date | string) => new Date(value).toISOString()
+/** Only games from `since` on (the leaderboard's "Bu ay"); everything when null. */
+const sinceFilter = (since: Date | null) => (since ? sql`AND g.scheduled_at >= ${since.toISOString()}` : sql``)
 
 export type RecordGame = PlayedGame & { sport: string }
 
@@ -64,16 +66,17 @@ export async function playerRecords(db: Db, userIds: number[]): Promise<Map<numb
 /**
  * The player leaderboard of one sport: everyone with a counted game in it, in league-table order
  * (points, goal difference, goals scored), the same rule as the club standings. Players level on all
- * three: fewer games first (the same points from fewer games), then by name.
+ * three: fewer games first (the same points from fewer games), then by name. `since` limits it to
+ * games from then on.
  * shortcut: reads every counted row of the sport, fine for thousands of games; past that, aggregate in SQL.
  */
-export async function playerStandings(db: Db, sport: string) {
+export async function playerStandings(db: Db, sport: string, since: Date | null = null) {
   const { rows } = await db.execute<Row & { user_id: number; full_name: string | null }>(sql`
     SELECT p.user_id, u.full_name, p.side, g.home_score, g.away_score, g.scheduled_at, g.sport
     FROM game_participants p
     JOIN games g ON g.id = p.game_id
     JOIN users u ON u.id = p.user_id
-    WHERE g.sport = ${sport} AND ${counted}
+    WHERE g.sport = ${sport} AND ${counted} ${sinceFilter(since)}
   `)
   const players = new Map<number, { name: string; games: RecordGame[] }>()
   for (const row of rows) {
@@ -90,7 +93,7 @@ export async function playerStandings(db: Db, sport: string) {
  * Each club's counted games, from the side the club stood on. A club's record is the games it was
  * named in, whoever turned up to play them. Clubs with none are absent from the map.
  */
-export async function teamRecords(db: Db, teamIds: number[]): Promise<Map<number, RecordGame[]>> {
+export async function teamRecords(db: Db, teamIds: number[], since: Date | null = null): Promise<Map<number, RecordGame[]>> {
   const records = new Map<number, RecordGame[]>()
   if (teamIds.length === 0) return records
 
@@ -100,7 +103,7 @@ export async function teamRecords(db: Db, teamIds: number[]): Promise<Map<number
            g.home_score, g.away_score, g.scheduled_at, g.sport
     FROM teams t
     JOIN games g ON g.home_team_id = t.id OR g.away_team_id = t.id
-    WHERE t.id IN (${idList(teamIds)}) AND ${clubCounted}
+    WHERE t.id IN (${idList(teamIds)}) AND ${clubCounted} ${sinceFilter(since)}
   `)
   for (const row of rows) records.set(row.team_id, [...(records.get(row.team_id) ?? []), toGame(row)])
   return records

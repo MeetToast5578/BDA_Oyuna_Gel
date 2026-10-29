@@ -47,3 +47,27 @@
   font-size: 18px;
   font-variant-numeric: tabular-nums;
 }
+
+/* The viewer's own result, in the results colours (see --color-win/draw/loss). */
+.outcome {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.win {
+  background: var(--color-win);
+}
+
+.draw {
+  background: var(--color-draw);
+  color: var(--color-heading);
+}
+
+.loss {
+  background: var(--color-loss);
+}

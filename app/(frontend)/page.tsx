@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import { GamesSection } from '@/components/games/GamesSection'
 import { GamesSectionSkeleton, TicketCarouselSkeleton } from '@/components/games/skeletons'
 import { Hero } from '@/components/home/Hero'
+import { HowItWorks } from '@/components/home/HowItWorks'
 import { TicketCarousel } from '@/components/home/TicketCarousel'
 import { DEFAULT_CITY, FEATURED_LIMIT } from '@/lib/game-backend'
 import { getFeaturedGames } from '@/lib/game-queries'
@@ -64,6 +65,7 @@ export default function HomePage({ searchParams }: { searchParams: SearchParams 
       >
         <OpenGames searchParams={searchParams} />
       </Suspense>
+      <HowItWorks />
     </>
   )
 }

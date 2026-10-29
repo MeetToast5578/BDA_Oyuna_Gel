@@ -183,6 +183,23 @@
   }
 }
 
+/* The viewer's own row stands out in a long table. */
+.table .mine td {
+  background: var(--color-primary-tint);
+}
+
+.mineTag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
 .rank {
   display: inline-grid;
   place-items: center;
@@ -247,4 +264,12 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--color-heading);
+}
+
+/* The leaderboard's two switches: players or clubs, all time or this month. */
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
 }

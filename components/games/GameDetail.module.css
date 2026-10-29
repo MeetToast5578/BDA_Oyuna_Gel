@@ -285,9 +285,11 @@ a.phone:hover {
   text-underline-offset: 3px;
 }
 
-/* "Xəritədə aç" on a venue page, under the address. */
-.mapLink {
-  align-self: flex-start;
+/* A venue's two actions under the address: start a game there, or find it on a map. */
+.venueActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 /* The venue in a game's facts links to its page. */

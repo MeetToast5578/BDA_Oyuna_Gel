@@ -199,6 +199,11 @@ export function lastBakuMonths(now: Date, count: number) {
   })
 }
 
+/** The first moment of the current Baku calendar month, for "Bu ay". */
+export function startOfBakuMonth(now: Date) {
+  return new Date(`${lastBakuMonths(now, 1)[0].key}-01T00:00:00+04:00`)
+}
+
 /** "fevral 2026", the Baku calendar month, for "Qeydiyyat: fevral 2026" on a profile. */
 export function formatBakuMonthYear(dateInput?: string | Date | null) {
   const date = toDate(dateInput)

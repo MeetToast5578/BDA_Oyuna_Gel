@@ -143,12 +143,15 @@ export function GameForm({
   user,
   today,
   initialSport,
+  initialVenue,
   game,
   teams = [],
 }: {
   user: CurrentUser
   today: string
   initialSport?: string
+  /** "Burada oyun yarat" on a venue's page: that venue, already chosen. */
+  initialVenue?: Venue
   /** Set to edit that game instead of creating one. Only its host ever gets this far. */
   game?: GameDetail
   /** The clubs a side can be given: all with members, `mine` where the host is a member. */
@@ -179,7 +182,9 @@ export function GameForm({
   const [invitees, setInvitees] = useState<{ player: FoundPlayer; side: 'home' | 'away' }[]>([])
   // The side the host plays on, with their guests. Chosen when creating; an edit keeps it (the host moves like anyone).
   const [hostSide, setHostSide] = useState<'home' | 'away'>(game?.hostSide ?? 'home')
-  const [venue, setVenue] = useState<Venue | null>(game?.venue ?? null)
+  // Read once: afterwards the person opens and closes the section themselves.
+  const [optionalOpen] = useState(() => Boolean(game?.teams.home || game?.teams.away))
+  const [venue, setVenue] = useState<Venue | null>(game?.venue ?? initialVenue ?? null)
   // Date and time are kept as typed; the API values ("2026-09-19", "19:30") are derived from the text
   // and the chosen format, so switching format or picking from the calendar just rewrites the text.
   const [dateFormat, setDateFormat] = useState<DateFormat>('dd.mm.yyyy')
@@ -719,120 +724,124 @@ export function GameForm({
             </div>
           </fieldset>
 
-          <fieldset className={form.field}>
-            <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
-              Komandalar (istəyə bağlı)
-            </legend>
-            {clubsOfSport.length === 0 ? (
-              <p className={form.hint}>
-                {SPORT_LABELS[sport]} üçün hələ komanda yoxdur. İki komanda arasında oyun üçün{' '}
-                <a href={`/teams/new?sport=${sport}`} target="_blank" rel="noopener noreferrer">
-                  komanda yaradın
-                </a>{' '}
-                (yeni səhifədə açılır, bu forma itmir).
-              </p>
-            ) : (
-              <>
-                {!editing && (
-                  <div className={`${styles.choices} ${styles.levels} ${styles.hostSideChoices}`} role="radiogroup" aria-label="Siz hansı komandadasınız?">
-                    {(['home', 'away'] as const).map((side) => (
-                      <label key={side} className={`${styles.choice} ${styles.levelChoice} ${styles.hostSideChoice}`}>
-                        <input type="radio" name="hostSide" value={side} checked={hostSide === side} onChange={() => setHostSide(side)} />
-                        {side === 'home' ? 'Mən A komandasındayam' : 'Mən B komandasındayam'}
-                      </label>
-                    ))}
-                  </div>
-                )}
-                <div className={form.row}>
-                  <div className={form.field}>
-                    <label htmlFor={ids.homeTeam} className={form.labelSmall}>
-                      A komandası{hostSide === 'home' ? ' (siz)' : ''}
-                    </label>
-                    <select
-                      id={ids.homeTeam}
-                      className={`${form.input} ${form.inputCompact}`}
-                      value={homeTeam}
-                      onChange={(event) => setHomeTeam(event.target.value)}
-                    >
-                      <option value="">Açıq — hər kəs oynaya bilər</option>
-                      {homeChoices.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.name} · {team.memberCount} üzv
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className={form.field}>
-                    <label htmlFor={ids.awayTeam} className={form.labelSmall}>
-                      B komandası{hostSide === 'away' ? ' (siz)' : ''}
-                    </label>
-                    <select
-                      id={ids.awayTeam}
-                      className={`${form.input} ${form.inputCompact}`}
-                      value={awayTeam}
-                      onChange={(event) => setAwayTeam(event.target.value)}
-                    >
-                      <option value="">Açıq — hər kəs oynaya bilər</option>
-                      {awayChoices.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.name} · {team.memberCount} üzv
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <p className={form.hint}>Komanda seçilən tərəfdə yalnız həmin komandanın üzvləri oynaya bilər.</p>
-              </>
-            )}
-          </fieldset>
-
-          {!editing && (
+          {/* Most games need neither, so they wait behind one line; a game that has clubs opens with them shown. */}
+          <details className={styles.optional} open={optionalOpen}>
+            <summary className={styles.optionalSummary}>Komandalar və oyunçular (istəyə bağlı)</summary>
             <fieldset className={form.field}>
               <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
-                Oyunçular (istəyə bağlı)
+                Komandalar
               </legend>
-              <TeamSheet
-                labels={sideLabels}
-                maxCount={maxCount}
-                host={{ name: user.fullName, initials: user.initials, avatarUrl: user.avatarUrl }}
-                hostSide={hostSide}
-                guests={currentCount - 1}
-                invitees={invitees}
-                onMove={(playerId) =>
-                  setInvitees((current) => current.map((item) => (item.player.id === playerId ? { ...item, side: item.side === 'home' ? 'away' : 'home' } : item)))
-                }
-                onRemove={(playerId) => setInvitees((current) => current.filter((item) => item.player.id !== playerId))}
-              />
-              <div className={invitesStyles.actions}>
-                <button
-                  type="button"
-                  className={buttonClass('outlinePrimary', 'md')}
-                  disabled={invitees.length >= maxCount - 1}
-                  onClick={() => setPickerOpen(true)}
-                  aria-haspopup="dialog"
-                >
-                  + Oyunçu əlavə et
-                </button>
-              </div>
-              <p className={form.hint}>
-                Seçdiyiniz oyunçulara dəvət gedir: qəbul edib oyuna qoşulanda yerləri ayrılır, dəvət yer tutmur. Fikrinizi dəyişsəniz
-                ✕ ilə silə, ⇄ ilə o biri komandaya keçirə bilərsiniz. Oyun yaradıldıqdan sonra da əlavə edə bilərsiniz.
-              </p>
-              <PlayerPicker
-                open={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                sideLabels={sideLabels}
-                defaultSide={hostSide}
-                taken={invitees.map(({ player }) => player.id)}
-                onAdd={(players, side) =>
-                  setInvitees((current) => [
-                    ...current,
-                    ...players.filter((player) => !current.some((item) => item.player.id === player.id)).map((player) => ({ player, side })),
-                  ])
-                }
-              />
+              {clubsOfSport.length === 0 ? (
+                <p className={form.hint}>
+                  {SPORT_LABELS[sport]} üçün hələ komanda yoxdur. İki komanda arasında oyun üçün{' '}
+                  <a href={`/teams/new?sport=${sport}`} target="_blank" rel="noopener noreferrer">
+                    komanda yaradın
+                  </a>{' '}
+                  (yeni səhifədə açılır, bu forma itmir).
+                </p>
+              ) : (
+                <>
+                  {!editing && (
+                    <div className={`${styles.choices} ${styles.levels} ${styles.hostSideChoices}`} role="radiogroup" aria-label="Siz hansı komandadasınız?">
+                      {(['home', 'away'] as const).map((side) => (
+                        <label key={side} className={`${styles.choice} ${styles.levelChoice} ${styles.hostSideChoice}`}>
+                          <input type="radio" name="hostSide" value={side} checked={hostSide === side} onChange={() => setHostSide(side)} />
+                          {side === 'home' ? 'Mən A komandasındayam' : 'Mən B komandasındayam'}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <div className={form.row}>
+                    <div className={form.field}>
+                      <label htmlFor={ids.homeTeam} className={form.labelSmall}>
+                        A komandası{hostSide === 'home' ? ' (siz)' : ''}
+                      </label>
+                      <select
+                        id={ids.homeTeam}
+                        className={`${form.input} ${form.inputCompact}`}
+                        value={homeTeam}
+                        onChange={(event) => setHomeTeam(event.target.value)}
+                      >
+                        <option value="">Açıq — hər kəs oynaya bilər</option>
+                        {homeChoices.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name} · {team.memberCount} üzv
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={form.field}>
+                      <label htmlFor={ids.awayTeam} className={form.labelSmall}>
+                        B komandası{hostSide === 'away' ? ' (siz)' : ''}
+                      </label>
+                      <select
+                        id={ids.awayTeam}
+                        className={`${form.input} ${form.inputCompact}`}
+                        value={awayTeam}
+                        onChange={(event) => setAwayTeam(event.target.value)}
+                      >
+                        <option value="">Açıq — hər kəs oynaya bilər</option>
+                        {awayChoices.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name} · {team.memberCount} üzv
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <p className={form.hint}>Komanda seçilən tərəfdə yalnız həmin komandanın üzvləri oynaya bilər.</p>
+                </>
+              )}
             </fieldset>
-          )}
+
+            {!editing && (
+              <fieldset className={form.field}>
+                <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
+                  Oyunçular
+                </legend>
+                <TeamSheet
+                  labels={sideLabels}
+                  maxCount={maxCount}
+                  host={{ name: user.fullName, initials: user.initials, avatarUrl: user.avatarUrl }}
+                  hostSide={hostSide}
+                  guests={currentCount - 1}
+                  invitees={invitees}
+                  onMove={(playerId) =>
+                    setInvitees((current) => current.map((item) => (item.player.id === playerId ? { ...item, side: item.side === 'home' ? 'away' : 'home' } : item)))
+                  }
+                  onRemove={(playerId) => setInvitees((current) => current.filter((item) => item.player.id !== playerId))}
+                />
+                <div className={invitesStyles.actions}>
+                  <button
+                    type="button"
+                    className={buttonClass('outlinePrimary', 'md')}
+                    disabled={invitees.length >= maxCount - 1}
+                    onClick={() => setPickerOpen(true)}
+                    aria-haspopup="dialog"
+                  >
+                    + Oyunçu əlavə et
+                  </button>
+                </div>
+                <p className={form.hint}>
+                  Seçdiyiniz oyunçulara dəvət gedir: qəbul edib oyuna qoşulanda yerləri ayrılır, dəvət yer tutmur. Fikrinizi dəyişsəniz
+                  ✕ ilə silə, ⇄ ilə o biri komandaya keçirə bilərsiniz. Oyun yaradıldıqdan sonra da əlavə edə bilərsiniz.
+                </p>
+                <PlayerPicker
+                  open={pickerOpen}
+                  onClose={() => setPickerOpen(false)}
+                  sideLabels={sideLabels}
+                  defaultSide={hostSide}
+                  taken={invitees.map(({ player }) => player.id)}
+                  onAdd={(players, side) =>
+                    setInvitees((current) => [
+                      ...current,
+                      ...players.filter((player) => !current.some((item) => item.player.id === player.id)).map((player) => ({ player, side })),
+                    ])
+                  }
+                />
+              </fieldset>
+            )}
+          </details>
 
           <div className={form.field}>
             <label htmlFor={ids.title} className={form.labelSmall}>

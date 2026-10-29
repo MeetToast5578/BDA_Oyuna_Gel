@@ -83,14 +83,14 @@ async function VenueContent({ params }: Props) {
             </li>
           </ul>
           {venue.description && <p className={styles.muted}>{venue.description}</p>}
-          <a
-            href={mapsUrl(venue)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonClass('primary', 'md', { className: styles.mapLink })}
-          >
-            Xəritədə aç
-          </a>
+          <div className={styles.venueActions}>
+            <Link href={`/games/new?venue=${venue.id}`} className={buttonClass('primary', 'md')}>
+              Burada oyun yarat
+            </Link>
+            <a href={mapsUrl(venue)} target="_blank" rel="noopener noreferrer" className={buttonClass('outlinePrimary', 'md')}>
+              Xəritədə aç
+            </a>
+          </div>
         </div>
       </section>
 

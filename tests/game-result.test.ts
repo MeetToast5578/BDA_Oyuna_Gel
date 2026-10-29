@@ -213,6 +213,9 @@ describe.skipIf(!process.env.DATABASE_URL)('reporting and confirming a score (Po
     await answer(gameId, 'opponent', 'confirm')
     expect(await view('host')).toMatchObject({ canReport: false, canConfirm: false })
     expect(await view('opponent')).toMatchObject({ canConfirm: false })
+    // Where each viewer stood, for the page's "Siz qalib gəldiniz": the host's side, the rival's, nobody's.
+    const side = async (who: Who | null) => (await getGameDetail(gameId, who ? userIds[who] : null))?.viewer.side
+    expect([await side('host'), await side('opponent'), await side('stranger'), await side(null)]).toEqual(['home', 'away', null, null])
   })
 
   it('does not offer a score on a game that is not over', async () => {

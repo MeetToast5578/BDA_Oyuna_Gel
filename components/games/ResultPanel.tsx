@@ -5,13 +5,15 @@ import { useId, useRef, useState, useTransition, type FormEvent } from 'react'
 
 import { postJson } from '@/lib/api-client'
 import type { GameDetail } from '@/lib/api-types'
-import { MAX_SCORE, parseResultBody } from '@/lib/team-logic'
+import { MAX_SCORE, outcomeFor, parseResultBody } from '@/lib/team-logic'
 import { buttonClass } from '@/components/ui/button'
 import danger from '@/components/ui/danger.module.css'
 import form from '@/components/ui/form.module.css'
 import { Modal } from '@/components/ui/Modal'
 import detail from './GameDetail.module.css'
 import styles from './ResultPanel.module.css'
+
+const OUTCOME_NOTES = { win: 'Siz qalib gəldiniz', draw: 'Heç-heçə', loss: 'Siz uduzdunuz' }
 
 const STATUS_NOTES = {
   reported: 'Təsdiq gözləyir',
@@ -82,6 +84,12 @@ export function ResultPanel({ game }: { game: GameDetail }) {
             {sideNames.home} — {sideNames.away}
           </p>
           <p className={`${styles.status} ${styles[result.status]}`}>{STATUS_NOTES[result.status]}</p>
+          {/* Only a settled score says who won; a reported one can still change. */}
+          {result.status === 'confirmed' && game.viewer.side && (
+            <p className={`${styles.outcome} ${styles[outcomeFor(game.viewer.side, result.homeScore, result.awayScore)]}`}>
+              {OUTCOME_NOTES[outcomeFor(game.viewer.side, result.homeScore, result.awayScore)]}
+            </p>
+          )}
         </div>
       ) : (
         <p className={detail.muted}>Hesab hələ daxil edilməyib.</p>

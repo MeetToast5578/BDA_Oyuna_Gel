@@ -445,7 +445,8 @@ export async function getGameDetail(
     ...toGameCard(game),
     host: { ...game.host, phone: joined || isHost ? doc.contactPhone ?? null : null },
     participants: { preview: previews.get(String(gameId)) ?? [], total: game.currentCount },
-    viewer: { joined, isHost, canDeclineClub },
+    /** `side`: where the viewer played (the host's side for the host), for "Siz qalib gəldiniz". */
+    viewer: { joined, isHost, canDeclineClub, side: resultActor.side ?? (isHost ? sides.hostSide : null) },
     /** People waiting for a spot in a full game, and the viewer's place on that list (1 is next). */
     waitlist: waiting,
     freeBySide: { home: Math.max(cap - taken.home, 0), away: Math.max(cap - taken.away, 0) },

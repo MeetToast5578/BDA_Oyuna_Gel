@@ -124,6 +124,20 @@
   gap: 10px;
 }
 
+/* A game that has started is a fact, not an action: plain text, not a grey button-like block. */
+.past .state {
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 0;
+  background: none;
+  color: var(--color-heading);
+  text-align: left;
+}
+
+.past .pastNote {
+  text-align: left;
+}
+
 .pastNote {
   font-size: 13.5px;
   line-height: 1.45;
