@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   countOpenGamesBySport,
+  placeLabel,
   deriveAvailability,
   foldForSearch,
   formatBakuLabel,
@@ -17,7 +18,9 @@ import {
   parseEditGameBody,
   parseGameListParams,
   datePresetWindow,
+  lastBakuMonths,
   mapsUrl,
+  matchupLabel,
   venueImageUrl,
   parseMyGamesParams,
   parseProfileTabs,
@@ -25,6 +28,9 @@ import {
   profileTabsQuery,
   rankFeatured,
   startOfBakuDay,
+  startOfBakuMonth,
+  repeatDateKey,
+  parseGroupLink,
   toGameCard,
   toPlayer,
 } from '@/lib/game-backend'
@@ -50,6 +56,52 @@ const inHours = (hours: number) => new Date(NOW + hours * HOUR_MS).toISOString()
 
 afterEach(() => {
   vi.unstubAllEnvs()
+})
+
+describe('parseGroupLink', () => {
+  it('takes WhatsApp and Telegram invites only', () => {
+    expect(parseGroupLink(' https://chat.whatsapp.com/AbCdEf123456 ')).toBe('https://chat.whatsapp.com/AbCdEf123456')
+    expect(parseGroupLink('https://t.me/+AbCdEf12345')).toBe('https://t.me/+AbCdEf12345')
+    expect(parseGroupLink('https://t.me/joinchat/AbCdEf12345')).toBe('https://t.me/joinchat/AbCdEf12345')
+    expect(parseGroupLink('https://t.me/oyunagel_baku')).toBe('https://t.me/oyunagel_baku')
+    for (const bad of ['http://chat.whatsapp.com/AbCdEf123456', 'https://chat.whatsapp.com.evil.az/AbCdEf123456', 'https://example.com', 'javascript:alert(1)', 'https://chat.whatsapp.com/x', 42]) {
+      expect(parseGroupLink(bad)).toBeUndefined()
+    }
+    expect([parseGroupLink(''), parseGroupLink('  '), parseGroupLink(null), parseGroupLink(undefined)]).toEqual([null, null, null, null])
+  })
+})
+
+describe('repeatDateKey', () => {
+  it('is the same weekday a week or more later, never before today', () => {
+    // Friday 16 Oct 2026 at 19:00 Baku (15:00 UTC).
+    const startsAt = '2026-10-16T15:00:00.000Z'
+    expect(repeatDateKey(startsAt, '2026-10-17')).toBe('2026-10-23')
+    expect(repeatDateKey(startsAt, '2026-10-29')).toBe('2026-10-30')
+    expect(repeatDateKey(startsAt, '2026-10-30')).toBe('2026-10-30')
+    // An upcoming game repeats to the week after it.
+    expect(repeatDateKey('2026-11-05T15:00:00.000Z', '2026-10-29')).toBe('2026-11-12')
+    // 22:00 UTC on the 16th is already the 17th in Baku.
+    expect(repeatDateKey('2026-10-16T22:00:00.000Z', '2026-10-20')).toBe('2026-10-24')
+  })
+})
+
+describe('startOfBakuMonth', () => {
+  it('is midnight on the 1st in Baku, which is 20:00 UTC the day before', () => {
+    // 31 Oct 21:00 UTC is already 1 November in Baku.
+    expect(startOfBakuMonth(new Date('2026-10-31T21:00:00Z')).toISOString()).toBe('2026-10-31T20:00:00.000Z')
+    expect(startOfBakuMonth(new Date('2026-10-15T12:00:00Z')).toISOString()).toBe('2026-09-30T20:00:00.000Z')
+  })
+})
+
+describe('lastBakuMonths', () => {
+  it('counts back across the new year in Baku time', () => {
+    // 31 Dec 21:00 UTC is already 1 January in Baku.
+    expect(lastBakuMonths(new Date('2026-12-31T21:00:00Z'), 3)).toEqual([
+      { key: '2026-11', label: 'Noy' },
+      { key: '2026-12', label: 'Dek' },
+      { key: '2027-01', label: 'Yan' },
+    ])
+  })
 })
 
 describe('deriveAvailability', () => {
@@ -467,7 +519,7 @@ describe('toPlayer', () => {
       side: 'away',
       user: { id: 7, fullName: 'Rəşad Babayev', profilePicture: { url: '/api/media/file/resad.png' } },
     })
-    expect(player).toEqual({ id: '7', name: 'Rəşad Babayev', initials: 'RB', avatarUrl: '/api/media/file/resad.png', side: 'away' })
+    expect(player).toEqual({ id: '7', name: 'Rəşad Babayev', initials: 'RB', avatarUrl: '/api/media/file/resad.png', side: 'away', attendance: null })
   })
 
   it('falls back to the name typed into the join form, then to a placeholder', () => {
@@ -490,6 +542,7 @@ describe('toPlayer', () => {
       initials: 'SƏ',
       avatarUrl: null,
       side: 'home',
+      attendance: null,
     })
   })
 })
@@ -620,6 +673,11 @@ describe('parseCreateGameBody', () => {
         maxCount: 10,
         currentCount: 2,
         contactPhone: '+994502103456',
+        groupLink: null,
+        homeTeamId: null,
+        awayTeamId: null,
+        hostSide: 'home',
+        invites: [],
       },
     })
   })
@@ -660,6 +718,9 @@ describe('parseCreateGameBody', () => {
     expect(parse({ currentCount: 10 })).toMatchObject({ ok: false, code: 'INVALID_CURRENT_COUNT' })
     expect(parse({ currentCount: -1 })).toMatchObject({ ok: false, code: 'INVALID_CURRENT_COUNT' })
     expect(parse({ hostPhone: '12345' })).toMatchObject({ ok: false, code: 'INVALID_PHONE' })
+    expect(parse({ groupLink: 'https://example.com/group' })).toMatchObject({ ok: false, code: 'INVALID_GROUP_LINK' })
+    expect(parse({ groupLink: 'https://chat.whatsapp.com/AbCdEf123456' })).toMatchObject({ ok: true, input: { groupLink: 'https://chat.whatsapp.com/AbCdEf123456' } })
+    expect(parse({})).toMatchObject({ ok: true, input: { groupLink: null } })
     expect(parseCreateGameBody(null, new Date(NOW))).toMatchObject({ ok: false, code: 'INVALID_SPORT' })
   })
 })
@@ -835,6 +896,7 @@ describe('normalizeGameRecord / toGameCard', () => {
       maxCount: 10,
       remainingSpots: 1,
       status: 'open',
+      teams: { home: null, away: null },
       coverImageUrl: '/images/game-football-1-7880cc.png',
       coverImage: {
         thumbnailUrl: '/images/game-football-1-7880cc.png',
@@ -924,5 +986,66 @@ describe('normalizeGameRecord / toGameCard', () => {
 
     const uploaded = normalizeGameRecord({ ...raw, arena: { ...raw.arena, image: venuePhoto, imagePath } }, NOW)
     expect(uploaded.cover.fullUrl).toBe('/api/media/file/inter-1600x900.webp')
+  })
+})
+
+describe('clubs on a game', () => {
+  const club = (name: string) => ({ id: '1', name })
+
+  it('labels the matchup, an open side reading "Açıq", and nothing when neither side has a club', () => {
+    expect(matchupLabel({ home: club('Qarabağ'), away: club('Neftçi') })).toBe('Qarabağ vs Neftçi')
+    expect(matchupLabel({ home: club('Qarabağ'), away: null })).toBe('Qarabağ vs Açıq')
+    expect(matchupLabel({ home: null, away: club('Neftçi') })).toBe('Açıq vs Neftçi')
+    expect(matchupLabel({ home: null, away: null })).toBeNull()
+  })
+
+  it('reads the clubs off a populated game and ignores an unpopulated id', () => {
+    const base = { id: 3, title: 'T', sport: 'football', scheduledAt: '2030-01-01T10:00:00Z', maxPlayers: 10, availablePlayers: 5 }
+    const card = toGameCard(normalizeGameRecord({ ...base, homeTeam: { id: 8, name: 'Qarabağ' }, awayTeam: 9 }))
+    expect(card.teams).toEqual({ home: { id: '8', name: 'Qarabağ' }, away: null })
+    expect(toGameCard(normalizeGameRecord(base)).teams).toEqual({ home: null, away: null })
+  })
+
+  it('parses a club per side, reading absent, null and empty as open, and refuses anything else', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const parse = (extra: object) => parseCreateGameBody({ ...body, ...extra }, new Date('2029-12-01'))
+    expect(parse({})).toMatchObject({ ok: true, input: { homeTeamId: null, awayTeamId: null } })
+    expect(parse({ homeTeamId: '', awayTeamId: null })).toMatchObject({ ok: true, input: { homeTeamId: null, awayTeamId: null } })
+    expect(parse({ homeTeamId: 4, awayTeamId: '7' })).toMatchObject({ ok: true, input: { homeTeamId: 4, awayTeamId: 7 } })
+    for (const bad of [0, -1, 1.5, 'abc', true, {}]) {
+      expect(parse({ homeTeamId: bad })).toMatchObject({ ok: false, code: 'INVALID_TEAM' })
+    }
+  })
+
+  it('reads the host\'s side, defaulting to home, and refuses anything but home or away', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const parse = (extra: object) => parseCreateGameBody({ ...body, ...extra }, new Date('2029-12-01'))
+    expect(parse({})).toMatchObject({ ok: true, input: { hostSide: 'home' } })
+    expect(parse({ hostSide: '' })).toMatchObject({ ok: true, input: { hostSide: 'home' } })
+    expect(parse({ hostSide: 'away' })).toMatchObject({ ok: true, input: { hostSide: 'away' } })
+    expect(parse({ hostSide: 'random' })).toMatchObject({ ok: false, code: 'INVALID_SIDE' })
+  })
+
+  it('reads the players to invite on create, ignores them on an edit, and refuses a bad list', () => {
+    const body = { sport: 'football', level: 'medium', venueId: 1, scheduledDate: '2030-01-01', scheduledTime: '18:00', maxCount: 10 }
+    const now = new Date('2029-12-01')
+    const invites = [{ userId: 4, side: 'away' }]
+    expect(parseCreateGameBody({ ...body, invites }, now)).toMatchObject({ ok: true, input: { invites } })
+    expect(parseCreateGameBody({ ...body, invites: [{ userId: 4, side: 'x' }] }, now)).toMatchObject({ ok: false, code: 'INVALID_INVITES' })
+    // The edit form has no invites: whatever is sent is not read, so it can't invite anyone.
+    expect(parseEditGameBody({ ...body, invites }, 1, now)).toMatchObject({ ok: true, input: { invites: [] } })
+    expect(parseEditGameBody({ ...body, invites: 'garbage' }, 1, now)).toMatchObject({ ok: true, input: { invites: [] } })
+  })
+})
+
+describe('placeLabel', () => {
+  it('follows the vowel of the last spoken word of the number', () => {
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9].map(placeLabel)).toEqual([
+      '1-cisiniz', '2-cisiniz', '3-cüsünüz', '4-cüsünüz', '5-cisiniz', '6-cısınız', '7-cisiniz', '8-cisiniz', '9-cusunuz',
+    ])
+    expect([10, 20, 30, 40, 60, 90, 100, 1000].map(placeLabel)).toEqual([
+      '10-cusunuz', '20-cisiniz', '30-cusunuz', '40-cısınız', '60-cısınız', '90-cısınız', '100-cüsünüz', '1000-cisiniz',
+    ])
+    expect([13, 26, 29].map(placeLabel)).toEqual(['13-cüsünüz', '26-cısınız', '29-cusunuz'])
   })
 })

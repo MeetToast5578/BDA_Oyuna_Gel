@@ -21,6 +21,14 @@ Errors always have the shape:
 | Empty state ("Hələ açıq oyun yoxdur")   | `GET /api/v1/games?sport=…` returning `games: []`    |
 | Oyun Detalı                             | `GET /api/v1/games/{id}`                             |
 | İştirakçılar (the avatar row's list)    | `GET /api/v1/games/{id}/participants`                |
+| Komandaları dəyiş / Balansla (host)     | `PATCH /api/v1/games/{id}/sides`                     |
+| Gəldi / Gəlmədi (host, a week after kick-off) | `PATCH /api/v1/games/{id}/attendance` with `{ userId, attendance }`, attendance `came`, `absent` or `null`; answers like `/sides`. 409 `ATTENDANCE_CLOSED` outside that week or on a cancelled game, `NOT_A_PLAYER` for the host or someone not in it. Profiles show `reliability: { marked, came }` from 3 marked games |
+| Komandalar (list)                       | `GET /api/v1/teams?sport=…`                          |
+| Komanda yarat                           | `POST /api/v1/teams`                                 |
+| Komanda səhifəsi                        | `GET /api/v1/teams/{id}`                             |
+| Komandaya qoş / çıx / üzvü çıxar        | `POST /teams/{id}/join` · `/leave` · `DELETE /teams/{id}/members/{userId}` |
+| Hesabı daxil et (host)                  | `POST /api/v1/games/{id}/result`                     |
+| Təsdiqlə / Etiraz et (other side)       | `POST /api/v1/games/{id}/result/confirm`             |
 | Qoşulma modalı, addım 1 → addım 2       | Client-side only; nothing is sent yet                |
 | "Bir addım qaldı" → "Qoşulmanı təsdiq et" | `POST /api/v1/games/{id}/join` (returns host phone) |
 | Yeni Oyun Yarat: Meydança picker        | `GET /api/v1/venues?sport=…&q=…`                     |
@@ -30,7 +38,12 @@ Errors always have the shape:
 | Oyundan çıx (game page, profile cards)  | `POST /api/v1/games/{id}/leave`                      |
 | Profil                                  | `GET` / `PATCH` / `DELETE /api/v1/me`                |
 | Mənim oyunlarım                         | `GET /api/v1/me/games?role=…&when=…`                 |
+| Bildirişləri oxunmuş et                 | `POST /api/v1/me/notifications/read` (the `/notifications` page calls it) |
+| Telefona bildiriş (this device)         | `POST /api/v1/me/push` with the browser's `PushSubscription` JSON (`endpoint` https, `keys.p256dh`, `keys.auth`); 400 `INVALID_SUBSCRIPTION`, 429 after 10 an hour. `DELETE` with `{ endpoint }` removes the caller's own |
+| Meydança təklif et                      | `POST /api/v1/venue-suggestions` with `{ name, sports[], district?, address?, note? }`; signed in, 5 a day (429 after), 400 `INVALID_SUGGESTION`. Admins review them in Payload under Venue Suggestions |
+| 2 saat qalmış xatırlatma (scheduler)    | `GET /api/cron/reminders` with `Authorization: Bearer $CRON_SECRET`, every 15 minutes |
 | Başqa oyunçunun profili                 | `GET /api/v1/users/{id}`                             |
+| Elo, tarixçə (both profiles)            | `GET /api/v1/me` and `/users/{id}` also carry `elo` (per sport: `rating`, `peak`, `games`, `history` of ratings after each game; start 1000, K 32, a side is its players' average, from the same counted scores as the record) and `history` (last 30 played games, newest first: `score` from the person's side, `outcome` and `eloDelta` once the score counts); `/users/{id}` also `stats` like `/me` |
 | Daxil ol                                | Google only, see [Accounts](#accounts)               |
 
 Joining and creating games require a signed-in account. The create form asks for the host's phone (prefilled from the profile); the host name is taken from the account. The join modal is a two-step wizard: step 1 collects the player's name and phone, step 2 shows the host and sends them.
@@ -85,6 +98,7 @@ Returned by the list, featured and detail endpoints.
   "maxCount": 12,
   "remainingSpots": 1,
   "status": "open",
+  "teams": { "home": { "id": "7", "name": "Qarabağ Veteranlar" }, "away": null },
   "coverImageUrl": "/api/media/file/cover-1600x900.webp",
   "coverImage": {
     "thumbnailUrl": "/api/media/file/cover-480x270.webp",
@@ -94,6 +108,10 @@ Returned by the list, featured and detail endpoints.
   "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null }
 }
 ```
+
+`teams` is the club on each side of the game; `null` is a side open to anyone. The card shows
+"Qarabağ Veteranlar vs Açıq" when either side has a club, and the join modal and players list name
+the sides after their clubs.
 
 - The card line "Aku Arena · Nizami, Bakı · Orta səviyyə" is `venue.name · venue.district, venue.cityLabel · levelLabel`.
 - "6/10 oyunçu" / "4 yer qalıb" are `currentCount/maxCount` and `remainingSpots`.
@@ -193,10 +211,26 @@ so games that start soon and are nearly full rank first. Ties go to the earlier 
   "…": "game card",
   "host": { "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "phone": null },
   "participants": { "preview": [{ "id": "9", "name": "…", "initials": "RM", "avatarUrl": null }], "total": 11 },
-  "viewer": { "joined": false, "isHost": false },
-  "freeBySide": { "home": 2, "away": 3 }
+  "viewer": { "joined": false, "isHost": false, "canDeclineClub": false },
+  "waitlist": { "count": 2, "yourPosition": null },
+  "freeBySide": { "home": 2, "away": 3 },
+  "hostSide": "home",
+  "result": { "homeScore": 3, "awayScore": 1, "status": "reported" },
+  "canReport": false,
+  "canConfirm": true
 }
 ```
+
+`result` is the game's score, `null` until the host reports one. `status` is `reported` (waiting for
+the other side), `confirmed` (final) or `disputed` (the host must report again); a report left
+unanswered for 48 hours reads as `confirmed` when someone with an account stood on the other side
+(with only guests there it stays `reported` until an admin settles it). `canReport` and `canConfirm` are what this viewer may
+do now, decided by the same rules the [score routes](#post-apiv1gamesidresult) enforce, so a page
+never re-derives them. `waitlist` is how many are waiting for a spot in this (full) game, and the viewer's place on that list
+(`1` is next, `null` when they aren't on it); see [the waitlist](#post-apiv1gamesidwaitlist).
+`viewer.canDeclineClub` is true for the captain of the club the host put
+against their own side, while the game hasn't started: it shows "Oyundan çəkil", see
+[`POST /api/v1/games/{id}/decline-club`](#post-apiv1gamesiddecline-club).
 
 `freeBySide` is the free spots on each half of the game ("A komandası" is `home`, "B komandası" is
 `away`), for the join modal's side picker. Each side holds half of `maxCount`; the host's guests
@@ -218,10 +252,15 @@ from a second ago.
     { "id": "7", "name": "Aysel Quliyeva", "initials": "AQ", "avatarUrl": "/api/media/file/aysel.png", "side": "away", "you": true },
     { "id": null, "name": "Rəşad Babayev", "initials": "RB", "avatarUrl": null, "side": "home", "you": false }
   ],
-  "others": 2
+  "others": 2,
+  "canMove": false,
+  "sideNames": { "home": "Qarabağ Veteranlar", "away": null }
 }
 ```
 
+- `sideNames` is the name of each side's club, `null` for an open side ("A komandası" and "B komandası").
+- `canMove` is `true` only for the host of a game that hasn't started: the page then shows the move
+  buttons and "Balansla" ([`PATCH /sides`](#patch-apiv1gamesidsides)).
 - `side` is the half of the game each player is on; the page lists the two sides as columns.
 - The host comes first, then the players in the order they joined. Each row links to
   `/users/{id}`, and the viewer's own (`you`) to `/profile`.
@@ -231,12 +270,215 @@ from a second ago.
   created the game, who have no account to list ("+2 nəfər hostla birlikdə gəlir").
 - No phone numbers. `404 GAME_NOT_FOUND`, `400 INVALID_GAME_ID`.
 
+## `POST /api/v1/games/{id}/result`
+
+"Hesabı daxil et". The host (or an admin) reports the score once the game is over. Body:
+`{ "homeScore": 3, "awayScore": 1 }`, both whole numbers from 0 to 300 ("A komandası" is home). It
+answers `{ "game": … }`, the same body as the game detail.
+
+- The score then waits for a player on the other side from the host to confirm or dispute it
+  ([`POST /result/confirm`](#post-apiv1gamesidresultconfirm)). Reporting again, after a dispute or to
+  correct a typo, starts the 48-hour clock over and clears the earlier answer.
+- A confirmed score is final, and so is one nobody on the other side answered for 48 hours (when
+  someone with an account stood there): `409 RESULT_LOCKED`. An
+  admin can still change it, and an admin's report is confirmed at once.
+- Errors: `400 INVALID_RESULT`, `400 INVALID_GAME_ID`, `401 UNAUTHENTICATED`, `403 NOT_GAME_HOST`,
+  `404 GAME_NOT_FOUND`, `409 GAME_NOT_FINISHED` (the game hasn't ended, or was cancelled).
+
+## `POST /api/v1/games/{id}/result/confirm`
+
+"Təsdiqlə" / "Etiraz et". A signed-in player who stands on the other side from the host answers the
+reported score. Body: `{ "action": "confirm" }` or `{ "action": "dispute" }`. Answers
+`{ "game": … }`.
+
+- Errors: `400 INVALID_ACTION`, `401 UNAUTHENTICATED`, `403 FORBIDDEN` (not a player on the other
+  side: the host's own teammates, strangers and the host can't answer), `404 GAME_NOT_FOUND`,
+  `409 NOTHING_TO_CONFIRM` (no score reported, or it is already confirmed or disputed),
+  `409 GAME_NOT_FINISHED`.
+
+## `DELETE /api/v1/games/{id}/players/{userId}`
+
+"Çıxar": the host (admins too) takes a player out of a game that hasn't started. The spot goes back to
+the game exactly as the player's own [leave](#post-apiv1gamesidleave) gives it back (same `releaseSpot`
+transaction, so a second removal, or one racing the player's own leave, changes nothing). The removed
+player gets an email (when email is on, and they haven't turned it off). **200** returns the players
+list, the same shape as `GET /participants`.
+
+| Status | `code`              | When                                           |
+| ------ | ------------------- | ---------------------------------------------- |
+| 400    | `INVALID_USER_ID`   | `userId` is not a positive integer             |
+| 401    | `UNAUTHENTICATED`   | Not signed in                                  |
+| 403    | `NOT_GAME_HOST`     | Signed in, but not this game's host            |
+| 404    | `GAME_NOT_FOUND`    |                                                |
+| 409    | `NOT_JOINED`        | That user isn't in the game (also a second removal) |
+| 409    | `HOST_CANNOT_LEAVE` | The host can't be removed; delete the game     |
+| 409    | `GAME_STARTED`      | Already kicked off, cancelled or finished      |
+
+## `POST /api/v1/games/{id}/waitlist`
+
+"Gözləmə siyahısına yaz". A full game is not a dead end: signed-in players can wait for a spot. The body
+is the join form's `{ "name", "phone" }` (a missing one falls back to the profile; a `400` follows if
+the profile has none). Only while the game is upcoming and has **no free spot**, and not for the host
+or someone already playing. Runs under the game's row lock, so a spot freeing up at the same moment is
+either seen (`GAME_NOT_FULL`) or promoted right after. At most 30 wait for one game. Counted with joins
+and leaves for the rate limit. **200** returns `{ "position": 2, "waitlist": { "count": 2, "yourPosition": 2 } }`.
+
+**When a spot comes back, it goes to the first person waiting, with no further step**: the same
+transaction that frees it (a player leaving, the host removing someone, a bigger game after an edit, a
+deleted account) takes the oldest sign-up that can stand on a side with room (`pickSide`: a club's side
+only takes its members, neither side passes half), so the spot never shows as free. Someone who can't
+stand on any side with room is passed over and keeps their place. The newcomer's participant row has
+`promotedAt` set, they are emailed (when email is on), and for three days the profile shows the spot
+under "Gözləmə siyahısı" and the header's count includes it. Nothing is promoted into a game that has
+started. A direct join (a spot on a side nobody waiting could take) removes the person's sign-up.
+
+| Status | `code`              | When                                                       |
+| ------ | ------------------- | ---------------------------------------------------------- |
+| 400    | `INVALID_NAME` / `INVALID_PHONE` | As for join                                   |
+| 401    | `UNAUTHENTICATED`   | Not signed in                                              |
+| 404    | `GAME_NOT_FOUND`    |                                                            |
+| 409    | `GAME_NOT_JOINABLE` | Started, finished or cancelled                             |
+| 409    | `GAME_NOT_FULL`     | There is a free spot: join instead                         |
+| 409    | `ALREADY_JOINED`    | The person already holds a spot                            |
+| 409    | `ALREADY_WAITING`   | Already on this game's list                                |
+| 409    | `HOST_CANNOT_WAIT`  | The host                                                   |
+| 409    | `WAITLIST_FULL`     | 30 people are waiting already                              |
+| 429    | `RATE_LIMITED`      | As for join                                                |
+
+`DELETE /api/v1/games/{id}/waitlist` ("Siyahıdan çıx") takes the caller off the list and answers
+`{ "waitlist": { … } }`; `409 NOT_WAITING` when they weren't on it.
+
+## Invitations
+
+The host can name players, not only wait for them. An **invite** is a player and a side: it holds **no
+spot** (the spot is taken when the person joins) and only pre-picks the side. The player answers by
+joining (`POST /games/{id}/join`, which marks the invite accepted whichever way they got there) or by
+declining. A player who declined can't be invited to that game again; one who accepted and then left can.
+
+### `POST /api/v1/games/{id}/invites`
+
+"Dəvət et". Host or admin, before kick-off. Body is `{ "userId": 7, "side": "away" }` for one player,
+`{ "invites": [{ "userId": 7, "side": "away" }, …] }` for several at once (the player picker adds a few
+together; one refused invite refuses the batch), or `{ "clubSide": "home" }` for everyone in that side's club who isn't in the game or invited yet, as many
+as that side has free spots (nobody left to invite is `invited: 0`, not an error). Runs under the game's
+row lock; every invite is checked before any is written. **200** returns
+`{ "invited": 1, "invites": [ … ] }`, the list as `GET` gives it. The invited players get an email
+(when email is on, and they haven't turned it off).
+
+| Status | `code`                | When                                                                  |
+| ------ | --------------------- | --------------------------------------------------------------------- |
+| 400    | `INVALID_INVITE`      | Not `{ userId, side }` or `{ clubSide }`                              |
+| 401    | `UNAUTHENTICATED`     | Not signed in                                                         |
+| 403    | `NOT_GAME_HOST`       | Signed in, but not this game's host                                   |
+| 404    | `GAME_NOT_FOUND`      |                                                                       |
+| 404    | `USER_NOT_FOUND`      | No such player                                                        |
+| 409    | `GAME_STARTED`        | Started, finished or cancelled                                        |
+| 409    | `ALREADY_IN_GAME`     | The player (or the host) already holds a spot                         |
+| 409    | `ALREADY_INVITED`     | Invited already: pending, or they declined                            |
+| 409    | `INVITE_NOT_A_MEMBER` | That side is a club's and the player isn't in it                      |
+| 409    | `TOO_MANY_INVITES`    | Open invites would pass the game's size                               |
+| 409    | `NO_CLUB`             | `clubSide` names a side with no club                                  |
+| 429    | `RATE_LIMITED`        | 60 invites an hour per host, across all their games                   |
+
+The create body (`POST /api/v1/games`) can carry `invites: [{ userId, side }]` (at most one per player,
+up to 21), checked and written in the same transaction as the game: one refused invite refuses the whole
+game and leaves nothing behind. A bad list is `400 INVALID_INVITES`; the rows above apply as well.
+
+### `GET /api/v1/games/{id}/invites`
+
+Host or admin. The invitations still open or turned down, oldest first:
+`{ "invites": [{ "id": "5", "side": "away", "status": "pending", "player": { "id": "7", "name": "…", "initials": "…", "avatarUrl": null } }] }`.
+`status` is `pending` or `declined`; accepted invites are the players in the game's list.
+
+### `DELETE /api/v1/games/{id}/invites/{inviteId}`
+
+"Geri götür". Host or admin takes back an invite nobody has answered; a declined one stays as it is.
+**200** returns the list. `404 INVITE_NOT_FOUND`, `400 INVALID_INVITE_ID`, and the `401` / `403` / `404` above.
+
+### `GET /api/v1/me/invites`
+
+The signed-in player's invitations, soonest game first (up to 20): only those for a game that hasn't
+started and that they haven't joined. Each is `{ id, gameId, title, sportLabel, dateLabel, timeLabel,
+venueName, hostName, side, sideLabel }`, with `sideLabel` the club's name or "A komandası" / "B komandası".
+The profile shows them under "Dəvətlər" and the header's profile link carries their count. "Bax və qoşul"
+opens `/games/{gameId}?join=1&side={side}`.
+
+### `POST /api/v1/invites/{id}/decline`
+
+"Rədd et". The invited player turns an invite down and gets their remaining list back. The same
+`404 INVITE_NOT_FOUND` answers someone else's invite and one already answered, so ids can't be probed.
+
+### `GET /api/v1/users`
+
+The player list behind "Oyunçu əlavə et" (a window with every player, a search bar and filters).
+Signed-in only. Query:
+
+| Query    | Default | Notes                                                                                  |
+| -------- | ------- | -------------------------------------------------------------------------------------- |
+| `q`      | none    | Narrows by name, any length. A substring, ignoring case and Azerbaijani letters (`eli` finds "Əli") |
+| `filter` | `all`   | `clubs`: members of the clubs the caller is in. `recent`: people they have played with, latest game first. Else `400 INVALID_FILTER` |
+| `page`   | `1`     | 1-based. Else `400 INVALID_PAGE`                                                       |
+| `limit`  | `20`    | 1–50. Else `400 INVALID_PAGE`                                                          |
+| `gameId` | none    | Leaves out people already in that game or invited to it. Host or admin only (`403 NOT_GAME_HOST`, `404 GAME_NOT_FOUND`), since it tells who is invited. Else `400 INVALID_GAME_ID` |
+
+Everyone but the caller, by name unless `recent`. Only what a public profile already shows, **never an
+email or a number**: `{ "users": [{ "id": "7", "name": "…", "initials": "…", "avatarUrl": null }], "hasMore": true, "page": 1 }`.
+Any signed-in user can page through every account's name and picture this way, up to 120 requests a
+minute per user or IP (`429 RATE_LIMITED`; a scan of the users table, noted in `lib/invites.ts`).
+
+## `POST /api/v1/games/{id}/decline-club`
+
+"Komandanı oyundan çıxar". The host names the opposing club without asking it, so this is how it
+answers: the captain of the club on the side **opposite the host** (or an admin) takes it out, before
+kick-off, and that side becomes open to anyone. Players already standing on it stay, because an open
+side admits anyone. Runs under the game's row lock. **200** returns `{ "game": { … } }`.
+
+| Status | `code`             | When                                                        |
+| ------ | ------------------ | ----------------------------------------------------------- |
+| 401    | `UNAUTHENTICATED`  | Not signed in                                               |
+| 403    | `NOT_CAPTAIN`      | Not the opposing club's captain (the host's own club's captain isn't either) |
+| 404    | `GAME_NOT_FOUND`   |                                                             |
+| 409    | `GAME_STARTED`     | Started, finished or cancelled                              |
+| 409    | `NO_OPPONENT_CLUB` | The side opposite the host is already open                  |
+
+A host can name the same club again by editing the game; its captain can decline again.
+
+## `PATCH /api/v1/games/{id}/sides`
+
+"Komandaları dəyiş": the host moves players between the two sides, or presses "Balansla". Host or
+admin only, and only before kick-off. Everything runs in one transaction under the game's row lock,
+so a join racing it waits, and a request that would break a rule changes nothing.
+
+Move players (at most one move per player, up to 22):
+
+```json
+{ "assignments": [{ "userId": 7, "side": "away" }] }
+```
+
+Or balance everyone:
+
+```json
+{ "balance": true }
+```
+
+- Balancing makes the sides equal in size first, then in strength (each player's confirmed record,
+  a newcomer counting as 0.5). The host stays where they are and their guests with them. Members of
+  a club stay on its side.
+- `200` answers with the same body as [`GET /participants`](#get-apiv1gamesidparticipants), so the
+  page can redraw the list.
+- Errors: `400 INVALID_SIDES` (bad body), `401 UNAUTHENTICATED`, `403 NOT_GAME_HOST`,
+  `404 GAME_NOT_FOUND`, `409 GAME_STARTED`, `409 NOT_IN_GAME` (a player who isn't in the game),
+  `409 NOT_A_MEMBER` (a club's side is for its members), `409 SIDE_FULL` (a side would hold more
+  than half the game, guests included).
+
 ## `PATCH /api/v1/games/{id}`
 
 "Oyunu redaktə et". **Host only** (admins too); everyone else gets `403`.
 
 Body is the create-game form minus `currentCount`: `sport`, `level`, `venueId`, `scheduledDate`,
-`scheduledTime`, `maxCount`, `hostPhone` and an optional `title`. Who is in the game is decided by
+`scheduledTime`, `maxCount`, `hostPhone`, an optional `title` and the optional `homeTeamId` and
+`awayTeamId`. Like every field, the clubs are replaced by what the form sends: leaving them out
+clears them. Who is in the game is decided by
 who joined, not by the host editing a number, so `currentCount` is ignored if sent — only the free
 spots move when `maxCount` changes.
 
@@ -253,6 +495,8 @@ spots move when `maxCount` changes.
 | 404    | `GAME_NOT_FOUND`          |                                                               |
 | 409    | `GAME_STARTED`            | The game has started (admins too: they correct it in `/admin`) |
 | 409    | `SIDE_FULL`               | The new `maxCount` leaves a side with more players than half  |
+| 409    | `NOT_A_MEMBER`            | A chosen club's side holds a player who isn't a member: the host moves them first |
+| 400    | `TEAM_NOT_FOUND`, `TEAM_SPORT_MISMATCH`, `SAME_TEAM`, `INVALID_TEAM` | A club that doesn't exist, plays another sport, is on both sides, or isn't an id |
 
 ## `DELETE /api/v1/games/{id}`
 
@@ -273,6 +517,9 @@ Body: `{ "name": "Kərim Məmmədov", "phone": "+994 50 210 34 56" }` — what s
 
 `side` is optional: `"home"`, `"away"` or `"random"` (the default). Random takes the emptier side,
 with a coin flip on a tie. A side that belongs to a club only admits its members.
+
+A link to one side, `/games/{id}?join=1&side=home|away`, opens the join form with that side picked
+(the share menu offers one per side). A signed-out visitor signs in first and comes back to it.
 
 A `phone` sent is kept on the profile (see [Remembered phone number](#remembered-phone-number)) when the profile has none, or when `"saveToProfile": true` asks to replace it.
 
@@ -306,7 +553,10 @@ The spot is taken when this request succeeds. The "Bir addım qaldı" modal then
 | 409    | `ALREADY_JOINED`    | This user already holds a spot                            |
 | 409    | `SIDE_FULL`         | The chosen side is full (the other may still have room)   |
 | 409    | `NOT_A_MEMBER`      | The chosen side is a club's, and this user isn't in it    |
-| 429    | `RATE_LIMITED`      | 10 join or leave requests in the last minute (user or IP) |
+| 429    | `RATE_LIMITED`      | 10 join, leave or waitlist requests in a minute (user or IP) |
+
+**Rate limits** (`lib/rate-limit.ts`) count in the `rate_limits` table, one row per key and window, with a
+single `INSERT … ON CONFLICT DO UPDATE … RETURNING count`, so parallel requests can't slip past together.
 
 **Concurrency.** The spot is claimed with one conditional `UPDATE … WHERE available_players > 0` inside a transaction (`lib/join-game.ts`). Postgres re-checks the condition after the row lock is released, so when two requests race for the last spot, exactly one succeeds and the other gets `409 GAME_FULL`, across any number of app instances. A unique `(game, user)` index prevents double joins, and a rejected join rolls the decrement back. The side is picked under the same row lock, so two joins can't both take a side's last spot. Every attempt is written to the `join-attempts` collection (outcome, game, user, IP), readable by admins.
 
@@ -351,12 +601,15 @@ Options for the "Meydança" picker.
 | `currentCount`  | "Mövcud iştirakçı sayı": players already in, including the host, `1 … maxCount − 1` (0 or missing counts as 1). The game opens with `maxCount − currentCount` spots |
 | `maxCount`      | Even (two equal sides), from 2 up to the sport's full size: football 22, basketball 10, tennis 4 |
 | `hostPhone`     | Optional if the profile has a phone number; shown to players after they join |
+| `groupLink`     | Optional WhatsApp (`https://chat.whatsapp.com/…`) or Telegram (`https://t.me/…`) group invite; like the phone, `GET /games/{id}` shows it only to the host and players who joined. `""` or `null` removes it. 400 `INVALID_GROUP_LINK` otherwise |
 | `title`         | Optional, defaults to "Futbol oyunu" etc. (the design has no title field)  |
+| `homeTeamId`, `awayTeamId` | Optional club ids, one per side ("Komandalar"); absent, `null` or `""` leaves the side open to anyone. The club on the host's own side must be one the host is in. Both must play the game's sport, and not be the same club. A side with a club admits only its members |
+| `hostSide` | Optional `home` (default) or `away`: the side the host stands on, where their `currentCount − 1` guests stand too until it is full. Create only: an edit ignores it, and the host moves like any player (`PATCH /sides`) |
 | `saveToProfile` | Optional `true`: also replace the profile's number with `hostPhone` (see [Remembered phone number](#remembered-phone-number)) |
 
 The host name ("Ad Soyad (Host)") comes from the account, so show it read-only.
 
-**201** `{ "game": { …as GET /api/v1/games/{id} }, "savedToProfile": true }`. Errors: `401 UNAUTHENTICATED`; `400` with `INVALID_SPORT`, `INVALID_LEVEL`, `INVALID_VENUE`, `INVALID_DATE`, `DATE_IN_PAST`, `INVALID_MAX_COUNT`, `INVALID_CURRENT_COUNT`, `INVALID_PHONE`, `VENUE_NOT_FOUND`, `VENUE_SPORT_MISMATCH`, `PHONE_REQUIRED`.
+**201** `{ "game": { …as GET /api/v1/games/{id} }, "savedToProfile": true }`. Errors: `401 UNAUTHENTICATED`; `400` with `INVALID_SPORT`, `INVALID_LEVEL`, `INVALID_VENUE`, `INVALID_DATE`, `DATE_IN_PAST`, `INVALID_MAX_COUNT`, `INVALID_CURRENT_COUNT`, `INVALID_PHONE`, `VENUE_NOT_FOUND`, `VENUE_SPORT_MISMATCH`, `PHONE_REQUIRED`, `INVALID_TEAM`, `TEAM_NOT_FOUND`, `TEAM_SPORT_MISMATCH`, `SAME_TEAM`, `INVALID_SIDE`; `409 NOT_A_MEMBER` (the host isn't in the club of their own side); `429 RATE_LIMITED` (10 games an hour per user or IP).
 
 ### Remembered phone number
 
@@ -388,6 +641,95 @@ places in a full game. Response body matches the join endpoint.
 | 409    | `GAME_STARTED`      | Already kicked off, cancelled or finished             |
 | 429    | `RATE_LIMITED`      | As for join; joins and leaves share the count         |
 
+## Clubs
+
+A club is a named team with one sport, a captain and members. Anyone signed in can create one and
+becomes its captain; others join through the captain's invite link. Clubs with no members are hidden
+from the list but stay readable, because past games point at them.
+
+### `GET /api/v1/teams`
+
+"Komandalar". Public. `?sport=football|basketball|tennis` narrows it (`400 INVALID_SPORT` otherwise).
+Biggest club first.
+
+```json
+{
+  "teams": [{
+    "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol", "memberCount": 9,
+    "record": { "played": 3, "wins": 1, "draws": 1, "losses": 1, "winRate": 0.33, "scored": 4, "conceded": 4, "points": 4, "form": ["loss", "draw", "win"] }
+  }],
+  "standings": [{ "…": "the same clubs, as a league table" }]
+}
+```
+
+`record` is the club's record from confirmed scores, over the games it was named in (home or away
+club), whoever turned up. Only a score a player on the other side confirmed (or an admin set) counts
+for a club: the 48-hour rule never does, so a host can't give themselves wins over a club that never
+answered. With `?sport=`, `standings` holds the same clubs in league order: points,
+then goal difference, then goals scored, then the bigger club. Different sports can't share a table,
+so without `?sport=` there is no `standings`.
+
+### `POST /api/v1/teams`
+
+"Komanda yarat". Body: `{ "name": "Qarabağ Veteranlar", "sport": "football" }`; the name is 2 to 40
+characters. Answers `201 { "id": "7" }`. The creator is the captain and the first member.
+
+- Errors: `400 INVALID_NAME`, `400 INVALID_SPORT`, `401 UNAUTHENTICATED`, `409 TOO_MANY_CLUBS` (a
+  person captains at most 5), `429 RATE_LIMITED` (10 clubs an hour per user or IP).
+
+### `GET /api/v1/teams/{id}`
+
+A club's page. Public; signing in marks your own row.
+
+```json
+{
+  "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol", "memberCount": 2,
+  "members": [{ "id": "4", "name": "Elvin Abbasov", "initials": "EA", "avatarUrl": null, "isCaptain": true, "you": false }],
+  "record": { "…": "as in GET /api/v1/teams" },
+  "upcoming": [{ "id": "40", "title": "Cümə axşamı 5-ə-5", "opponent": "Neftçi", "dateLabel": "Cüm, 23 Okt", "timeLabel": "20:00", "freeSpots": 3, "maxCount": 10 }],
+  "recent": [{ "id": "31", "title": "Cümə axşamı 5-ə-5", "startsAt": "…", "dateLabel": "Cüm, 9 Okt", "homeScore": 3, "awayScore": 1, "outcome": "win", "opponent": "Neftçi" }],
+  "viewer": { "isMember": false, "isCaptain": false },
+  "inviteCode": null
+}
+```
+
+`upcoming` is up to ten games not yet played where the club is a side, soonest first (`opponent` is
+`null` while the other side is open): how a captain finds a game their club was named in, and
+members find their club's game.
+
+`recent` is the club's latest five counted games, newest first: the score as `homeScore` : `awayScore`
+(the game's A and B sides), the `outcome` from the club's side, and the other club's name (`null`
+when that side was open).
+
+Members are in the order they joined. `inviteCode` is only ever set for the captain: it is the whole
+of what someone needs to join, and the link is `/teams/join/{inviteCode}`. `404 TEAM_NOT_FOUND`,
+`400 INVALID_TEAM_ID`.
+
+### `PATCH /api/v1/teams/{id}`
+
+Captain only. `{ "name": "…" }` renames the club; `{ "regenerateInviteCode": true }` retires the old
+link for a new one (the old code stops working at once). Both may be sent together. Answers the club,
+as `GET` does. Errors: `400 INVALID_NAME`, `400 INVALID_TEAM`, `401`, `403 NOT_CAPTAIN`, `404`.
+
+### `POST /api/v1/teams/{id}/join`
+
+"Komandaya qoş". Body: `{ "code": "…" }`, the code from the invite link. Answers
+`{ "joined": true, "team": … }`; joining a club you are already in does nothing (`joined: false`).
+Errors: `401`, `403 INVALID_INVITE` (wrong or retired code, or a club that has no code yet), `404`.
+
+### `POST /api/v1/teams/{id}/leave`
+
+"Komandadan çıx". A leaving captain hands the club to its longest-standing member; when the last
+member leaves the club is kept with no captain. Games the person already joined on the club's side
+stay as they are. Errors: `401`, `404`, `409 NOT_A_CLUB_MEMBER`.
+
+### `DELETE /api/v1/teams/{id}/members/{userId}`
+
+"Üzvü çıxar". The captain removes a member, with the same hand-over if it is themselves. Errors:
+`401`, `403 NOT_CAPTAIN`, `404`, `409 NOT_A_CLUB_MEMBER`.
+
+Deleting an account hands over every club that person captains, the same way.
+
 ## Profile
 
 ### `GET /api/v1/me`
@@ -405,9 +747,23 @@ also hands the client `role`, `googleId`, `loginAttempts` and `lockUntil`.
   "stats": {
     "totalPlayed": 21,
     "playedBySport": [{ "sport": "football", "label": "Futbol", "iconKey": "football", "playedCount": 9 }]
-  }
+  },
+  "record": {
+    "played": 3, "wins": 1, "draws": 1, "losses": 1, "winRate": 0.33, "scored": 4, "conceded": 4,
+    "points": 4, "form": ["loss", "draw", "win"],
+    "bySport": [{ "sport": "football", "played": 3, "wins": 1, "draws": 1, "losses": 1, "winRate": 0.33, "scored": 4, "conceded": 4, "points": 4, "form": ["loss", "draw", "win"] }]
+  },
+  "clubs": [{ "id": "7", "name": "Qarabağ Veteranlar", "sport": "football", "sportLabel": "Futbol" }]
 }
 ```
+
+- `record` is the win/draw/loss record from games with a **confirmed score**, with the side the person
+  stood on in each: `winRate` is 0–1, `points` is 3 a win and 1 a draw, `form` the last five outcomes
+  newest first, `bySport` the same per sport (every sport present, even with no games). A game whose
+  score nobody confirmed is in `stats` as played but has no result to add here; a score left
+  unanswered for 48 hours counts as confirmed if someone with an account stood on the other side,
+  and a cancelled game never counts.
+- `clubs` are the clubs the person is in, by name.
 
 - `hostingUpcoming` / `joinedUpcoming` match the upcoming lists of `GET /api/v1/me/games`.
 - `hostedPast` and `played` are games that are over and were not cancelled: hosted ones, and joined
@@ -480,11 +836,14 @@ stays gated behind joining the game (`GET /api/v1/games/{id}`).
 {
   "id": "12", "fullName": "Kərim Məmmədov", "firstName": "Kərim", "initials": "KM", "avatarUrl": "…",
   "memberSince": "…", "memberSinceLabel": "fevral 2026", "counts": { "hostingUpcoming": 2, "hostedPast": 7 },
-  "hostedGames": [{ "…": "game card" }]
+  "hostedGames": [{ "…": "game card" }],
+  "record": { "…": "as GET /api/v1/me" },
+  "clubs": [{ "…": "as GET /api/v1/me" }]
 }
 ```
 
-`404 USER_NOT_FOUND` for an id that does not exist.
+`404 USER_NOT_FOUND` for an id that does not exist. `429 RATE_LIMITED` after 120 requests a minute from
+one IP, since ids are sequential.
 
 ## Accounts
 
@@ -500,8 +859,11 @@ an account another way.
 | Current user        | `GET /api/users/me`                                                                     |
 | Log out             | `POST /api/users/logout` (Payload session) **and** `POST /api/auth/logout` (Google session cookie) |
 
-Users can only read and edit their own account. Payload's own email/password login stays enabled for
-the `/admin` panel, but no public screen uses it.
+Users can only read their own account here, and only admins can change one: the site edits profiles
+through `PATCH /api/v1/me`, which validates first. Payload's own email/password login stays enabled for
+the `/admin` panel, but no public screen uses it. Google sign-in finds the account by its Google id; an
+email match only links an account no Google id owns yet, and one owned by another is refused (`409`).
+Venues (`/api/arenas`) are writable by admins only.
 
 ## Unused surfaces
 
@@ -512,12 +874,20 @@ the `/admin` panel, but no public screen uses it.
   so this only closes the REST route that let anyone enumerate one person's games.
 - GraphQL is disabled (`graphQL: { disable: true }`): `/api/v1` is the only data surface.
 
+## Data kept for a while
+
+A daily job (`GET /api/cron/cleanup`, Vercel Cron, `lib/cleanup.ts`) deletes the join/leave log after
+90 days and rate-limit windows after a day, drops the waitlist of games that have started, and clears
+the phone numbers on a game, its players and its waitlist 30 days after it started. It answers 401
+unless called with `Authorization: Bearer $CRON_SECRET`.
+
 ## Uploads
 
 `POST /api/media` (multipart: `file`, plus `_payload` = `{"alt": "…"}`) is open to any signed-in user.
 
 - **Types:** JPEG, PNG and WebP only (`400` otherwise). SVG is refused because it is a document that
   can carry script and would be served from the site's own origin.
+- **Rate:** 20 uploads an hour per user (`429`).
 - **Size:** at most 4 MB (`413`, "Şəkil 4 MB-dan böyük ola bilməz."), below Vercel's 4.5 MB request
   limit, which would otherwise answer with a bare error page.
 - **Ownership:** the server records the uploader in `uploadedBy` and ignores any value sent. Only the

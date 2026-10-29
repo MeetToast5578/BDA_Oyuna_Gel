@@ -40,10 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-node_modules/
 dist/
-.env
-.prisma/
 
-.vercel
-.env*
+# Local uploads (Payload writes them here without a Blob token). The files committed before this
+# line stay tracked, since a hand-deployed site may still serve them; new ones are never committed.
+/media/*

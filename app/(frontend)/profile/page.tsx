@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -8,16 +9,25 @@ import { ProfileSkeleton } from '@/components/games/skeletons'
 import { AccountSection } from '@/components/profile/AccountSection'
 import { DeleteAccount } from '@/components/profile/DeleteAccount'
 import { EmailNotifications } from '@/components/profile/EmailNotifications'
+import { PushNotifications } from '@/components/profile/PushNotifications'
 import { EditProfile, EditProfileButton } from '@/components/profile/EditProfile'
 import styles from '@/components/profile/Profile.module.css'
+import { PendingInvites } from '@/components/profile/PendingInvites'
+import { WaitlistPanel } from '@/components/profile/WaitlistPanel'
 import { ProfileGames } from '@/components/profile/ProfileGames'
 import { ProfileIdentity } from '@/components/profile/ProfileIdentity'
 import { ProfileStats } from '@/components/profile/ProfileStats'
+import { EloPanel } from '@/components/profile/EloPanel'
+import { GameHistory } from '@/components/profile/GameHistory'
+import { RecordPanel } from '@/components/profile/RecordPanel'
 import { parseProfileTabs, profileTabsQuery } from '@/lib/game-backend'
 import { formatPhone } from '@/lib/phone'
+import { getPayloadClient } from '@/lib/game-queries'
+import { myInvites } from '@/lib/invites'
 import { findMyGames, getMyProfile } from '@/lib/profile-queries'
 import { loginHref } from '@/lib/safe-redirect'
 import { getCurrentUser } from '@/lib/session'
+import { myWaitlist } from '@/lib/waitlist'
 
 export const metadata: Metadata = { title: 'Profilim' }
 
@@ -56,9 +66,11 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
   // proxy.ts already sends visitors without a session cookie to /login; this catches an expired one.
   if (!user) redirect(loginHref(`/profile${profileTabsQuery(tabs)}`))
 
-  const [profile, list] = await Promise.all([
+  const [profile, list, invites, waitlist] = await Promise.all([
     getMyProfile(user.id),
     findMyGames(user.id, { ...tabs, page: 1, limit: PAGE_SIZE }),
+    getPayloadClient().then((payload) => myInvites(payload, user.id)),
+    getPayloadClient().then((payload) => myWaitlist(payload, user.id)),
   ])
   // A session that outlived its account (deleted elsewhere) is as good as signed out.
   if (!profile) redirect(loginHref('/profile'))
@@ -95,8 +107,33 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
             actions={<EditProfileButton>Profili redaktə et</EditProfileButton>}
           />
         </EditProfile>
-        <ProfileStats profile={profile} />
+        <ProfileStats
+          tiles={[
+            { value: profile.stats.totalPlayed, label: 'oynanılan oyun' },
+            { value: profile.counts.hostedPast + profile.counts.hostingUpcoming, label: 'təşkil edilən oyun' },
+            { value: profile.counts.joinedUpcoming + profile.counts.hostingUpcoming, label: 'qarşıdakı oyun' },
+          ]}
+          stats={profile.stats}
+          reliability={profile.reliability}
+          emptyText="Hələ heç bir oyunda iştirak etməmisiniz."
+        />
       </div>
+
+      <PendingInvites invites={invites} />
+      <WaitlistPanel waitlist={waitlist} />
+
+      <RecordPanel
+        record={profile.record}
+        clubs={profile.clubs}
+        emptyClubs={
+          <>
+            Hələ heç bir komandada deyilsiniz. <Link href="/teams/new">Komanda yarat</Link> və ya kapitandan dəvət linki istəyin.
+          </>
+        }
+      />
+
+      <EloPanel elo={profile.elo} emptyText="Təsdiqlənmiş hesabı olan ilk oyununuzdan sonra burada görünəcək." />
+      <GameHistory history={profile.history} emptyText="Hələ oynanmış oyununuz yoxdur." />
 
       <ProfileGames
         role={tabs.role}
@@ -107,6 +144,7 @@ async function ProfileContent({ searchParams }: { searchParams: SearchParams }) 
 
       <AccountSection email={profile.email}>
         <EmailNotifications email={profile.email} enabled={profile.emailNotifications} />
+        <PushNotifications />
         <DeleteAccount hostedGames={profile.counts.hostingUpcoming} />
       </AccountSection>
     </>

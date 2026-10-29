@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { apiFetch, ApiError, patchJson, postJson } from '@/lib/api-client'
 import type { CreateGameRequest, CurrentUser, GameDetail, Venue } from '@/lib/api-types'
@@ -23,12 +23,15 @@ import {
   formatBakuTime,
   MIN_MAX_PLAYERS,
   normalizePhone,
+  parseGroupLink,
   PLAYER_COUNT_STEP,
+  repeatDateKey,
   SPORT_META,
 } from '@/lib/game-backend'
 import { formatLocalPhone, PHONE_ERROR, PHONE_PREFIX } from '@/lib/phone'
 import { phoneSource, type PhoneSource } from '@/lib/profile-form'
 import { loginHref } from '@/lib/safe-redirect'
+import type { ClubOption } from '@/lib/teams'
 import { expireSession } from '@/lib/session-actions'
 import { LEVEL_OPTIONS, SPORT_EMOJI, SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 import { buttonClass } from '@/components/ui/button'
@@ -37,16 +40,20 @@ import { Icon } from '@/components/ui/Icon'
 import { Modal } from '@/components/ui/Modal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { PhoneProfileNote } from '@/components/ui/PhoneProfileNote'
+import { PlayerPicker, type FoundPlayer } from '@/components/games/PlayerPicker'
+import invitesStyles from '@/components/games/Invites.module.css'
 import danger from '@/components/ui/danger.module.css'
 import styles from './GameForm.module.css'
 import { CalendarPopover, TimePopover } from './Pickers'
+import { TeamSheet } from './TeamSheet'
 import pickers from './Pickers.module.css'
 import { VenuePicker } from './VenuePicker'
 
-type Field = 'hostPhone' | 'venue' | 'date' | 'time' | 'currentCount' | 'maxCount' | 'title'
+type Field = 'hostPhone' | 'venue' | 'date' | 'time' | 'currentCount' | 'maxCount' | 'title' | 'groupLink'
 type Errors = Partial<Record<Field, string>>
 
 const MAX_COUNT_ERROR = 'Maksimum iştirakçı sayı cüt olmalı və bu idman növünün limitini keçməməlidir.'
+const GROUP_LINK_ERROR = 'WhatsApp (chat.whatsapp.com/…) və ya Telegram (t.me/…) qrup linki daxil edin.'
 const CURRENT_COUNT_ERROR = 'Mövcud iştirakçı sayı ən azı 1 (siz) olmalı və maksimumdan az olmalıdır.'
 
 /** API error codes of `POST /api/v1/games` → the field they belong to and an Azerbaijani message. */
@@ -59,10 +66,15 @@ const API_ERRORS: Record<string, { field?: Field; message: string }> = {
   INVALID_MAX_COUNT: { field: 'maxCount', message: MAX_COUNT_ERROR },
   INVALID_CURRENT_COUNT: { field: 'currentCount', message: CURRENT_COUNT_ERROR },
   INVALID_PHONE: { field: 'hostPhone', message: PHONE_ERROR },
+  INVALID_GROUP_LINK: { field: 'groupLink', message: GROUP_LINK_ERROR },
   PHONE_REQUIRED: { field: 'hostPhone', message: 'Host telefon nömrəsi tələb olunur.' },
   MAX_COUNT_BELOW_PLAYERS: { field: 'maxCount', message: 'Oyunda artıq bu qədər oyunçu var — limiti aşağı sala bilməzsiniz.' },
   NOT_GAME_HOST: { message: 'Yalnız oyunun hostu bu oyunu dəyişə bilər.' },
   GAME_STARTED: { message: 'Oyun artıq başlayıb — onu dəyişmək və ya silmək mümkün deyil.' },
+  NOT_A_MEMBER: { message: 'Seçilən komandanın üzvü olmayan oyunçu həmin tərəfdədir. Ev sahibi komandada isə siz üzv olmalısınız.' },
+  TEAM_SPORT_MISMATCH: { message: 'Seçilən komanda bu idman növünü oynamır.' },
+  SAME_TEAM: { message: 'A və B komandaları eyni ola bilməz.' },
+  TEAM_NOT_FOUND: { message: 'Komanda tapılmadı.' },
   GAME_NOT_FOUND: { message: 'Oyun tapılmadı.' },
   INVALID_SPORT: { message: 'İdman növünü seçin.' },
   INVALID_LEVEL: { message: 'Oyun səviyyəsini seçin.' },
@@ -135,38 +147,62 @@ export function GameForm({
   user,
   today,
   initialSport,
+  initialVenue,
   game,
+  template,
+  teams = [],
 }: {
   user: CurrentUser
   today: string
   initialSport?: string
+  /** "Burada oyun yarat" on a venue's page: that venue, already chosen. */
+  initialVenue?: Venue
   /** Set to edit that game instead of creating one. Only its host ever gets this far. */
   game?: GameDetail
+  /** "Bu oyunu təkrarla": a new game starting from this one's settings, a week (or more) later. */
+  template?: GameDetail
+  /** The clubs a side can be given: all with members, `mine` where the host is a member. */
+  teams?: ClubOption[]
 }) {
   const editing = game !== undefined
+  // What the fields start from: the game being edited, or the one being repeated.
+  const base = game ?? template
   const router = useRouter()
   const baseId = useId()
   const ids = Object.fromEntries(
-    ['name', 'phone', 'date', 'time', 'current', 'max', 'title', 'venue', 'incomplete'].map((key) => [
+    ['name', 'phone', 'date', 'time', 'current', 'max', 'title', 'venue', 'incomplete', 'homeTeam', 'awayTeam', 'groupLink'].map((key) => [
       key,
       `${baseId}-${key}`,
     ]),
-  ) as Record<'name' | 'phone' | 'date' | 'time' | 'current' | 'max' | 'title' | 'venue' | 'incomplete', string>
+  ) as Record<
+    'name' | 'phone' | 'date' | 'time' | 'current' | 'max' | 'title' | 'venue' | 'incomplete' | 'homeTeam' | 'awayTeam' | 'groupLink',
+    string
+  >
 
   const [sport, setSport] = useState(
-    game?.sport ?? (initialSport && SPORT_ORDER.includes(initialSport) ? initialSport : 'football'),
+    base?.sport ?? (initialSport && SPORT_ORDER.includes(initialSport) ? initialSport : 'football'),
   )
-  const [level, setLevel] = useState(game?.level ?? 'medium')
-  const [venue, setVenue] = useState<Venue | null>(game?.venue ?? null)
+  const [level, setLevel] = useState(base?.level ?? 'medium')
+  // The club on each side, as a club id; "" leaves the side open to anyone.
+  const [homeTeam, setHomeTeam] = useState(base?.teams.home?.id ?? '')
+  const [awayTeam, setAwayTeam] = useState(base?.teams.away?.id ?? '')
+  // People the host named to invite, each to a side. Sent with the game; nothing is invited before it is saved.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [invitees, setInvitees] = useState<{ player: FoundPlayer; side: 'home' | 'away' }[]>([])
+  // The side the host plays on, with their guests. Chosen when creating; an edit keeps it (the host moves like anyone).
+  const [hostSide, setHostSide] = useState<'home' | 'away'>(base?.hostSide ?? 'home')
+  // Read once: afterwards the person opens and closes the section themselves.
+  const [optionalOpen] = useState(() => Boolean(base?.teams.home || base?.teams.away))
+  const [venue, setVenue] = useState<Venue | null>(base?.venue ?? initialVenue ?? null)
   // Date and time are kept as typed; the API values ("2026-09-19", "19:30") are derived from the text
   // and the chosen format, so switching format or picking from the calendar just rewrites the text.
   const [dateFormat, setDateFormat] = useState<DateFormat>('dd.mm.yyyy')
   const [dateText, setDateText] = useState(() =>
-    formatDateText(game?.startsAt ? formatBakuDateKey(new Date(game.startsAt)) : today, 'dd.mm.yyyy'),
+    formatDateText(game?.startsAt ? formatBakuDateKey(new Date(game.startsAt)) : template?.startsAt ? repeatDateKey(template.startsAt, today) : today, 'dd.mm.yyyy'),
   )
   const [timeFormat, setTimeFormat] = useState<TimeFormat>('24h')
   const [timeText, setTimeText] = useState(() =>
-    game?.startsAt ? formatTimeText(formatBakuTime(game.startsAt) ?? '', '24h') : '',
+    base?.startsAt ? formatTimeText(formatBakuTime(base.startsAt) ?? '', '24h') : '',
   )
   const date = parseDateText(dateText, dateFormat) ?? ''
   const time = parseTimeText(timeText, timeFormat) ?? ''
@@ -181,19 +217,43 @@ export function GameForm({
   // maxCount − 1, max even and within the sport's limit.
   // When editing, the count is whoever has joined by now and is not the host's to set.
   const [currentCount, setCurrentCount] = useState(game?.currentCount ?? 1)
-  const [maxCount, setMaxCount] = useState(() => game?.maxCount ?? SPORT_META[sport].maxPlayers)
+  const [maxCount, setMaxCount] = useState(() => base?.maxCount ?? SPORT_META[sport].defaultPlayers)
   const sportMax = SPORT_META[sport].maxPlayers
+  // The host stands on one side, so that side's club must be one of theirs; the other side may be any club of the sport.
+  const clubsOfSport = teams.filter((team) => team.sport === sport)
+  const choicesFor = (side: 'home' | 'away') =>
+    clubsOfSport.filter(
+      (team) =>
+        team.id !== (side === 'home' ? awayTeam : homeTeam) &&
+        (side !== hostSide || team.mine || team.id === (side === 'home' ? homeTeam : awayTeam)),
+    )
+  const sideLabels = {
+    home: clubsOfSport.find((team) => team.id === homeTeam)?.name ?? 'A komandası',
+    away: clubsOfSport.find((team) => team.id === awayTeam)?.name ?? 'B komandası',
+  }
+  const homeChoices = choicesFor('home')
+  const awayChoices = choicesFor('away')
   const minMaxCount = editing ? minMaxFor(currentCount) : MIN_MAX_PLAYERS
   // Only the digits after the fixed +994 prefix, formatted as "77 538 60 04".
   const [hostPhone, setHostPhone] = useState(formatLocalPhone(game?.host.phone ?? user.phoneNumber ?? ''))
   // Creating remembers the number on the profile (see PhoneProfileNote); editing a game's number doesn't.
   const phoneNote: PhoneSource = editing ? 'none' : phoneSource(user.phoneNumber, hostPhone)
   const [savePhone, setSavePhone] = useState(false)
-  const [title, setTitle] = useState(game?.title ?? '')
+  const [title, setTitle] = useState(base?.title ?? '')
+  const [groupLink, setGroupLink] = useState(base?.groupLink ?? '')
 
   const [errors, setErrors] = useState<Errors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [sportNotice, setSportNotice] = useState('')
+  // Set by the first change anywhere in the form; leaving the page after that asks first.
+  const [dirty, setDirty] = useState(false)
+  useEffect(() => {
+    if (!dirty || pending) return
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty, pending])
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -203,10 +263,24 @@ export function GameForm({
 
   function chooseSport(next: string) {
     setSport(next)
+    const cleared: string[] = []
+    // A club plays one sport, so one of another sport can't stay on a side.
+    if (homeTeam && teams.find((team) => team.id === homeTeam)?.sport !== next) {
+      setHomeTeam('')
+      cleared.push('komanda')
+    }
+    if (awayTeam && teams.find((team) => team.id === awayTeam)?.sport !== next) {
+      setAwayTeam('')
+      if (!cleared.includes('komanda')) cleared.push('komanda')
+    }
     // A venue that doesn't host the new sport would be rejected by the API.
-    if (venue && !venueOffers(venue, next)) setVenue(null)
-    // Each sport has its own limit (football 22, basketball 10, tennis 4); start from the full size.
-    changeMaxCount(SPORT_META[next].maxPlayers)
+    if (venue && !venueOffers(venue, next)) {
+      setVenue(null)
+      cleared.unshift('meydança')
+    }
+    setSportNotice(cleared.length ? `${SPORT_LABELS[next]} üçün ${cleared.join(' və ')} seçimi sıfırlandı. Yenidən seçin.` : '')
+    // Each sport has its own limit (football 22, basketball 10, tennis 4) and usual size (football 10).
+    changeMaxCount(SPORT_META[next].defaultPlayers)
   }
 
   /** "Mövcud iştirakçı sayı" follows the max down when it would no longer leave a free spot. */
@@ -271,6 +345,7 @@ export function GameForm({
       found.hostPhone = hostPhone.trim() ? PHONE_ERROR : 'Host telefon nömrəsi tələb olunur.'
     }
     if (!venue?.id) found.venue = 'Meydança seçin.'
+    if (parseGroupLink(groupLink) === undefined) found.groupLink = GROUP_LINK_ERROR
     const dateProblem = dateError()
     if (dateProblem) found.date = dateProblem
     const timeProblem = timeError()
@@ -299,7 +374,13 @@ export function GameForm({
       currentCount,
       maxCount,
       hostPhone: `${PHONE_PREFIX} ${hostPhone}`,
+      homeTeamId: homeTeam ? Number(homeTeam) : null,
+      awayTeamId: awayTeam ? Number(awayTeam) : null,
+      ...(editing ? {} : { hostSide }),
+      ...(!editing && invitees.length > 0 ? { invites: invitees.map(({ player, side }) => ({ userId: Number(player.id), side })) } : {}),
       ...(title.trim() ? { title: title.trim() } : {}),
+      // Sent even when empty, so an edit can remove it.
+      groupLink: groupLink.trim() || null,
       ...(phoneNote === 'differs' && savePhone ? { saveToProfile: true } : {}),
     }
 
@@ -358,10 +439,11 @@ export function GameForm({
 
 
   const formBody = (
-    <form className={styles.form} onSubmit={submit} noValidate>
+    // shortcut: only reloads, closing the tab and typed URLs ask before losing the form; in-app links don't (Next has no navigation guard), add one if hosts complain.
+    <form className={styles.form} onSubmit={submit} onChange={() => setDirty(true)} noValidate>
       <div className={styles.main}>
         <section className={styles.section} aria-labelledby="host-section">
-          <h2 id="host-section" className="visually-hidden">
+          <h2 id="host-section" className={styles.sectionTitle}>
             Host məlumatları
           </h2>
           <div className={form.row}>
@@ -401,7 +483,7 @@ export function GameForm({
         </section>
 
         <section className={styles.section} aria-labelledby="game-section">
-          <h2 id="game-section" className="visually-hidden">
+          <h2 id="game-section" className={styles.sectionTitle}>
             Oyun məlumatları
           </h2>
 
@@ -426,6 +508,9 @@ export function GameForm({
                 </label>
               ))}
             </div>
+            <p className={styles.notice} role="status">
+              {sportNotice}
+            </p>
           </fieldset>
 
           <VenuePicker
@@ -652,6 +737,125 @@ export function GameForm({
             </div>
           </fieldset>
 
+          {/* Most games need neither, so they wait behind one line; a game that has clubs opens with them shown. */}
+          <details className={styles.optional} open={optionalOpen}>
+            <summary className={styles.optionalSummary}>Komandalar və oyunçular (istəyə bağlı)</summary>
+            <fieldset className={form.field}>
+              <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
+                Komandalar
+              </legend>
+              {clubsOfSport.length === 0 ? (
+                <p className={form.hint}>
+                  {SPORT_LABELS[sport]} üçün hələ komanda yoxdur. İki komanda arasında oyun üçün{' '}
+                  <a href={`/teams/new?sport=${sport}`} target="_blank" rel="noopener noreferrer">
+                    komanda yaradın
+                  </a>{' '}
+                  (yeni səhifədə açılır, bu forma itmir).
+                </p>
+              ) : (
+                <>
+                  {!editing && (
+                    <div className={`${styles.choices} ${styles.levels} ${styles.hostSideChoices}`} role="radiogroup" aria-label="Siz hansı komandadasınız?">
+                      {(['home', 'away'] as const).map((side) => (
+                        <label key={side} className={`${styles.choice} ${styles.levelChoice} ${styles.hostSideChoice}`}>
+                          <input type="radio" name="hostSide" value={side} checked={hostSide === side} onChange={() => setHostSide(side)} />
+                          {side === 'home' ? 'Mən A komandasındayam' : 'Mən B komandasındayam'}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  <div className={form.row}>
+                    <div className={form.field}>
+                      <label htmlFor={ids.homeTeam} className={form.labelSmall}>
+                        A komandası{hostSide === 'home' ? ' (siz)' : ''}
+                      </label>
+                      <select
+                        id={ids.homeTeam}
+                        className={`${form.input} ${form.inputCompact}`}
+                        value={homeTeam}
+                        onChange={(event) => setHomeTeam(event.target.value)}
+                      >
+                        <option value="">Açıq — hər kəs oynaya bilər</option>
+                        {homeChoices.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name} · {team.memberCount} üzv
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={form.field}>
+                      <label htmlFor={ids.awayTeam} className={form.labelSmall}>
+                        B komandası{hostSide === 'away' ? ' (siz)' : ''}
+                      </label>
+                      <select
+                        id={ids.awayTeam}
+                        className={`${form.input} ${form.inputCompact}`}
+                        value={awayTeam}
+                        onChange={(event) => setAwayTeam(event.target.value)}
+                      >
+                        <option value="">Açıq — hər kəs oynaya bilər</option>
+                        {awayChoices.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name} · {team.memberCount} üzv
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <p className={form.hint}>Komanda seçilən tərəfdə yalnız həmin komandanın üzvləri oynaya bilər.</p>
+                </>
+              )}
+            </fieldset>
+
+            {!editing && (
+              <fieldset className={form.field}>
+                <legend className={form.labelSmall} style={{ marginBottom: 8 }}>
+                  Oyunçular
+                </legend>
+                <TeamSheet
+                  labels={sideLabels}
+                  maxCount={maxCount}
+                  host={{ name: user.fullName, initials: user.initials, avatarUrl: user.avatarUrl }}
+                  hostSide={hostSide}
+                  guests={currentCount - 1}
+                  invitees={invitees}
+                  onMove={(playerId) =>
+                    setInvitees((current) => current.map((item) => (item.player.id === playerId ? { ...item, side: item.side === 'home' ? 'away' : 'home' } : item)))
+                  }
+                  onRemove={(playerId) => setInvitees((current) => current.filter((item) => item.player.id !== playerId))}
+                />
+                <div className={invitesStyles.actions}>
+                  <button
+                    type="button"
+                    className={buttonClass('outlinePrimary', 'md')}
+                    disabled={invitees.length >= maxCount - 1}
+                    onClick={() => setPickerOpen(true)}
+                    aria-haspopup="dialog"
+                  >
+                    + Oyunçu əlavə et
+                  </button>
+                </div>
+                <p className={form.hint}>
+                  Seçdiyiniz oyunçulara dəvət gedir: qəbul edib oyuna qoşulanda yerləri ayrılır, dəvət yer tutmur. Fikrinizi dəyişsəniz
+                  ✕ ilə silə, ⇄ ilə o biri komandaya keçirə bilərsiniz. Oyun yaradıldıqdan sonra da əlavə edə bilərsiniz.
+                </p>
+                <PlayerPicker
+                  open={pickerOpen}
+                  onClose={() => setPickerOpen(false)}
+                  sideLabels={sideLabels}
+                  defaultSide={hostSide}
+                  taken={invitees.map(({ player }) => player.id)}
+                  onAdd={(players, side) =>
+                    setInvitees((current) => [
+                      ...current,
+                      ...players.filter((player) => !current.some((item) => item.player.id === player.id)).map((player) => ({ player, side })),
+                    ])
+                  }
+                />
+              </fieldset>
+            )}
+          </details>
+
           <div className={form.field}>
             <label htmlFor={ids.title} className={form.labelSmall}>
               Oyunun adı (istəyə bağlı)
@@ -664,6 +868,27 @@ export function GameForm({
               value={title}
               onChange={(event) => setTitle(event.target.value)}
             />
+          </div>
+
+          <div className={form.field}>
+            <label htmlFor={ids.groupLink} className={form.labelSmall}>
+              Qrup linki (istəyə bağlı)
+            </label>
+            <input
+              id={ids.groupLink}
+              type="url"
+              inputMode="url"
+              className={`${form.input} ${form.inputCompact}`}
+              placeholder="https://chat.whatsapp.com/…"
+              value={groupLink}
+              onChange={edit('groupLink', setGroupLink)}
+              aria-invalid={invalid('groupLink')}
+              aria-describedby={describe('groupLink', ids.groupLink) ?? `${ids.groupLink}-hint`}
+            />
+            {fieldError('groupLink', ids.groupLink)}
+            <p id={`${ids.groupLink}-hint`} className={form.hint}>
+              WhatsApp və ya Telegram qrupu. Yalnız oyuna qoşulanlar görür.
+            </p>
           </div>
         </section>
       </div>
@@ -682,7 +907,8 @@ export function GameForm({
         <button
           type="submit"
           className={buttonClass('primary', 'xl', { block: true })}
-          disabled={pending || !complete}
+          // Never disabled for missing fields: pressing it marks and focuses the first one to fill in.
+          disabled={pending}
           aria-busy={pending}
           aria-describedby={complete ? undefined : ids.incomplete}
         >

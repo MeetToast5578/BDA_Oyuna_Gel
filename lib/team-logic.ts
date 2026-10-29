@@ -1,6 +1,8 @@
 // Pure team logic: sides in a game, auto-balance, the score's confirm flow and win/loss stats.
 // No Payload or Next imports, like lib/game-backend.ts. Plan: docs/teams-and-stats-plan.md.
 
+import { SPORTS } from '@/lib/game-backend'
+
 export type Side = 'home' | 'away'
 export type SideChoice = Side | 'random'
 export type Outcome = 'win' | 'draw' | 'loss'
@@ -104,6 +106,42 @@ export function parseSidesBody(
   return { ok: true, balance: false, assignments }
 }
 
+/** One named player invited to a side of a game. */
+export type InviteEntry = { userId: number; side: Side }
+
+/** A game holds at most 22 players (football), the host among them, so at most 21 can be invited. */
+export const MAX_INVITES_PER_GAME_FORM = 21
+
+/**
+ * The create body's `invites`: absent or empty is no invites, otherwise `[{ userId, side }]` with at
+ * most one entry per player. Anything else is refused, not trimmed (400 INVALID_INVITES).
+ */
+export function parseInviteEntries(value: unknown): { ok: true; entries: InviteEntry[] } | { ok: false } {
+  if (value === undefined || value === null) return { ok: true, entries: [] }
+  if (!Array.isArray(value) || value.length > MAX_INVITES_PER_GAME_FORM) return { ok: false }
+  const entries: InviteEntry[] = []
+  for (const item of value) {
+    const { userId, side } = (item ?? {}) as Record<string, unknown>
+    if (!Number.isSafeInteger(userId) || (userId as number) <= 0 || (side !== 'home' && side !== 'away')) return { ok: false }
+    if (entries.some((entry) => entry.userId === userId)) return { ok: false }
+    entries.push({ userId: userId as number, side })
+  }
+  return { ok: true, entries }
+}
+
+/**
+ * `POST /invites` body: `{ userId, side }` for one player, `{ invites: [{ userId, side }] }` for several
+ * (the player picker adds a few at once), or `{ clubSide }` for everyone in that side's club.
+ */
+export function parseInviteRequest(
+  body: unknown,
+): { ok: true; club: false; entries: InviteEntry[] } | { ok: true; club: true; side: Side } | { ok: false } {
+  const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  if (doc.clubSide !== undefined) return doc.clubSide === 'home' || doc.clubSide === 'away' ? { ok: true, club: true, side: doc.clubSide } : { ok: false }
+  const parsed = parseInviteEntries(Array.isArray(doc.invites) ? doc.invites : [doc])
+  return parsed.ok && parsed.entries.length > 0 ? { ok: true, club: false, entries: parsed.entries } : { ok: false }
+}
+
 export type PickSideResult = { ok: true; side: Side } | { ok: false; code: 'NOT_A_MEMBER' | 'SIDE_FULL' }
 
 /**
@@ -166,11 +204,16 @@ export function autoBalance(players: BalancePlayer[], maxPlayers: number): Map<n
   return assigned
 }
 
-export type ResultState = { status: ResultStatus | null; reportedAt: string | null }
+/** `rivalsCanAnswer`: someone with an account stands on the side opposite the host, so a report can be disputed. */
+export type ResultState = { status: ResultStatus | null; reportedAt: string | null; rivalsCanAnswer: boolean }
 
-/** The stored status as it stands now: a report left undisputed for AUTO_CONFIRM_HOURS counts as confirmed. */
+/**
+ * The stored status as it stands now: a report left undisputed for AUTO_CONFIRM_HOURS counts as
+ * confirmed, but only when someone on the other side could have disputed it. With nobody there (only
+ * guests) it waits for an admin, so a host can't hand themselves results against an empty side.
+ */
 export function effectiveResultStatus(state: ResultState, now = Date.now()): ResultStatus | null {
-  if (state.status !== 'reported' || !state.reportedAt) return state.status
+  if (state.status !== 'reported' || !state.reportedAt || !state.rivalsCanAnswer) return state.status
   return now - Date.parse(state.reportedAt) >= AUTO_CONFIRM_HOURS * 3_600_000 ? 'confirmed' : 'reported'
 }
 
@@ -298,3 +341,44 @@ export function summarizeBySport(games: (PlayedGame & { sport: string })[], spor
 /** League table order: points, then goal difference, then goals scored. */
 export const compareStandings = (a: WinLossRecord, b: WinLossRecord) =>
   b.points - a.points || b.scored - b.conceded - (a.scored - a.conceded) || b.scored - a.scored
+
+export const TEAM_NAME_MIN = 2
+export const TEAM_NAME_MAX = 40
+/** A longer string can't be an invite code (`newInviteCode` makes 16 characters). */
+const INVITE_CODE_MAX = 64
+
+/** A club name with its whitespace tidied, or null when it isn't 2 to 40 characters. */
+function parseTeamName(value: unknown) {
+  const name = typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : ''
+  return name.length >= TEAM_NAME_MIN && name.length <= TEAM_NAME_MAX ? name : null
+}
+
+/** `POST /teams` body: a name and the one sport the club plays. */
+export function parseCreateTeamBody(
+  body: unknown,
+): { ok: true; name: string; sport: string } | { ok: false; code: 'INVALID_NAME' | 'INVALID_SPORT' } {
+  const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  const name = parseTeamName(doc.name)
+  if (!name) return { ok: false, code: 'INVALID_NAME' }
+  if (typeof doc.sport !== 'string' || !SPORTS.includes(doc.sport)) return { ok: false, code: 'INVALID_SPORT' }
+  return { ok: true, name, sport: doc.sport }
+}
+
+/** `PATCH /teams/{id}` body: a new `name`, and/or `regenerateInviteCode: true` to retire the old link. */
+export function parseUpdateTeamBody(
+  body: unknown,
+): { ok: true; name: string | undefined; regenerateInviteCode: boolean } | { ok: false; code: 'INVALID_NAME' | 'INVALID_TEAM' } {
+  const doc = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  const regenerate = doc.regenerateInviteCode
+  if (doc.name === undefined && regenerate !== true) return { ok: false, code: 'INVALID_TEAM' }
+  if (regenerate !== undefined && regenerate !== true) return { ok: false, code: 'INVALID_TEAM' }
+  if (doc.name === undefined) return { ok: true, name: undefined, regenerateInviteCode: true }
+  const name = parseTeamName(doc.name)
+  return name ? { ok: true, name, regenerateInviteCode: regenerate === true } : { ok: false, code: 'INVALID_NAME' }
+}
+
+/** `POST /teams/{id}/join` body: the invite code from the link. */
+export function parseJoinTeamBody(body: unknown): { ok: true; code: string } | { ok: false } {
+  const code = body && typeof body === 'object' ? (body as Record<string, unknown>).code : null
+  return typeof code === 'string' && code.length > 0 && code.length <= INVITE_CODE_MAX ? { ok: true, code } : { ok: false }
+}

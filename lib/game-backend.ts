@@ -1,5 +1,7 @@
 // Pure game logic shared by the API routes, collections and tests. No Payload or Next imports here.
 
+import { parseInviteEntries, type InviteEntry } from '@/lib/team-logic'
+
 export type AvailabilityStatus = 'open' | 'full' | 'live' | 'finished' | 'cancelled'
 
 type Doc = Record<string, unknown>
@@ -19,11 +21,19 @@ const CITY_LABELS: Record<string, string> = Object.fromEntries(CITY_OPTIONS.map(
  */
 export const SPORT_META: Record<
   string,
-  { label: string; iconKey: string; image: string; maxPlayers: number; durationMinutes: number }
+  {
+    label: string
+    iconKey: string
+    image: string
+    maxPlayers: number
+    /** What a new game starts at on the form: most football here is 5- or 6-a-side, not 11. */
+    defaultPlayers: number
+    durationMinutes: number
+  }
 > = {
-  football: { label: 'Futbol', iconKey: 'football', image: '/images/game-football-1-7880cc.png', maxPlayers: 22, durationMinutes: 90 },
-  basketball: { label: 'Basketbol', iconKey: 'basketball', image: '/images/game-basketball-1-4a0ddf.png', maxPlayers: 10, durationMinutes: 60 },
-  tennis: { label: 'Tennis', iconKey: 'tennis', image: '/images/game-tennis-1-3ee73d.png', maxPlayers: 4, durationMinutes: 90 },
+  football: { label: 'Futbol', iconKey: 'football', image: '/images/game-football-1-7880cc.png', maxPlayers: 22, defaultPlayers: 10, durationMinutes: 90 },
+  basketball: { label: 'Basketbol', iconKey: 'basketball', image: '/images/game-basketball-1-4a0ddf.png', maxPlayers: 10, defaultPlayers: 10, durationMinutes: 60 },
+  tennis: { label: 'Tennis', iconKey: 'tennis', image: '/images/game-tennis-1-3ee73d.png', maxPlayers: 4, defaultPlayers: 4, durationMinutes: 90 },
 }
 export const SPORTS = Object.keys(SPORT_META)
 
@@ -142,6 +152,18 @@ export function formatBakuDateKey(date: Date) {
   return bakuDayKey.format(date)
 }
 
+/**
+ * "Bu oyunu təkrarla": the same weekday as `startsAt`, a whole number of weeks later, on `today` or
+ * after (both Baku date keys, "2026-10-29"). At least one week later, so repeating an upcoming game
+ * gives the next one rather than itself.
+ */
+export function repeatDateKey(startsAt: string | Date, today: string) {
+  const day = new Date(`${formatBakuDateKey(new Date(startsAt))}T00:00:00Z`)
+  do day.setUTCDate(day.getUTCDate() + 7)
+  while (day.toISOString().slice(0, 10) < today)
+  return day.toISOString().slice(0, 10)
+}
+
 /** Midnight in Baku of the day containing `date`, shifted by `addDays` days. */
 export function startOfBakuDay(date: Date, addDays = 0) {
   const start = new Date(`${bakuDayKey.format(date)}T00:00:00${BAKU_UTC_OFFSET}`)
@@ -175,6 +197,23 @@ export function formatBakuShortDate(dateInput?: string | Date | null) {
 export function formatBakuTime(dateInput?: string | Date | null) {
   const date = toDate(dateInput)
   return date ? bakuTime.format(date) : null
+}
+
+/** The last `count` Baku calendar months up to `now`, oldest first: `{ key: '2026-10', label: 'Okt' }`. */
+export function lastBakuMonths(now: Date, count: number) {
+  const baku = new Date(now.getTime() + BAKU_OFFSET_MS)
+  return Array.from({ length: count }, (_, index) => {
+    const month = new Date(Date.UTC(baku.getUTCFullYear(), baku.getUTCMonth() - count + 1 + index, 1))
+    return {
+      key: `${month.getUTCFullYear()}-${String(month.getUTCMonth() + 1).padStart(2, '0')}`,
+      label: MONTHS_SHORT[month.getUTCMonth()],
+    }
+  })
+}
+
+/** The first moment of the current Baku calendar month, for "Bu ay". */
+export function startOfBakuMonth(now: Date) {
+  return new Date(`${lastBakuMonths(now, 1)[0].key}-01T00:00:00+04:00`)
 }
 
 /** "fevral 2026", the Baku calendar month, for "Qeydiyyat: fevral 2026" on a profile. */
@@ -283,6 +322,17 @@ const LEVEL_BY_INPUT: Record<string, string> = {
   yüksək: 'high',
 }
 
+/** A WhatsApp or Telegram group invite. Anything else could send players anywhere, so only these two. */
+const GROUP_LINK = /^https:\/\/(chat\.whatsapp\.com\/[A-Za-z0-9]{10,40}|t\.me\/(\+|joinchat\/)?[A-Za-z0-9_-]{5,64})\/?$/
+
+/** null for none (absent, null or blank), the trimmed link when valid, undefined when not. */
+export function parseGroupLink(value: unknown): string | null | undefined {
+  if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) return null
+  if (typeof value !== 'string') return undefined
+  const link = value.trim()
+  return GROUP_LINK.test(link) ? link : undefined
+}
+
 export type CreateGameInput = {
   title: string
   sport: string
@@ -292,6 +342,15 @@ export type CreateGameInput = {
   maxCount: number
   currentCount: number
   contactPhone: string | null
+  /** A WhatsApp or Telegram group invite, or null (`parseGroupLink`). */
+  groupLink: string | null
+  /** The clubs standing on each side, or null for a side open to anyone. */
+  homeTeamId: number | null
+  awayTeamId: number | null
+  /** The side the host stands on when creating the game (an edit ignores it: the host moves like anyone). */
+  hostSide: 'home' | 'away'
+  /** Players the host names at creation, each invited to a side; empty on an edit (the game page invites later). */
+  invites: InviteEntry[]
 }
 
 type CreateGameParseResult = { ok: true; input: CreateGameInput } | { ok: false; code: string; message: string }
@@ -353,9 +412,32 @@ function parseGameForm(body: unknown, now: Date, fixedCurrentCount?: number): Cr
   const contactPhone = hasPhone ? normalizePhone(data.hostPhone) : null
   if (hasPhone && !contactPhone) return fail('INVALID_PHONE', 'hostPhone must be an Azerbaijani number, e.g. +994 50 210 34 56.')
 
+  const groupLink = parseGroupLink(data.groupLink)
+  if (groupLink === undefined) return fail('INVALID_GROUP_LINK', 'groupLink must be a chat.whatsapp.com or t.me invite link.')
+
   const title = nonEmptyString(data.title)?.trim().slice(0, 120) ?? `${SPORT_META[sport].label} oyunu`
 
-  return { ok: true, input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone } }
+  // A club per side, both optional: absent, null or "" leaves the side open to anyone.
+  const teamId = (value: unknown) =>
+    value === undefined || value === null || value === ''
+      ? null
+      : (typeof value === 'number' || typeof value === 'string') && Number.isSafeInteger(Number(value)) && Number(value) > 0
+        ? Number(value)
+        : Number.NaN
+  const homeTeamId = teamId(data.homeTeamId)
+  const awayTeamId = teamId(data.awayTeamId)
+  if (Number.isNaN(homeTeamId) || Number.isNaN(awayTeamId)) return fail('INVALID_TEAM', 'homeTeamId and awayTeamId must be club ids.')
+
+  const hostSide = data.hostSide === undefined || data.hostSide === null || data.hostSide === '' ? 'home' : data.hostSide
+  if (hostSide !== 'home' && hostSide !== 'away') return fail('INVALID_SIDE', 'hostSide must be home or away.')
+
+  const invites = fixedCurrentCount === undefined ? parseInviteEntries(data.invites) : { ok: true as const, entries: [] as InviteEntry[] }
+  if (!invites.ok) return fail('INVALID_INVITES', 'invites must be a list of { userId, side }, one entry per player.')
+
+  return {
+    ok: true,
+    input: { title, sport, level, venueId, scheduledAt, maxCount, currentCount, contactPhone, groupLink, homeTeamId, awayTeamId, hostSide, invites: invites.entries },
+  }
 }
 
 export function parseCreateGameBody(body: unknown, now = new Date()) {
@@ -391,6 +473,8 @@ export function toPlayer(participant: unknown) {
     initials: initialsOf(name),
     avatarUrl: userAvatarUrl(user),
     side: row?.side === 'away' ? ('away' as const) : ('home' as const),
+    /** Marked by the host after the game; null until then. */
+    attendance: row?.attendance === 'came' || row?.attendance === 'absent' ? row.attendance : null,
   }
 }
 
@@ -443,6 +527,17 @@ function resolveCoverImage(game: Doc, fallbackUrl: string) {
   return { thumbnailUrl: fallbackUrl, fullUrl: fallbackUrl, fallbackUrl }
 }
 
+/** A game's club as the card shows it; null for an open side (or a relationship that wasn't populated). */
+function teamRef(value: unknown) {
+  const team = asDoc(value)
+  return team && typeof team.name === 'string' ? { id: String(team.id), name: team.name } : null
+}
+
+/** "Qarabağ vs Açıq": the clubs on each side of a game, an open side being "Açıq"; null when neither side has a club. */
+export function matchupLabel(teams: { home: { name: string } | null; away: { name: string } | null }) {
+  return teams.home || teams.away ? `${teams.home?.name ?? 'Açıq'} vs ${teams.away?.name ?? 'Açıq'}` : null
+}
+
 export function normalizeGameRecord(raw: unknown, now = Date.now()) {
   const game = asDoc(raw) ?? {}
   const sport = String(game.sport ?? 'football')
@@ -467,6 +562,7 @@ export function normalizeGameRecord(raw: unknown, now = Date.now()) {
     timeLabel: formatBakuTime(startsAt),
     relativeTimeLabel: formatBakuLabel(startsAt, new Date(now)),
     ...deriveAvailability(game, now),
+    teams: { home: teamRef(game.homeTeam), away: teamRef(game.awayTeam) },
     cover: resolveCoverImage(game, sportMeta.image),
     host: {
       /** For linking to `/users/{id}`; null only for a game whose host account is gone. */
@@ -499,6 +595,7 @@ export function toGameCard(game: GameRecord) {
     maxCount: game.maxCount,
     remainingSpots: game.remainingSpots,
     status: game.status,
+    teams: game.teams,
     coverImageUrl: game.cover.fullUrl,
     coverImage: game.cover,
     host: game.host,
@@ -779,4 +876,17 @@ export function shareText(game: {
   const spots = game.status === 'open' ? `${game.remainingSpots} yer qalıb` : game.status === 'full' ? 'Oyun doludur' : null
   const when = [game.dateLabel, game.timeLabel].filter(Boolean).join(', ')
   return [game.title, when, game.venue.name, spots].filter(Boolean).join(' · ')
+}
+
+/**
+ * "Siz 3-cüsünüz": a place in a queue, with the ordinal and "you are" suffixes in vowel harmony with
+ * how the number is read. That is decided by its last spoken word: the units (üç → -cü), else the
+ * tens (otuz → -cu), else yüz / min.
+ */
+export function placeLabel(n: number) {
+  const UNITS = ['', 'i', 'i', 'ü', 'ü', 'i', 'ı', 'i', 'i', 'u'] // bir iki üç dörd beş altı yeddi səkkiz doqquz
+  const TENS = ['', 'u', 'i', 'u', 'ı', 'i', 'ı', 'i', 'i', 'ı'] // on iyirmi otuz qırx əlli altmış yetmiş səksən doxsan
+  const vowel = n % 10 ? UNITS[n % 10] : Math.floor(n / 10) % 10 ? TENS[Math.floor(n / 10) % 10] : n % 1000 ? 'ü' : 'i'
+  const you = { i: 'siniz', ı: 'sınız', u: 'sunuz', ü: 'sünüz' }[vowel]
+  return `${n}-c${vowel}${you}`
 }

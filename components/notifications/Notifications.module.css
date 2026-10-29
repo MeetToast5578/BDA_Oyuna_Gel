@@ -1,0 +1,89 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  max-width: 720px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--color-primary-border-soft);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.item + .item {
+  border-top: 1px solid var(--color-primary-border-soft);
+}
+
+.link {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 16px;
+  padding: 14px 20px 14px 32px;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color var(--duration-fast) ease;
+}
+
+a.link:hover {
+  background: var(--color-primary-tint);
+}
+
+a.link:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+/* Not seen before this visit: a dot and a tint, gone on the next one. */
+.unread .link {
+  background: var(--color-primary-tint);
+}
+
+.unread .link::before {
+  content: '';
+  position: absolute;
+  top: 21px;
+  left: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.game {
+  grid-column: 1;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.when {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 12px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 599px) {
+  .link {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px 16px 12px 28px;
+  }
+
+  .when {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .unread .link::before {
+    top: 19px;
+    left: 12px;
+  }
+}

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 import type { GameCard as GameCardData } from '@/lib/api-types'
-import { isUpcoming } from '@/lib/game-backend'
+import { isUpcoming, matchupLabel } from '@/lib/game-backend'
 import { buttonClass } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { Avatar, LevelBadge, ProgressBar, SportBadge } from './bits'
@@ -44,7 +44,7 @@ export function GameCard({
           src={game.coverImage.thumbnailUrl}
           fallbackSrc={game.coverImage.fallbackUrl}
           alt=""
-          sizes="(max-width: 859px) 100vw, (max-width: 1023px) 50vw, 339px"
+          sizes="(max-width: 599px) 104px, (max-width: 859px) 100vw, (max-width: 1023px) 50vw, 339px"
           priority={priority}
         />
         <div className={styles.badges}>
@@ -60,6 +60,14 @@ export function GameCard({
               {game.title}
             </Link>
           </Heading>
+          {matchupLabel(game.teams) && (
+            <p className={styles.metaRow}>
+              <span className={styles.metaItem}>
+                <span className="visually-hidden">Komandalar:</span>
+                {matchupLabel(game.teams)}
+              </span>
+            </p>
+          )}
           {location && (
             <p className={styles.metaRow}>
               <span className={styles.metaItem}>
@@ -144,7 +152,8 @@ function CardAction({
 }) {
   if (context === 'past') {
     const label = game.status === 'cancelled' ? 'Ləğv edilib' : game.status === 'live' ? 'Davam edir' : 'Keçmiş oyun'
-    return <span className={buttonClass('muted', 'sm')}>{label}</span>
+    // A label, not a button: there is nothing left to do, and the host's name needs the room.
+    return <span className={styles.pastLabel}>{label}</span>
   }
 
   // The edit page refuses a game that has started.
@@ -190,6 +199,19 @@ function CardAction({
         aria-label={`${game.title} oyununa qoşul`}
       >
         Qoşul
+      </Link>
+    )
+  }
+
+  // A full game still takes names for its waitlist, on the game's page.
+  if (game.status === 'full') {
+    return (
+      <Link
+        href={href}
+        className={buttonClass('outlinePrimary', 'sm', { className: styles.join })}
+        aria-label={`${game.title}: gözləmə siyahısına yaz`}
+      >
+        Növbəyə yazıl
       </Link>
     )
   }

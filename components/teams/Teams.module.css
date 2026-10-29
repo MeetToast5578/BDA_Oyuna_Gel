@@ -1,0 +1,275 @@
+.members {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 -12px;
+  padding: 0;
+  list-style: none;
+}
+
+.member {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.memberLink {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 56px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  color: var(--color-heading);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.memberLink:hover {
+  background: var(--color-primary-tint);
+}
+
+.memberLink:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: -3px;
+}
+
+.memberName {
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.captainTag {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.youTag {
+  background: var(--color-primary-tint);
+  color: var(--color-primary);
+}
+
+.memberAction {
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.invite {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inviteField {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inviteField input {
+  flex: 1;
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-muted);
+}
+
+.status {
+  min-height: 20px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-success-text);
+}
+
+/* The league table */
+.tableWrap {
+  /* Positioned, so the hidden screen-reader text inside scrolls with the table instead of widening the page. */
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table caption {
+  padding: 16px 20px 8px;
+  text-align: left;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.table th,
+.table td {
+  padding: 10px 12px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.table th {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table td:nth-child(2),
+.table th:nth-child(2) {
+  width: 100%;
+  text-align: left;
+}
+
+.table tbody tr + tr td {
+  border-top: 1px solid var(--color-border);
+}
+
+.table .points {
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+@media (max-width: 599px) {
+  .table .wide {
+    display: none;
+  }
+
+  .table th,
+  .table td {
+    padding-inline: 8px;
+  }
+
+  /* A long name takes a second line rather than pushing the points out of view. */
+  .table td:nth-child(2) {
+    white-space: normal;
+  }
+}
+
+/* The viewer's own row stands out in a long table. */
+.table .mine td {
+  background: var(--color-primary-tint);
+}
+
+.mineTag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.rank {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+/* The top three: gold, silver and bronze discs; the number inside still says the place. */
+.gold {
+  background: #f6d27a;
+  color: #5c3a0e;
+}
+
+.silver {
+  background: #dcdde3;
+  color: #33343d;
+}
+
+.bronze {
+  background: #e7b48c;
+  color: #4f2a10;
+}
+
+.table a {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-heading);
+  text-decoration: none;
+}
+
+.table a:hover {
+  text-decoration: underline;
+}
+
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recentRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.recentRow:first-child {
+  border-top: 0;
+}
+
+.recentScore {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-heading);
+}
+
+/* The leaderboard's two switches: players or clubs, all time or this month. */
+.switches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
+}

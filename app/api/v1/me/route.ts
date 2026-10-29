@@ -5,6 +5,7 @@ import { gameCancelledEmail } from '@/lib/emails'
 import { parseProfileUpdate } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
 import { afterResponse, notify, participantIds } from '@/lib/notify'
+import { notifyPromoted } from '@/lib/promotions'
 import { deleteMyAccount, findMyGames, getMyProfile, updateMyProfile } from '@/lib/profile-queries'
 
 /** The signed-in user, or a 401. Never leaks `role`, `googleId` or the lockout fields. */
@@ -63,8 +64,13 @@ export async function DELETE(request: Request) {
     const { games: cancelled } = await findMyGames(auth.userId, { role: 'hosting', when: 'upcoming', page: 1, limit: 100 })
     const players = await Promise.all(cancelled.map((game) => participantIds(payload, Number(game.id), auth.userId)))
 
-    const { deletedGames } = await deleteMyAccount(auth.userId)
-    afterResponse(() => Promise.all(cancelled.map((game, i) => notify(payload, players[i], gameCancelledEmail(game)))))
+    const { deletedGames, promotions } = await deleteMyAccount(auth.userId)
+    // The games are gone by then, so their notices keep only the name.
+    afterResponse(() =>
+      Promise.all(cancelled.map((game, i) => notify(payload, players[i], { kind: 'cancelled', gameId: null, gameTitle: game.title }, gameCancelledEmail(game)))),
+    )
+    // Spots this account gave back went to whoever was waiting.
+    afterResponse(() => notifyPromoted(payload, promotions))
 
     // The session cookies outlive the account, so they are cleared here rather than by the client.
     const response = NextResponse.json({ ok: true, deletedGames })

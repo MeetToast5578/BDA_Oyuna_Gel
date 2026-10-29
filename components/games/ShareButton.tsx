@@ -9,10 +9,21 @@ import styles from './GameDetail.module.css'
  * "Paylaş": the phone's own share sheet where there is one, otherwise the link is copied. The
  * WhatsApp link sits beside it either way, since that is where pickup games fill up.
  */
-export function ShareButton({ title, text, url }: { title: string; text: string; url: string }) {
+export function ShareButton({
+  title,
+  text,
+  url,
+  sideLinks = [],
+}: {
+  title: string
+  text: string
+  url: string
+  /** One link per side of the game, which opens the join form on that side. */
+  sideLinks?: { label: string; url: string }[]
+}) {
   const [status, setStatus] = useState('')
 
-  async function share() {
+  async function share(url: string) {
     if (navigator.share) {
       try {
         await navigator.share({ title, text, url })
@@ -31,7 +42,7 @@ export function ShareButton({ title, text, url }: { title: string; text: string;
 
   return (
     <div className={styles.share}>
-      <button type="button" className={buttonClass('outlinePrimary', 'md')} onClick={share}>
+      <button type="button" className={buttonClass('outlinePrimary', 'md')} onClick={() => share(url)}>
         Paylaş
       </button>
       <a
@@ -42,6 +53,11 @@ export function ShareButton({ title, text, url }: { title: string; text: string;
       >
         WhatsApp
       </a>
+      {sideLinks.map((link) => (
+        <button key={link.url} type="button" className={buttonClass('outlineDark', 'md')} onClick={() => share(link.url)}>
+          {link.label}
+        </button>
+      ))}
       <p className={styles.shareStatus} aria-live="polite">
         {status}
       </p>

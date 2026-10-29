@@ -68,3 +68,40 @@ export function gameCancelledEmail(game: EmailGame): Email {
     { href: `${SITE_URL}/games`, label: 'Açıq oyunlar' },
   )
 }
+
+/** To a player the host took out of a game that hasn't started. */
+export function removedFromGameEmail(game: EmailGame): Email {
+  return build(
+    `Oyundan çıxarıldınız: ${game.title}`,
+    [`Host sizi "${game.title}" oyunundan (${when(game)}, ${game.venue.name}) çıxardı.`, 'Başqa açıq oyunlara baxa bilərsiniz.'],
+    { href: `${SITE_URL}/games`, label: 'Açıq oyunlar' },
+  )
+}
+
+/** To a player the host invited to a side of a game: the invitation holds no spot until they join. */
+export function invitedEmail(game: EmailGame & { hostName: string }, side: 'home' | 'away', sideLabel: string): Email {
+  return build(
+    `Oyuna dəvət: ${game.title}`,
+    [
+      `${game.hostName} sizi "${game.title}" oyununa dəvət etdi (${sideLabel}).`,
+      `Vaxt: ${when(game)}`,
+      `Yer: ${where(game)}`,
+      'Dəvət yer tutmur: oyuna qoşulduğunuz anda yeriniz ayrılır.',
+    ],
+    { href: `${SITE_URL}/games/${game.id}?join=1&side=${side}`, label: 'Bax və qoşul' },
+  )
+}
+
+/** To the first person waiting for a full game when a spot came back and was handed to them. */
+export function promotedEmail(game: EmailGame): Email {
+  return build(
+    `Oyunda yer qazandınız: ${game.title}`,
+    [
+      `Gözləmə siyahısından "${game.title}" oyununda sizə yer verildi.`,
+      `Vaxt: ${when(game)}`,
+      `Yer: ${where(game)}`,
+      'Gələ bilmirsinizsə, oyun səhifəsindən çıxın ki, yer növbədəkinə keçsin.',
+    ],
+    { href: `${SITE_URL}/games/${game.id}`, label: 'Oyuna bax' },
+  )
+}

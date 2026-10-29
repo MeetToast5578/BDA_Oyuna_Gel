@@ -1,5 +1,8 @@
 # Teams (clubs), sides in a game, and stats: plan
 
+> Still to do on the create form (naming players, inviting, removing, the away club's say):
+> `docs/game-setup-teams-and-players-plan.md`.
+
 > **Status: Phase 0 built, plus one security fix.**
 > - The rules every later phase depends on are in `lib/team-logic.ts`, with 28 tests in
 >   `tests/team-logic.test.ts`: sides, auto-balance, the side invariant, request parsing, the score's
@@ -18,7 +21,30 @@
 >   - not built from Phase 2: `hostSide` on create (the host is always `home` until a form asks),
 >     and club names on the picker (no game has clubs until Phase 6).
 >
-> Phases 3–7 are not started.
+> - **Phase 3 built:** `PATCH /api/v1/games/{id}/sides` (`lib/sides.ts`) moves players or balances, under the
+>   game's row lock and ending in `checkSides`; the players dialog has the host's "⇄" and "Balansla"
+>   buttons. `playerRecords` in `lib/sides.ts` is the SQL twin of `resultCounts`, which Phase 7 reuses.
+>
+> - **Phase 4 built:** `POST /api/v1/games/{id}/result` and `/result/confirm` (`lib/results.ts`) run
+>   `nextResultStatus` under the game's row lock. The game detail carries `result`, `canReport` and
+>   `canConfirm`, and the game page has a "Hesab" panel (`components/games/ResultPanel.tsx`).
+>
+> - **Phase 5 built:** the club routes (`lib/teams.ts`, `app/api/v1/teams/**`), account deletion
+>   hands over each club the person captains, and the pages `/teams`, `/teams/new`, `/teams/[id]` and
+>   `/teams/join/[code]`. Not yet: the club's record and the standings, which wait for Phase 7.
+>
+> - **Phase 6 built:** the create and edit forms take `homeTeamId` and `awayTeamId`, checked with
+>   `clubSidesError` and `checkSides` in the transaction that writes the game. The form has a "Komandalar"
+>   section, cards and the game page show "A vs B", and the join modal and players list name the sides
+>   after their clubs.
+>
+> - **Phase 7 built:** `lib/records.ts` holds the SQL twin of `resultCounts` for players
+>   (`playerRecords`) and clubs (`teamRecords`, `recentTeamResults`). `GET /me` and `GET /users/{id}` gain
+>   `record` and `clubs`; `GET /teams` carries each club's record and, with `?sport=`, the standings;
+>   the club page shows its record and latest results; `/teams?sport=` shows the league table; both
+>   profiles have a "Nəticələr" panel. The club pages are not cached, so they need no `teams` tag.
+>
+> All seven phases are built.
 
 What was asked:
 
@@ -64,7 +90,7 @@ What was asked:
 | D1 | Who can stand on a club's side? | **Members only** · anyone |
 | D2 | How do people join a club? | **Invite link (the captain shares a code)** · request and captain approves · captain adds by name |
 | D3 | Can a user be in several clubs? | **Yes, any number; each club has one sport** · one club per sport |
-| D4 | A reported score nobody answers | **Counts as confirmed after 48h** (`AUTO_CONFIRM_HOURS`) · never counts |
+| D4 | A reported score nobody answers | **Counts as confirmed after 48h** (`AUTO_CONFIRM_HOURS`) · never counts. *Decided 22 Oct 2026:* 48h only for players' records and only when someone with an account stood on the other side; a club's record and the standings take only explicitly confirmed scores |
 | D5 | Who confirms? | **Any registered player on the other side** · only the other club's captain |
 | D6 | Club vs club: does the away club have to accept? | **No: the host picks the away club and its members join that side** · challenge/accept step |
 | D7 | Do games without clubs count toward a player's stats? | **Yes**, every confirmed game counts for each registered player in it |
@@ -307,7 +333,8 @@ each has a guard and a test planned.
   because a game never has more rows plus guests than `maxPlayers`, and guests spill over. The
   migration still runs `checkSides` on every game to prove it.
 - **No one left to confirm** (the other side is all guests, or its players deleted their accounts):
-  the 48h auto-confirm covers it.
+  the score stays unconfirmed until an admin settles it. The 48h auto-confirm only applies when
+  someone with an account stood on the other side, and never to club records.
 - **The Azerbaijani strings need a native speaker's read**, as in the earlier plans.
 
 ## 7. Skipped on purpose

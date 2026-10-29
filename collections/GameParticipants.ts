@@ -53,6 +53,25 @@ export const GameParticipants: CollectionConfig = {
       },
     },
     {
+      name: 'attendance',
+      type: 'select',
+      options: [
+        { label: 'Came', value: 'came' },
+        { label: 'Absent', value: 'absent' },
+      ],
+      admin: {
+        description: 'Marked by the host after kick-off (up to 7 days): did the player come? Empty means not marked. Feeds "Etibarlılıq" on profiles.',
+      },
+    },
+    {
+      name: 'promotedAt',
+      type: 'date',
+      admin: {
+        readOnly: true,
+        description: 'Set when the player took a spot that came back to a full game from its waitlist, not by joining.',
+      },
+    },
+    {
       name: 'phone',
       type: 'text',
       access: {

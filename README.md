@@ -20,7 +20,19 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
    GMAIL_APP_PASSWORD=<an App Password for that account, not its normal password>
    # Optional: the site's public address, used in shared links, the sitemap and emails
    NEXT_PUBLIC_SITE_URL=https://bda-next-six.vercel.app
+   # On Vercel: any long random string. Vercel Cron sends it to /api/cron/cleanup (vercel.json),
+   # the daily job that deletes old logs and phone numbers; without it the job refuses to run.
+   CRON_SECRET=<random string>
+   # Optional: phone notifications. Generate once with `npx web-push generate-vapid-keys`; without
+   # both keys the profile hides the switch and nothing is sent. The subject is a mailto: or https URL.
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY=<public key>
+   VAPID_PRIVATE_KEY=<private key>
+   VAPID_SUBJECT=mailto:<an address you read>
    ```
+
+   "Oyununuz 2 saata başlayır" needs `/api/cron/reminders` called every 15 minutes with
+   `Authorization: Bearer $CRON_SECRET`. Vercel's free plan only runs its cron daily, so use an outside
+   scheduler (cron-job.org is free) or a Pro plan.
 
    The App Password comes from the sending Google account: turn on 2-Step Verification, then
    **Security → App passwords**. The Google sign-in keys above can't send mail. A normal Gmail
@@ -54,14 +66,15 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
    client's redirect URIs.
 
 Vercel runs `npm run vercel-build`, which applies pending migrations (`payload migrate`) before
-building. Preview deployments migrate whatever database their `DATABASE_URL` points at, so give
+building. Migrations use `DATABASE_URL_UNPOOLED` when it is set (the Neon integration sets it), since
+the pooled connection drops the session-level queries a migration needs; the app keeps the pooled one. Preview deployments migrate whatever database their `DATABASE_URL` points at, so give
 previews their own database if they shouldn't touch production.
 
 ## Structure
 
 | Path                | What it holds                                                   |
 | ------------------- | --------------------------------------------------------------- |
-| `app/(frontend)`    | Public site: home, `/games`, `/games/past`, `/games/[id]`, `/games/new`, `/games/[id]/edit`, `/login`, `/profile`, `/users/[id]` |
+| `app/(frontend)`    | Public site: home, `/games`, `/games/past`, `/games/[id]`, `/games/new`, `/games/[id]/edit`, `/teams`, `/teams/[id]`, `/teams/new`, `/teams/join/[code]`, `/leaderboard`, `/venues`, `/venues/[id]`, `/login`, `/profile`, `/users/[id]` |
 | `components/`       | Frontend components (CSS Modules); design tokens are in `app/(frontend)/globals.css` |
 | `app/(payload)`     | Payload admin panel and its REST/GraphQL routes (generated)       |
 | `app/api`           | Custom API routes — games, sports, Google auth                    |

@@ -32,7 +32,11 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     '/profile',
+    '/notifications',
+    '/venues/suggest',
     '/games/new',
+    '/teams/new',
+    '/teams/join/:code',
     '/games/:id/edit',
     { source: '/games/:id', has: [{ type: 'query', key: 'join', value: '1' }] },
   ],

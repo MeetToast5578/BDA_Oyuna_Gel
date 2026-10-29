@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter, Space_Grotesk } from 'next/font/google'
-import React, { Suspense } from 'react'
+import React, { Suspense, ViewTransition } from 'react'
 
 import { Footer } from '@/components/site/Footer'
 import { Header } from '@/components/site/Header'
@@ -35,6 +35,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="az" data-scroll-behavior="smooth" className={`${spaceGrotesk.variable} ${inter.variable}`}>
       <body>
+        {/* When a newer view transition (a navigation, a section loading) replaces one still running, the
+            browser rejects the old one with "Transition was skipped" and nothing handles it. Harmless, so
+            it is kept out of the console and error reports; every other error still shows. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "addEventListener('unhandledrejection',function(e){var r=e.reason;if(r&&r.name==='AbortError'&&r.message==='Transition was skipped')e.preventDefault()})",
+          }}
+        />
         {/* It reads the URL, which a prerender doesn't have; the bar simply starts after hydration. */}
         <Suspense fallback={null}>
           <NavigationProgress />
@@ -43,9 +51,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Məzmuna keç
         </a>
         <Header />
-        <main id="main" tabIndex={-1}>
-          {children}
-        </main>
+        {/* Navigations and loading sections crossfade the page body; the header and footer stay put. */}
+        <ViewTransition default="page">
+          <main id="main" tabIndex={-1}>
+            {children}
+          </main>
+        </ViewTransition>
         <Footer />
       </body>
     </html>

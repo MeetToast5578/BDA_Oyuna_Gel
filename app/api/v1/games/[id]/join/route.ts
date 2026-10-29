@@ -1,12 +1,15 @@
 import { after, NextResponse } from 'next/server'
 
 import { apiError } from '@/lib/api-response'
+import { isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
 import { toIcs } from '@/lib/calendar'
 import { joinedEmail } from '@/lib/emails'
 import { invalidateGamesCache } from '@/lib/cache-tags'
 import { normalizePhone } from '@/lib/game-backend'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
-import { claimSpot, recordJoinAttempt, tooManyRecentAttempts, type JoinErrorCode } from '@/lib/join-game'
+import { markInviteAccepted } from '@/lib/invites'
+import { dropWaitlistEntry } from '@/lib/waitlist'
+import { claimSpot, recordJoinAttempt, type JoinErrorCode } from '@/lib/join-game'
 import { afterResponse, notify } from '@/lib/notify'
 import { rememberPhone } from '@/lib/profile-queries'
 import { SITE_URL } from '@/lib/site-url'
@@ -46,9 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
   const userId = Number(user.id)
 
-  if (await tooManyRecentAttempts(payload, userId, ip)) {
-    return apiError('RATE_LIMITED', 'Çox tez-tez cəhd edirsiniz. Bir dəqiqə sonra yenidən yoxlayın.', 429)
-  }
+  if (await isRateLimited(payload, 'spot', { userId, ip })) return rateLimitedResponse()
 
   const body = (await request.json().catch(() => null)) as { name?: unknown; phone?: unknown; saveToProfile?: unknown; side?: unknown } | null
 
@@ -81,6 +82,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     invalidateGamesCache()
+    // Joining answers an invitation to this game, however the player got here.
+    await markInviteAccepted(payload, gameId, userId)
+    await dropWaitlistEntry(payload, gameId, userId)
     after(() =>
       recordJoinAttempt(payload, { outcome: 'JOINED', gameId, userId, remainingSpots: result.remainingSpots, ip }),
     )
@@ -90,7 +94,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       console.error(error)
       return null
     })
-    if (game) afterResponse(() => notify(payload, [userId], joinedEmail(game, toIcs(game, `${SITE_URL}/games/${game.id}`))))
+    if (game) afterResponse(() => notify(payload, [userId], null, joinedEmail(game, toIcs(game, `${SITE_URL}/games/${game.id}`))))
     // A number typed in step 1 (not the profile's own fallback) is kept for the next form.
     const typedPhone = normalizePhone(body?.phone)
     const savedToProfile = typedPhone
