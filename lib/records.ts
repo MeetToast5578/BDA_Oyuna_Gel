@@ -1,7 +1,7 @@
 import { sql } from '@payloadcms/db-postgres'
 
 import type { Db } from '@/lib/join-game'
-import { AUTO_CONFIRM_HOURS, outcomeFor, type Outcome, type PlayedGame, type Side } from '@/lib/team-logic'
+import { AUTO_CONFIRM_HOURS, compareStandings, outcomeFor, summarize, type Outcome, type PlayedGame, type Side } from '@/lib/team-logic'
 
 /**
  * Whether a game's score goes into a player's record, on the games table aliased `g`. The SQL twin of
@@ -59,6 +59,31 @@ export async function playerRecords(db: Db, userIds: number[]): Promise<Map<numb
   `)
   for (const row of rows) records.set(row.user_id, [...(records.get(row.user_id) ?? []), toGame(row)])
   return records
+}
+
+/**
+ * The player leaderboard of one sport: everyone with a counted game in it, in league-table order
+ * (points, goal difference, goals scored), the same rule as the club standings. Players level on all
+ * three: fewer games first (the same points from fewer games), then by name.
+ * shortcut: reads every counted row of the sport, fine for thousands of games; past that, aggregate in SQL.
+ */
+export async function playerStandings(db: Db, sport: string) {
+  const { rows } = await db.execute<Row & { user_id: number; full_name: string | null }>(sql`
+    SELECT p.user_id, u.full_name, p.side, g.home_score, g.away_score, g.scheduled_at, g.sport
+    FROM game_participants p
+    JOIN games g ON g.id = p.game_id
+    JOIN users u ON u.id = p.user_id
+    WHERE g.sport = ${sport} AND ${counted}
+  `)
+  const players = new Map<number, { name: string; games: RecordGame[] }>()
+  for (const row of rows) {
+    const player = players.get(row.user_id) ?? { name: row.full_name?.trim() || 'OyunaGəl istifadəçisi', games: [] }
+    player.games.push(toGame(row))
+    players.set(row.user_id, player)
+  }
+  return [...players]
+    .map(([id, player]) => ({ id: String(id), name: player.name, record: summarize(player.games) }))
+    .sort((a, b) => compareStandings(a.record, b.record) || a.record.played - b.record.played || a.name.localeCompare(b.name, 'az'))
 }
 
 /**

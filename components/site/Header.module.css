@@ -337,16 +337,12 @@
   height: 40px;
 }
 
-@media (max-width: 1023px) {
-  .nav {
-    padding-inline: var(--gutter);
-  }
-
+/* Small laptops: four links, the avatar and two buttons share the row, so the name hides. */
+@media (max-width: 1199px) {
   .userName {
     display: none;
   }
 
-  /* Three links, the avatar and two buttons share the row down to 860px. */
   .links {
     gap: 4px;
   }
@@ -361,9 +357,11 @@
   }
 }
 
-@media (max-width: 859px) {
+/* Below laptop width the four links and the session move into the menu, so the bar never crowds. */
+@media (max-width: 1023px) {
   .nav {
     grid-template-columns: 1fr auto;
+    padding-inline: var(--gutter);
   }
 
   .links,
@@ -381,7 +379,7 @@
 }
 
 /* The menu's copy of the session actions only shows in the menu. */
-@media (min-width: 860px) {
+@media (min-width: 1024px) {
   .menuPanel {
     display: none;
   }

@@ -7,13 +7,12 @@ import { EmptyState } from '@/components/games/EmptyState'
 import card from '@/components/games/GameCard.module.css'
 import grid from '@/components/games/GamesGrid.module.css'
 import { BackHomeLink } from '@/components/games/GamesSection'
-import { FormPills } from '@/components/profile/RecordPanel'
 import section from '@/components/games/GamesSection.module.css'
 import { SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 import { SportTabs } from '@/components/games/SportTabs'
 import { TeamListSkeleton } from '@/components/games/skeletons'
 import { buttonClass } from '@/components/ui/button'
-import styles from '@/components/teams/Teams.module.css'
+import { StandingsTable } from '@/components/teams/Standings'
 import { getPayloadClient } from '@/lib/game-queries'
 import { sportFromSearchParams } from '@/lib/page-data'
 import { byStanding, listTeams } from '@/lib/teams'
@@ -30,59 +29,11 @@ function Standings({ teams, sport }: { teams: Team[]; sport: string }) {
     return <p className={section.filter}>Hələ təsdiqlənmiş nəticə yoxdur — cədvəl ilk təsdiqlənmiş hesabdan sonra görünəcək.</p>
   }
   return (
-    <div className={styles.tableWrap}>
-      <table className={styles.table}>
-        <caption>{sport} · reytinq cədvəli</caption>
-        <thead>
-          <tr>
-            <th scope="col">
-              <abbr title="Sıra">#</abbr>
-            </th>
-            <th scope="col">Komanda</th>
-            <th scope="col">
-              <abbr title="Oyun">O</abbr>
-            </th>
-            <th scope="col">
-              <abbr title="Qələbə">Q</abbr>
-            </th>
-            <th scope="col">
-              <abbr title="Heç-heçə">H</abbr>
-            </th>
-            <th scope="col">
-              <abbr title="Məğlubiyyət">M</abbr>
-            </th>
-            <th scope="col">
-              <abbr title="Vurulan və buraxılan qol">Q:B</abbr>
-            </th>
-            <th scope="col">
-              <abbr title="Xal: qələbə 3, heç-heçə 1">Xal</abbr>
-            </th>
-            <th scope="col">Forma</th>
-          </tr>
-        </thead>
-        <tbody>
-          {teams.map((team, index) => (
-            <tr key={team.id}>
-              <td>{index + 1}</td>
-              <td>
-                <Link href={`/teams/${team.id}`}>{team.name}</Link>
-              </td>
-              <td>{team.record.played}</td>
-              <td>{team.record.wins}</td>
-              <td>{team.record.draws}</td>
-              <td>{team.record.losses}</td>
-              <td>
-                {team.record.scored}:{team.record.conceded}
-              </td>
-              <td>{team.record.points}</td>
-              <td>
-                <FormPills form={team.record.form} small />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <StandingsTable
+      caption={`${sport} · reytinq cədvəli`}
+      nameHeader="Komanda"
+      rows={teams.map((team) => ({ id: team.id, href: `/teams/${team.id}`, name: team.name, record: team.record }))}
+    />
   )
 }
 

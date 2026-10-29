@@ -113,6 +113,8 @@
 
 /* The league table */
 .tableWrap {
+  /* Positioned, so the hidden screen-reader text inside scrolls with the table instead of widening the page. */
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-lg);
@@ -160,9 +162,50 @@
   border-top: 1px solid var(--color-border);
 }
 
-.table tbody td:last-child {
+.table .points {
   font-weight: 700;
   color: var(--color-heading);
+}
+
+@media (max-width: 599px) {
+  .table .wide {
+    display: none;
+  }
+
+  .table th,
+  .table td {
+    padding-inline: 8px;
+  }
+
+  /* A long name takes a second line rather than pushing the points out of view. */
+  .table td:nth-child(2) {
+    white-space: normal;
+  }
+}
+
+.rank {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+/* The top three: gold, silver and bronze discs; the number inside still says the place. */
+.gold {
+  background: #f6d27a;
+  color: #5c3a0e;
+}
+
+.silver {
+  background: #dcdde3;
+  color: #33343d;
+}
+
+.bronze {
+  background: #e7b48c;
+  color: #4f2a10;
 }
 
 .table a {

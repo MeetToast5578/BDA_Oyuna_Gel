@@ -23,6 +23,10 @@
 >   win/draw/loss bar, goals, last six months from `monthlyPlayed`), a "Forma" column in the standings,
 >   and page crossfades via React's `<ViewTransition>` in `app/(frontend)/layout.tsx`. Results use
 >   `--color-win/draw/loss` (indigo/grey/orange: green and red fail the colour-blindness check).
+> - **Leaderboard:** `/leaderboard?sport=&view=teams` ranks players (`playerStandings` in `lib/records.ts`,
+>   the profile's counting rule) or clubs (a club's record is every game it was named on a side of, only
+>   scores the other side confirmed) by points, goal difference, goals; `components/teams/Standings.tsx`
+>   is the table for it and `/teams`. The header moves to the menu below 1024px to fit "Reytinq".
 > - **Left out on purpose:** a trigger tying `available_players` to the participant rows (it would turn
 >   joins into errors on any game whose counters already drifted; 5 test fixtures would need fixing first).
 > - **Before deploying:** `npm run migrate` runs automatically in `vercel-build`; set `CRON_SECRET`.

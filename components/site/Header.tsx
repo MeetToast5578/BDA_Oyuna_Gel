@@ -13,6 +13,7 @@ const MENU_LINKS = [
   { href: '/games', label: 'Açıq oyunlar' },
   { href: '/venues', label: 'Meydançalar' },
   { href: '/teams', label: 'Komandalar' },
+  { href: '/leaderboard', label: 'Reytinq' },
   { href: '/about', label: 'Haqqımızda' },
   { href: '/rules', label: 'Qaydalar' },
   { href: '/contact', label: 'Əlaqə' },
@@ -95,7 +96,7 @@ export function Header() {
         <Logo />
 
         <ul className={styles.links}>
-          {MENU_LINKS.slice(0, 3).map((link) => (
+          {MENU_LINKS.slice(0, 4).map((link) => (
             <li key={link.href}>
               {/* NavLink reads the pathname, which only exists at request time; the plain link is
                   prerendered into the shell and the active-state version swaps in after hydration. */}
