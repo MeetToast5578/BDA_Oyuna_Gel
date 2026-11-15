@@ -21,6 +21,8 @@ export const Games: CollectionConfig = {
     useAsTitle: 'title',
   },
   fields: [
+    { name: 'isDemo', type: 'checkbox', defaultValue: false, admin: { description: 'Labelled example only; joining is disabled.' } },
+    { name: 'demoKey', type: 'text', unique: true, admin: { readOnly: true, description: 'Stable key used by the add-only demo refresh.' } },
     {
       name: 'title',
       type: 'text',

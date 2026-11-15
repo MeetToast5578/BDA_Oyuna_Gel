@@ -60,6 +60,7 @@ export function GameCard({
               {game.title}
             </Link>
           </Heading>
+          {game.isDemo && <p className={styles.metaRow}>Nümunə oyun — real tədbir deyil.</p>}
           {matchupLabel(game.teams) && (
             <p className={styles.metaRow}>
               <span className={styles.metaItem}>
@@ -150,6 +151,7 @@ function CardAction({
   context: GameCardContext
   onLeft?: (gameId: string) => void
 }) {
+  if (game.isDemo) return <Link href={href} className={buttonClass('outlinePrimary', 'sm')}>Nümunəyə bax</Link>
   if (context === 'past') {
     const label = game.status === 'cancelled' ? 'Ləğv edilib' : game.status === 'live' ? 'Davam edir' : 'Keçmiş oyun'
     // A label, not a button: there is nothing left to do, and the host's name needs the room.

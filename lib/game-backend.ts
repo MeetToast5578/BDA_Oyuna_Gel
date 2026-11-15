@@ -552,6 +552,7 @@ export function normalizeGameRecord(raw: unknown, now = Date.now()) {
   return {
     id: String(game.id ?? ''),
     title: String(game.title ?? 'Oyun'),
+    isDemo: game.isDemo === true,
     sport,
     sportLabel: sportMeta.label,
     level,
@@ -581,6 +582,7 @@ export function toGameCard(game: GameRecord) {
   return {
     id: game.id,
     title: game.title,
+    ...(game.isDemo ? { isDemo: true } : {}),
     sport: game.sport,
     sportLabel: game.sportLabel,
     level: game.level,

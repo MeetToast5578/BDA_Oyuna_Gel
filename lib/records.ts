@@ -12,6 +12,7 @@ import { AUTO_CONFIRM_HOURS, compareStandings, outcomeFor, summarize, type Outco
  * builds a game in each state and checks the two agree.
  */
 const counted = sql`
+  g.is_demo IS NOT TRUE AND
   g.status <> 'cancelled'
   AND g.home_score IS NOT NULL AND g.away_score IS NOT NULL
   AND (g.result_status = 'confirmed'
@@ -28,6 +29,7 @@ const counted = sql`
  * could name any club as the opponent and give themselves wins nobody answered.
  */
 const clubCounted = sql`
+  g.is_demo IS NOT TRUE AND
   g.status <> 'cancelled'
   AND g.home_score IS NOT NULL AND g.away_score IS NOT NULL
   AND g.result_status = 'confirmed'`

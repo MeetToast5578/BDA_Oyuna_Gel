@@ -53,6 +53,7 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
 - App: [http://localhost:3000](http://localhost:3000)
 - Payload admin: [http://localhost:3000/admin](http://localhost:3000/admin)
 - Fill the database with sample venues, players and games: `npm run seed`
+- Add fresh, labelled example games without resetting data: [safe demo refresh](docs/demo-games.md). `npm run demo:refresh` previews only; `-- --apply` adds examples locally. Never use the destructive seed script against a live database.
 - API reference: [docs/api.md](docs/api.md)
 
 ## Deploying to Vercel

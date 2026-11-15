@@ -39,12 +39,12 @@ const drizzle = (payload: Payload) => (payload.db as unknown as PostgresAdapter)
 export async function joinWaitlist(payload: Payload, gameId: number, userId: number, phone: string, name: string): Promise<WaitlistResult> {
   try {
     return await drizzle(payload).transaction(async (tx) => {
-      const locked = await tx.execute<{ status: string; upcoming: boolean; available_players: number; host_id: number | null }>(sql`
-        SELECT status, scheduled_at > now() AS upcoming, available_players, host_id FROM games WHERE id = ${gameId} FOR UPDATE
+      const locked = await tx.execute<{ status: string; is_demo: boolean; upcoming: boolean; available_players: number; host_id: number | null }>(sql`
+        SELECT status, is_demo, scheduled_at > now() AS upcoming, available_players, host_id FROM games WHERE id = ${gameId} FOR UPDATE
       `)
       const game = locked.rows[0]
       if (!game) throw new Rejected('GAME_NOT_FOUND')
-      if (game.status !== 'scheduled' || !game.upcoming) throw new Rejected('GAME_NOT_JOINABLE')
+      if (game.is_demo || game.status !== 'scheduled' || !game.upcoming) throw new Rejected('GAME_NOT_JOINABLE')
       if (Number(game.host_id) === userId) throw new Rejected('HOST_CANNOT_WAIT')
       const playing = await tx.execute(sql`SELECT 1 FROM game_participants WHERE game_id = ${gameId} AND user_id = ${userId}`)
       if (playing.rows.length > 0) throw new Rejected('ALREADY_JOINED')

@@ -16,6 +16,8 @@ Consent-first integration implemented; see `docs/analytics.md` for configuration
 
 First establish which live accounts and games are demo versus real. Inspect counts without exposing personal data. Do not run the existing destructive seed script against production. Design a targeted, repeatable refresh for explicitly marked demo games, keeping real games untouched. Label demo events so visitors cannot mistake them for bookable games. For real events, consider organiser-approved recurring fixtures rather than moving historical dates. Validate the change in a test database before any live update.
 
+Implemented an add-only, dry-run-first refresh; see `docs/demo-games.md`. It adds seven future Baku evenings per sport with durable demo markers and duplicate protection. Demo games cannot be booked and do not affect ratings. Existing dates, results, accounts and venues remain unchanged. Live data classification and production rollout remain pending; no live database refresh is implied by this code change.
+
 ## 4. History and storage
 
 Measure database tables, indexes and uploaded media before choosing retention limits. Verify CRON_SECRET and successful daily cleanup runs; code existing in the repository does not prove production execution. Preserve historical results and participation needed for ratings and profiles. Start with past-game views, existing transient-data cleanup and image optimisation. If measurements justify archival, design a backup, result-preservation and restore process before removing data. Live deletion or archival requires an agreed scope.
@@ -31,4 +33,4 @@ Sport filters already exist. For demo data, use independent player pools for foo
 - Are distinct player lists and gender restrictions requests about demo examples or actual competition eligibility?
 - What storage usage and historical retention requirements warrant archival?
 
-Only stage 1 is being implemented now. Later stages must preserve real data and need the above decisions where applicable.
+Stages 1 and 2 have been merged. Stage 3 is implemented for review and local validation; live rollout needs the above data confirmation and access. Storage cleanup and demo player pools remain later stages. No stage authorises deleting real historical data.
