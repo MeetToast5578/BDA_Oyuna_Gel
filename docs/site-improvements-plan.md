@@ -10,6 +10,8 @@ Implemented on this branch. Edit `public/icons/oyunagel.svg`, then run `node scr
 
 Add GA4 after the owner supplies the measurement ID and confirms the consent approach and privacy notice. Track page views and successful game creation, joining, waitlisting and sign-in, plus sport selection. Count completed actions, not just button clicks. Never send names, email addresses, phone numbers or private group links. Verify navigation tracking and prevent duplicate events.
 
+Consent-first integration implemented; see `docs/analytics.md` for configuration and verification. The owner chose opt-in consent. Tracking remains disabled until the production GA4 measurement ID is supplied and the site is redeployed. Local verification uses an intercepted fake tag, not the production property; real delivery is still pending the owner's ID.
+
 ## 3. Fresh games
 
 First establish which live accounts and games are demo versus real. Inspect counts without exposing personal data. Do not run the existing destructive seed script against production. Design a targeted, repeatable refresh for explicitly marked demo games, keeping real games untouched. Label demo events so visitors cannot mistake them for bookable games. For real events, consider organiser-approved recurring fixtures rather than moving historical dates. Validate the change in a test database before any live update.

@@ -2,6 +2,7 @@ import { cacheLife } from 'next/cache'
 import Link from 'next/link'
 
 import styles from './Footer.module.css'
+import { AnalyticsSettings } from './Analytics'
 
 const LINKS = [
   { href: '/about', label: 'Haqqımızda' },
@@ -40,6 +41,7 @@ export async function Footer() {
         </div>
         <div className={styles.bottom}>
           <p className={styles.copyright}>© {new Date().getFullYear()} OyunaGəl. Bütün hüquqlar qorunur.</p>
+          <AnalyticsSettings />
         </div>
       </div>
     </footer>

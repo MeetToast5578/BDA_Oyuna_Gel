@@ -5,6 +5,7 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { findOrCreateGoogleUser, googleCallbackUrl, requestOrigin, type GoogleProfile } from '@/lib/google-oauth'
 import { safeRedirectPath } from '@/lib/safe-redirect'
+import { CONSENT_COOKIE, LOGIN_COOKIE, MEASUREMENT_ID } from '@/lib/analytics'
 
 export const GET = async (request: Request) => {
   const url = new URL(request.url)
@@ -93,6 +94,10 @@ export const GET = async (request: Request) => {
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
     })
+  }
+  // A short-lived marker counts a completed sign-in after returning to the site, only with consent.
+  if (MEASUREMENT_ID && cookieHeader.split(';').some((cookie) => cookie.trim() === `${CONSENT_COOKIE}=granted`)) {
+    response.cookies.set(LOGIN_COOKIE, '1', { maxAge: 60, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
   }
   return response
 }

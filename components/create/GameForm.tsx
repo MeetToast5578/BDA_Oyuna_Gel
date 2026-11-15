@@ -1,5 +1,7 @@
 'use client'
 
+import { trackAction } from '@/lib/analytics'
+
 import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 
@@ -390,6 +392,7 @@ export function GameForm({
         ? await patchJson<{ game: GameDetail; savedToProfile?: boolean }>(`/api/v1/games/${game.id}`, body)
         : await postJson<{ game: GameDetail; savedToProfile?: boolean }>('/api/v1/games', body)
       // The number is the profile's now: the header and the next form must not keep the old one.
+      if (!editing) trackAction('game_created', saved.game.sport)
       if (saved.savedToProfile) await expireSession()
       router.push(`/games/${saved.game.id}`)
       router.refresh()
