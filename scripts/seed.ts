@@ -4,13 +4,15 @@
  *
  * Run with `npm run seed`. Re-running is safe: every game, venue and team is removed first (real ones
  * included), and it is deterministic, so the same run produces the same data. Only user accounts
- * outside the seed domain — your own admin login — are kept.
+ * outside the seed domain — your own admin login — are kept. Use a disposable development
+ * database only. All generated games are labelled demos and excluded from real ratings.
  */
 import { randomBytes } from 'node:crypto'
 import { getPayload } from 'payload'
 
 import config from '../payload.config'
 import { BAKU_UTC_OFFSET, SPORTS, startOfBakuDay } from '../lib/game-backend'
+import { demoPeople } from '../lib/demo-players'
 
 /** Seed accounts are recognised by this email domain; that is how the wipe leaves real users alone. */
 const SEED_EMAIL_DOMAIN = 'seed.oyunagel.az'
@@ -52,23 +54,6 @@ function shuffled<T>(items: readonly T[]) {
 
 // ---------------------------------------------------------------------------- people
 
-const MALE_FIRST_NAMES = [
-  'Elvin', 'Rəşad', 'Nicat', 'Orxan', 'Kamran', 'Tural', 'Fərid', 'Ramil', 'Emin', 'Anar',
-  'Vüsal', 'Ceyhun', 'Murad', 'Samir', 'Elçin', 'Rüfət', 'Ayxan', 'Ülvi', 'Zaur', 'Nurlan',
-  'Xəyal', 'Səbuhi', 'Fuad', 'İlkin', 'Toğrul', 'Kənan', 'Mahir', 'Şahin', 'Cavid', 'Rauf',
-  'Elnur', 'Vaqif', 'Əli', 'Hüseyn', 'Tofiq', 'Yusif',
-]
-const FEMALE_FIRST_NAMES = [
-  'Aysel', 'Nərmin', 'Gülnar', 'Leyla', 'Ülviyyə', 'Sevinc', 'Günel', 'Aytən', 'Nigar', 'Lalə',
-  'Zeynəb', 'Fidan', 'Şəbnəm', 'Aysu', 'Səbinə', 'Kamilə', 'Mələk', 'Aynur',
-]
-/** Male forms; the female form adds "a" (Əliyev → Əliyeva). A stem ending in a vowel takes -yev, not -ov. */
-const SURNAMES = [
-  'Məmmədov', 'Əliyev', 'Hüseynov', 'Quliyev', 'Həsənov', 'İsmayılov', 'Rəhimov', 'Abbasov',
-  'Kərimov', 'Mustafayev', 'Nəbiyev', 'Vəliyev', 'Səfərov', 'Bayramov', 'Cəfərov', 'Axundov',
-  'Salmanov', 'Orucov', 'Tağıyev', 'Şirinov', 'Qasımov', 'Novruzov', 'Zeynalov', 'Babayev',
-]
-
 /** Azerbaijani letters have no place in an email local part or a slug. */
 function slugify(text: string) {
   return text
@@ -86,26 +71,9 @@ function slugify(text: string) {
     .replace(/^\.|\.$/g, '')
 }
 
-const PHONE_PREFIXES = ['50', '51', '55', '70', '77', '10']
-
-function buildPeople(count: number) {
-  const names = shuffled([
-    ...MALE_FIRST_NAMES.map((first) => ({ first, female: false })),
-    ...FEMALE_FIRST_NAMES.map((first) => ({ first, female: true })),
-  ])
-
-  return Array.from({ length: count }, (_, index) => {
-    const { first, female } = names[index % names.length]
-    const surname = SURNAMES[(index * 7 + 3) % SURNAMES.length]
-    const last = `${surname}${female ? 'a' : ''}`
-    const fullName = `${first} ${last}`
-    return {
-      fullName,
-      email: `${slugify(fullName)}.${index + 1}@${SEED_EMAIL_DOMAIN}`,
-      // Sequential digits keep every phone number and email unique without a retry loop.
-      phoneNumber: `+994${PHONE_PREFIXES[index % PHONE_PREFIXES.length]}${3100000 + index * 37}`,
-    }
-  })
+/** The disjoint authored pools are shared with the explicit sample ratings view. */
+function buildPeople() {
+  return demoPeople().map((person, index) => ({ ...person, phoneNumber: `+99450${3100000 + index * 37}` }))
 }
 
 // ---------------------------------------------------------------------------- venues
@@ -304,26 +272,25 @@ log(`Removed ${removed.rowCount ?? 0} seed accounts; anything outside @${SEED_EM
 
 /** Postgres collections use numeric ids, as `payload-types.ts` reflects. */
 type Id = number
-type SeedUser = { id: Id; fullName: string; phoneNumber: string }
+type SeedUser = { id: Id; fullName: string; phoneNumber: string; sport: Sport }
 
-const PLAYER_COUNT = 48
+const PLAYER_COUNT = demoPeople().length
 log(`Creating ${PLAYER_COUNT} players…`)
 const users: SeedUser[] = []
-for (const person of buildPeople(PLAYER_COUNT)) {
+for (const person of buildPeople()) {
   const created = await payload.create({
     collection: 'users',
     overrideAccess: true,
     data: {
       email: person.email,
-      // Random and never printed: the seed may run against production, where a shared password
-      // in a public repo would let anyone sign in as these players through /api/users/login.
+      // Random and never printed: fixtures must not expose a shared sign-in password.
       password: randomBytes(24).toString('base64url'),
       fullName: person.fullName,
       phoneNumber: person.phoneNumber,
       role: 'user',
     },
   })
-  users.push({ id: created.id, fullName: person.fullName, phoneNumber: person.phoneNumber })
+  users.push({ id: created.id, fullName: person.fullName, phoneNumber: person.phoneNumber, sport: person.sport })
 }
 // Profiles show "Qeydiyyat: <month>"; signed up one to nine months ago, so no player appears to have
 // joined this month yet hosted games weeks before it.
@@ -356,7 +323,7 @@ for (const venue of VENUES) {
 
 log(`Creating ${TEAMS.length} teams…`)
 for (const team of TEAMS) {
-  const members = shuffled(users).slice(0, pickInt(5, 9)).map((user) => user.id)
+  const members = shuffled(users.filter((user) => user.sport === team.sport)).slice(0, pickInt(5, 9)).map((user) => user.id)
   await payload.create({
     collection: 'teams',
     overrideAccess: true,
@@ -371,15 +338,17 @@ const createdGames: Array<{ id: Id; players: Id[] }> = []
 
 for (const [index, game] of planned.entries()) {
   // Round-robin, so the (at most five) games of one day all have different hosts.
-  const host = users[index % users.length]
+  const pool = users.filter((user) => user.sport === game.sport)
+  const host = pool[index % pool.length]
   // The host is the game itself and has no participant row; the rest of `currentCount` are joined players.
-  const roster = shuffled(users.filter((user) => user.id !== host.id)).slice(0, game.currentCount - 1)
+  const roster = shuffled(pool.filter((user) => user.id !== host.id)).slice(0, game.currentCount - 1)
 
   const created = await payload.create({
     collection: 'games',
     overrideAccess: true,
     data: {
-      title: game.title,
+      title: `Nümunə · ${game.title}`,
+      isDemo: true,
       sport: game.sport,
       level: game.level,
       arena: arenaIds[game.venueIndex],
