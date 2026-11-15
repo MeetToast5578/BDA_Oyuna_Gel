@@ -4,6 +4,8 @@ import type { Payload } from 'payload'
 
 import { GET as cleanupRoute } from '@/app/api/cron/cleanup/route'
 import { cleanUpOldData } from '@/lib/cleanup'
+import { storageAudit } from '@/lib/storage-audit'
+import { playerRecords } from '@/lib/records'
 
 const DAY_MS = 24 * 3600_000
 
@@ -32,7 +34,8 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
           data: {
             title: `Cleanup ${key} ${suffix}`, sport: 'football', level: 'medium', arena: arenaId, host: userId,
             scheduledAt: new Date(Date.now() + offset).toISOString(), maxPlayers: 10, availablePlayers: 9,
-            status: 'scheduled', contactPhone: '+994501234567', groupLink: 'https://chat.whatsapp.com/AbCdEf123456',
+            status: key === 'old' ? 'finished' : 'scheduled', contactPhone: '+994501234567', groupLink: 'https://chat.whatsapp.com/AbCdEf123456',
+            ...(key === 'old' ? { homeScore: 2, awayScore: 1, resultStatus: 'confirmed' as const } : {}),
           },
         })
       ).id
@@ -67,6 +70,9 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
     try {
       expect((await cleanupRoute(new Request('http://localhost/api/cron/cleanup'))).status).toBe(401)
       expect((await cleanupRoute(new Request('http://localhost/api/cron/cleanup', { headers: { authorization: 'Bearer nope' } }))).status).toBe(401)
+      for (const query of ['dryRun=true', 'dryrun=1', 'dryRun=0&dryRun=1']) {
+        expect((await cleanupRoute(new Request(`http://localhost/api/cron/cleanup?${query}`, { headers: { authorization: 'Bearer cleanup-secret' } }))).status).toBe(400)
+      }
       delete process.env.CRON_SECRET
       expect((await cleanupRoute(new Request('http://localhost/api/cron/cleanup', { headers: { authorization: 'Bearer ' } }))).status).toBe(401)
     } finally {
@@ -75,8 +81,59 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
     }
   })
 
+  it('audits and previews without writes, including through the authenticated cron endpoint', async () => {
+    const rowsBefore = (await db.execute(sql`SELECT * FROM games WHERE id IN (${games.old}, ${games.recent}, ${games.upcoming}) ORDER BY id`)).rows
+    const preview = await db.transaction((tx) => cleanUpOldData(tx, true), { accessMode: 'read only' })
+    expect(preview.hostPhones).toBeGreaterThanOrEqual(1)
+    expect(preview.participantPhones).toBeGreaterThanOrEqual(1)
+    expect(preview.groupLinks).toBeGreaterThanOrEqual(1)
+    expect(preview.waitlist).toBeGreaterThanOrEqual(1)
+    expect(preview.notices).toBeGreaterThanOrEqual(2)
+    const report = await storageAudit(db)
+    expect(report.cleanupCandidates).toEqual(preview)
+    expect(report.databaseBytes).toBeGreaterThan(0)
+    expect(report.tables.find((table) => table.name === 'games')?.totalBytes).toBeGreaterThan(0)
+    expect(report.games.older_than_90_days).toBeGreaterThanOrEqual(0)
+    expect(report.media.recorded_bytes).toBeGreaterThanOrEqual(0)
+    expect(JSON.stringify(report)).not.toContain('+994501234567')
+    expect(JSON.stringify(report)).not.toContain('chat.whatsapp.com')
+    const before = process.env.CRON_SECRET
+    process.env.CRON_SECRET = 'cleanup-preview-secret'
+    try {
+      const response = await cleanupRoute(new Request('http://localhost/api/cron/cleanup?dryRun=1', { headers: { authorization: 'Bearer cleanup-preview-secret' } }))
+      expect(response.status).toBe(200)
+      expect(response.headers.get('cache-control')).toBe('no-store')
+      expect(await response.json()).toEqual({ ok: true, dryRun: true, candidates: preview })
+    } finally {
+      if (before === undefined) delete process.env.CRON_SECRET
+      else process.env.CRON_SECRET = before
+    }
+    expect((await db.execute(sql`SELECT * FROM games WHERE id IN (${games.old}, ${games.recent}, ${games.upcoming}) ORDER BY id`)).rows).toEqual(rowsBefore)
+    expect(await cleanUpOldData(db, true)).toEqual(preview)
+  })
+
+  it('rolls back every cleanup operation if a transaction fails', async () => {
+    const before = await cleanUpOldData(db, true)
+    await expect(db.transaction(async (tx) => {
+      await cleanUpOldData(tx)
+      throw new Error('rollback check')
+    })).rejects.toThrow('rollback check')
+    expect(await cleanUpOldData(db, true)).toEqual(before)
+  })
+
   it('removes old logs and numbers, and keeps what is still needed', async () => {
-    await cleanUpOldData(db)
+    const recordsBefore = await playerRecords(db, [userId])
+    const before = process.env.CRON_SECRET
+    process.env.CRON_SECRET = 'cleanup-apply-secret'
+    try {
+      const response = await cleanupRoute(new Request('http://localhost/api/cron/cleanup', { headers: { authorization: 'Bearer cleanup-apply-secret' } }))
+      expect(response.status).toBe(200)
+      expect((await response.json()).removed.hostPhones).toBeGreaterThanOrEqual(1)
+    } finally {
+      if (before === undefined) delete process.env.CRON_SECRET
+      else process.env.CRON_SECRET = before
+    }
+    expect(await playerRecords(db, [userId])).toEqual(recordsBefore)
 
     const attempts = await db.execute<{ n: string }>(sql`SELECT count(*) AS n FROM join_attempts WHERE ip = ${`cleanup-${suffix}`}`)
     expect(Number(attempts.rows[0].n)).toBe(1)
@@ -101,5 +158,6 @@ describe.skipIf(!process.env.DATABASE_URL)('daily cleanup (Postgres)', () => {
 
     const notices = await db.execute<{ game_title: string }>(sql`SELECT game_title FROM notifications WHERE user_id = ${userId}`)
     expect(notices.rows.map((row) => row.game_title)).toEqual(['unread-old'])
+    expect(Object.values(await cleanUpOldData(db))).toEqual([0, 0, 0, 0, 0, 0, 0])
   })
 })
