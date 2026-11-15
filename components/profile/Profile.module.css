@@ -55,6 +55,8 @@
 .overview > .identity {
   flex-direction: row;
   align-items: flex-start;
+  /* Its own height, not the taller stats panel's beside it, so no empty card area. */
+  align-self: start;
   gap: 20px;
 }
 
@@ -251,6 +253,8 @@
 .sportBar {
   --progress-height: 8px;
   --progress-track: var(--color-track-warm);
+  /* The same indigo as the other profile charts. */
+  --progress-fill: var(--color-win);
 }
 
 .sportCount {
@@ -258,6 +262,31 @@
   color: var(--color-heading);
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* On someone else's profile, beside "Qeydiyyat". */
+.reliabilityFact {
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.reliability {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reliabilityText {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.reliabilityLabel {
+  font-weight: 700;
+  color: var(--color-heading);
 }
 
 .statsEmpty {
@@ -287,17 +316,40 @@
 
 .tabs {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
 }
 
-.roleTabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* The role switch holds a count too, so its segments are wider than the 140px default. */
+.tabs .roleSwitch {
+  grid-template-columns: repeat(2, minmax(0, 180px));
+}
+
+@media (max-width: 600px) {
+  .tabs,
+  .tabs > ul {
+    width: 100%;
+  }
+
+  .tabs .roleSwitch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The upcoming count beside each role, a small pill inside the switch. */
+.roleCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 /* Account section: the panel with "Çıxış", then the danger zone. */
@@ -379,11 +431,103 @@
     gap: 10px;
   }
 
-  .roleTabs {
-    gap: 10px;
-  }
-
   .notice {
     margin-top: -16px;
   }
+}
+
+/* Results: the last five outcomes as pills, newest first (Q qələbə, H heç-heçə, M məğlubiyyət) */
+.form {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pill {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pillwin {
+  background: var(--color-win);
+}
+
+/* The light middle colour takes dark text. */
+.pilldraw {
+  background: var(--color-draw);
+  color: var(--color-heading);
+}
+
+.pillloss {
+  background: var(--color-loss);
+}
+
+.pillSmall {
+  width: 20px;
+  height: 20px;
+  font-size: 10px;
+}
+
+/* Side by side where the panel is wide, so no bar stretches across a whole laptop screen. */
+.recordGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  align-items: start;
+  gap: 20px 40px;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.formLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.clubs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clubLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-primary-border);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-heading);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.clubLink:hover {
+  background: var(--color-primary-tint);
+}
+
+.clubLink:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }

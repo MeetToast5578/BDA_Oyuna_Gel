@@ -5,15 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useOptimistic, useTransition } from 'react'
 
 import { profileTabsQuery, type ProfileRole, type ProfileWindow } from '@/lib/game-backend'
-import tabs from '@/components/games/SportTabs.module.css'
 import segmented from '@/components/ui/segmented.module.css'
 import styles from './Profile.module.css'
 
 type Tab = { role: ProfileRole; when: ProfileWindow }
 
-const ROLES: Array<{ value: ProfileRole; label: string; emoji: string }> = [
-  { value: 'joined', label: 'Qoşulduğum oyunlar', emoji: '🎟️' },
-  { value: 'hosting', label: 'Təşkil etdiyim oyunlar', emoji: '📣' },
+const ROLES: Array<{ value: ProfileRole; label: string }> = [
+  { value: 'joined', label: 'Qoşulduğum' },
+  { value: 'hosting', label: 'Təşkil etdiyim' },
 ]
 
 const WINDOWS: Array<{ value: ProfileWindow; label: string }> = [
@@ -22,7 +21,8 @@ const WINDOWS: Array<{ value: ProfileWindow; label: string }> = [
 ]
 
 /**
- * "Qoşulduğum / Təşkil etdiyim" × "Qarşıdakı / Keçmiş". Links that set `?games=` and `?when=`, so
+ * "Qoşulduğum / Təşkil etdiyim" × "Qarşıdakı / Keçmiş", two switches on one line, the first with each
+ * role's upcoming count. Links that set `?games=` and `?when=`, so
  * the list is server-rendered and a reload keeps the tab — the pattern of the sport tabs: the choice
  * lights up on the click itself and `data-pending` dims the old list until the new one arrives.
  */
@@ -67,7 +67,7 @@ export function ProfileTabs({
 
   return (
     <nav className={styles.tabs} aria-label="Oyunları süz" data-pending={pending || undefined}>
-      <ul className={styles.roleTabs}>
+      <ul className={`${segmented.segments} ${styles.roleSwitch}`}>
         {ROLES.map((option) => {
           const active = shown.role === option.value
           return (
@@ -75,14 +75,13 @@ export function ProfileTabs({
               {link(
                 { role: option.value, when: shown.when },
                 active,
-                `${tabs.tab} ${active ? tabs.active : ''}`,
+                `${segmented.segment} ${active ? segmented.segmentActive : ''}`,
                 <>
-                  <span className={tabs.emoji} aria-hidden="true">
-                    {option.emoji}
+                  {option.label}
+                  <span className={styles.roleCount}>
+                    {upcomingCounts[option.value]}
+                    <span className="visually-hidden"> qarşıdakı oyun</span>
                   </span>
-                  <span className={tabs.label}>{option.label}</span>
-                  <span className={tabs.count}>{upcomingCounts[option.value]} qarşıdakı oyun</span>
-                  {pending && active && <span className={tabs.spinner} aria-hidden="true" />}
                 </>,
               )}
             </li>

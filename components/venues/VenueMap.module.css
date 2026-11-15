@@ -1,0 +1,29 @@
+.map {
+  width: 100%;
+  height: min(70vh, 560px);
+  min-height: 360px;
+  border: 1px solid var(--color-primary-border-soft);
+  border-radius: var(--radius-md);
+  /* Leaflet's panes stack up to z-index 1000; keep them under the sticky header and dialogs. */
+  isolation: isolate;
+  z-index: 0;
+}
+
+/* Under .map so it outranks Leaflet's own `.leaflet-container a` colour. */
+.map .popupTitle {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.map .popupText {
+  margin: 4px 0 0 !important;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+/* Leaflet's credit links are a light blue (3.6:1); the site's indigo reads clearly. */
+.map :global(.leaflet-control-attribution a) {
+  color: var(--color-primary);
+}

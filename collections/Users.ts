@@ -14,9 +14,12 @@ export const Users: CollectionConfig = {
     // Google is the only way to sign up: the OAuth callback creates the account with
     // `overrideAccess`, so nothing needs a public create route.
     create: isAdmin,
-    // Accounts hold emails and phone numbers: users only see and edit their own.
+    // Accounts hold emails and phone numbers: users only see their own.
     read: isAdminOrSelf,
-    update: isAdminOrSelf,
+    // The site edits profiles through /api/v1/me (validated, `overrideAccess`). Letting users write
+    // their own row here let them set their email and password, then catch that address's first
+    // Google sign-in, and skip the phone checks.
+    update: isAdmin,
     delete: isAdmin,
   },
   admin: {

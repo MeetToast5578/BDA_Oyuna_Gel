@@ -41,7 +41,7 @@ describe.skipIf(!process.env.DATABASE_URL)('deleteGame (Postgres)', () => {
       await payload.create({
         collection: 'arenas',
         overrideAccess: true,
-        data: { name: `Delete Test Arena ${suffix}`, location: 'Bakı' },
+        data: { name: `Delete Test Arena ${suffix}`, location: 'Bakı', city: 'baku' },
       })
     ).id
   })

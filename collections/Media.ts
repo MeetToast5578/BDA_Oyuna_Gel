@@ -1,5 +1,6 @@
-import type { Access, CollectionConfig } from 'payload'
+import { APIError, type Access, type CollectionConfig } from 'payload'
 
+import { isRateLimited } from '../lib/rate-limit'
 import { IMAGE_MIME_TYPES } from '../lib/uploads'
 
 type RoleUser = { id: number | string; role?: string } | null | undefined
@@ -26,6 +27,16 @@ export const Media: CollectionConfig = {
     delete: isAdminOrUploader,
   },
   hooks: {
+    beforeOperation: [
+      // Each upload costs Blob storage, so a signed-in user can't fill it in a loop.
+      async ({ operation, req, overrideAccess }) => {
+        const user = req.user as RoleUser
+        if (operation !== 'create' || overrideAccess || !user || user.role === 'admin') return
+        if (await isRateLimited(req.payload, 'upload', { userId: user.id })) {
+          throw new APIError('Çox şəkil yüklədiniz. Bir az sonra yenidən yoxlayın.', 429, undefined, true)
+        }
+      },
+    ],
     beforeChange: [
       ({ data, operation, originalDoc, req }) => {
         const user = req.user as RoleUser

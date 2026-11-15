@@ -29,7 +29,16 @@ export type CreateGameRequest = {
   currentCount: number
   maxCount: number
   hostPhone?: string
+  /** A WhatsApp (chat.whatsapp.com) or Telegram (t.me) group invite; "" or null removes it. */
+  groupLink?: string | null
   title?: string
+  /** The club on each side (home must be one of the host's); absent or null leaves the side open. */
+  homeTeamId?: number | null
+  awayTeamId?: number | null
+  /** Creating only: the side the host stands on (default `home`); their guests stand there too. */
+  hostSide?: 'home' | 'away'
+  /** Creating only: players to invite, each to a side. An invite holds no spot. */
+  invites?: { userId: number; side: 'home' | 'away' }[]
   /** Replace the profile's number with `hostPhone` ("Bu nömrəni profilimdə saxla"). */
   saveToProfile?: boolean
 }

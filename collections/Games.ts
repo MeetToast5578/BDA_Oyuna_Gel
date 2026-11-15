@@ -79,6 +79,21 @@ export const Games: CollectionConfig = {
       },
     },
     {
+      name: 'remindedAt',
+      type: 'date',
+      admin: {
+        readOnly: true,
+        description: 'When its players were sent "Oyununuz 2 saata başlayır" (/api/cron/reminders), so they get it once.',
+      },
+    },
+    {
+      name: 'groupLink',
+      type: 'text',
+      admin: {
+        description: 'WhatsApp or Telegram group invite link. Shown only to the host and players who joined; emptied 30 days after the game.',
+      },
+    },
+    {
       name: 'contactPhone',
       type: 'text',
       admin: {
@@ -108,6 +123,8 @@ export const Games: CollectionConfig = {
       name: 'scheduledAt',
       type: 'date',
       required: true,
+      // Every game list filters and sorts on it.
+      index: true,
     },
     {
       name: 'maxPlayers',

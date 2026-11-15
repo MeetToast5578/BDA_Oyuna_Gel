@@ -1,0 +1,100 @@
+.sports {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px 32px;
+}
+
+.sport {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+.head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 12px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+.rating {
+  grid-row: span 2;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-heading);
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* The 1000 start line: a hairline, recessive. */
+.grid {
+  stroke: var(--color-primary-border);
+  stroke-width: 1;
+}
+
+.tick {
+  font-size: 10px;
+  fill: var(--color-muted);
+}
+
+.area {
+  fill: color-mix(in srgb, var(--color-win) 10%, transparent);
+}
+
+.line {
+  fill: none;
+  stroke: var(--color-win);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  animation: draw 0.9s var(--ease-out) backwards;
+}
+
+.hit {
+  fill: transparent;
+}
+
+.hit:hover {
+  fill: color-mix(in srgb, var(--color-win) 25%, transparent);
+}
+
+/* The current rating: a filled dot with a ring of the surface around it. */
+.end {
+  fill: var(--color-win);
+  stroke: var(--color-surface);
+  stroke-width: 2;
+}
+
+.empty,
+.note {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}

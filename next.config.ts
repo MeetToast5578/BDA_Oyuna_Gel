@@ -7,6 +7,31 @@ const nextConfig: NextConfig = {
   // Lets every route prerender a static shell and stream the request-dependent parts (the signed-in
   // header chip) behind Suspense, instead of blocking the whole page on a session lookup.
   cacheComponents: true,
+  poweredByHeader: false,
+  experimental: {
+    // app/global-not-found.tsx: unknown URLs get the site's own 404, not Next's English default.
+    globalNotFound: true,
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // No other site may frame ours (clickjacking "Hesabı sil", join buttons). Only this
+          // directive: a full script CSP would have to allow the Payload admin's inline scripts.
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+      {
+        // The service worker for phone notifications: never served from a cache, so a fix reaches phones.
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
   images: {
     // AVIF where the browser accepts it, WebP otherwise.
     formats: ["image/avif", "image/webp"],

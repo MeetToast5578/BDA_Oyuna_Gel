@@ -7,6 +7,7 @@ import { cache } from 'react'
 import type { CurrentUser } from '@/lib/api-types'
 import { initialsOf, userAvatarUrl } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
+import { unreadNotificationCount } from '@/lib/notifications'
 
 /**
  * The signed-in user (Payload session or Google session cookie), or null.
@@ -48,3 +49,9 @@ export function isGoogleAuthConfigured() {
 export function sessionTag(userId: number) {
   return `session-${userId}`
 }
+
+/**
+ * The header's badge: notices on `/notifications` the person hasn't opened yet (invitations, spots
+ * from a waitlist, changed or cancelled games, scores). Once per request: the header renders it twice.
+ */
+export const getNoticeCount = cache(async (userId: number) => unreadNotificationCount(await getPayloadClient(), userId))

@@ -19,6 +19,11 @@
   --color-accent-hover: #f0b458;
   --color-on-accent: #5c3a0e;
   --color-success: #00d26a;
+  /* Results in charts and form pills: two hues and a neutral middle, checked for colour blindness
+     (indigo/orange stay apart; green/red don't). */
+  --color-win: #4433d6;
+  --color-draw: #c9c7d3;
+  --color-loss: #c2410c;
   --color-success-text: #047a3f; /* AA: #00d26a on white is 2.0:1 */
   --color-danger: #b42318;
   --color-danger-tint: #fef3f2;
@@ -48,12 +53,16 @@
   --color-footer-logo: rgba(255, 255, 255, 0.7);
 
   /* Levels: semantic colors (Başlanğıc green, Yüksək red), deliberately not the brand color. */
-  --level-beginner-bg: rgba(102, 210, 0, 0.7);
+  /* Solid, so the 11px label keeps at least 4.5:1 contrast over any cover photo. */
+  --level-beginner-bg: #dff4c9;
+  --level-beginner-text: #2c5a07;
   --level-beginner-border: #6db926;
-  --level-medium-bg: rgba(228, 160, 16, 0.7);
+  --level-medium-bg: #fcecc4;
+  --level-medium-text: #6e4a00;
   --level-medium-border: #c69731;
-  --level-high-bg: rgba(220, 38, 38, 0.7);
-  --level-high-border: #c81e1e;
+  --level-high-bg: #b91c1c;
+  --level-high-text: #fff;
+  --level-high-border: #991b1b;
 
   /* Hero */
   --hero-gradient: linear-gradient(104.13deg, var(--color-primary) 46.78%, var(--color-primary-deep) 109.51%);
@@ -124,9 +133,23 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Page changes and loading sections crossfade (see layout.tsx). The browser's own crossfade blends
+   the two snapshots, so whatever didn't change stays perfectly still; only the timing is ours. */
+::view-transition-old(.page),
+::view-transition-new(.page) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-out);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 
   *,
@@ -304,4 +327,22 @@ html:has(dialog[open]) {
 .skeleton-on-dark {
   --skeleton-base: rgba(255, 255, 255, 0.1);
   --skeleton-shine: rgba(255, 255, 255, 0.2);
+}
+
+/* "← Geri qayıt" above a page: a quiet text link with a full-size tap area, not a bordered button. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-left: -4px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-subtle);
+}
+
+.back-link:hover {
+  color: var(--color-primary);
 }

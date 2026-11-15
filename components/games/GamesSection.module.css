@@ -17,7 +17,7 @@
   align-self: stretch;
 }
 
-/* `.back` and `.seeAll` get their look from buttonClass; these rules only nudge the arrow. */
+/* `.back` looks like `.back-link` and `.seeAll` like a button; these rules only nudge the arrow. */
 .back > span {
   transition: transform 0.2s var(--ease-out);
 }
@@ -72,6 +72,10 @@
   color: var(--color-heading);
 }
 
+.filter:empty {
+  display: none;
+}
+
 .filter {
   font-size: 16px;
   line-height: 24px;
@@ -111,6 +115,28 @@
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 16px 24px;
+}
+
+/* "Filtr": only on phones (FilterDrawer). Scoped to the drawer to win over the button class's display. */
+.filterDrawer .filterToggle {
+  display: none;
+}
+
+@media (max-width: 599px) {
+  .filterDrawer .filterToggle {
+    display: inline-flex;
+    align-self: flex-start;
+  }
+
+  .filterDrawer:not([data-open]) .filterBody {
+    display: none;
+  }
+
+  .filterDrawer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
 .filterForm {

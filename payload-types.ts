@@ -74,6 +74,12 @@ export interface Config {
     games: Game;
     'game-participants': GameParticipant;
     'join-attempts': JoinAttempt;
+    'game-invites': GameInvite;
+    'game-waitlist': GameWaitlist;
+    'rate-limits': RateLimit;
+    notifications: Notification;
+    'push-subscriptions': PushSubscription;
+    'venue-suggestions': VenueSuggestion;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -88,6 +94,12 @@ export interface Config {
     games: GamesSelect<false> | GamesSelect<true>;
     'game-participants': GameParticipantsSelect<false> | GameParticipantsSelect<true>;
     'join-attempts': JoinAttemptsSelect<false> | JoinAttemptsSelect<true>;
+    'game-invites': GameInvitesSelect<false> | GameInvitesSelect<true>;
+    'game-waitlist': GameWaitlistSelect<false> | GameWaitlistSelect<true>;
+    'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
+    notifications: NotificationsSelect<false> | NotificationsSelect<true>;
+    'push-subscriptions': PushSubscriptionsSelect<false> | PushSubscriptionsSelect<true>;
+    'venue-suggestions': VenueSuggestionsSelect<false> | VenueSuggestionsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -147,6 +159,7 @@ export interface User {
   resetPasswordExpiration?: string | null;
   salt?: string | null;
   hash?: string | null;
+  resetPasswordRequestedAt?: string | null;
   loginAttempts?: number | null;
   lockUntil?: string | null;
   sessions?:
@@ -211,7 +224,7 @@ export interface Arena {
   /**
    * Used by the city filter on the /api/v1 sports, games and venues endpoints.
    */
-  city?: 'baku' | null;
+  city: 'baku';
   /**
    * City district or neighborhood where the venue is located.
    */
@@ -275,6 +288,14 @@ export interface Game {
   level: 'beginner' | 'medium' | 'high';
   host?: (number | null) | User;
   /**
+   * When its players were sent "Oyununuz 2 saata başlayır" (/api/cron/reminders), so they get it once.
+   */
+  remindedAt?: string | null;
+  /**
+   * WhatsApp or Telegram group invite link. Shown only to the host and players who joined; emptied 30 days after the game.
+   */
+  groupLink?: string | null;
+  /**
    * Host's contact number. The API only shows it to players who joined and to the host.
    */
   contactPhone?: string | null;
@@ -310,6 +331,14 @@ export interface GameParticipant {
    * Which half of the game the player is on. Each side holds half of maxPlayers (lib/team-logic.ts).
    */
   side: 'home' | 'away';
+  /**
+   * Marked by the host after kick-off (up to 7 days): did the player come? Empty means not marked. Feeds "Etibarlılıq" on profiles.
+   */
+  attendance?: ('came' | 'absent') | null;
+  /**
+   * Set when the player took a spot that came back to a full game from its waitlist, not by joining.
+   */
+  promotedAt?: string | null;
   /**
    * Number the player gave in the join form. Visible to admins only.
    */
@@ -350,6 +379,114 @@ export interface JoinAttempt {
    */
   remainingSpots?: number | null;
   ip?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Invitations to a game. Created by the invite endpoints; the invited player answers by joining or declining.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-invites".
+ */
+export interface GameInvite {
+  id: number;
+  game: number | Game;
+  user: number | User;
+  invitedBy?: (number | null) | User;
+  side: 'home' | 'away';
+  status: 'pending' | 'accepted' | 'declined';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Players waiting for a spot in a full game. Created by the waitlist endpoint; promoted when a spot frees up.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-waitlist".
+ */
+export interface GameWaitlist {
+  id: number;
+  game: number | Game;
+  user: number | User;
+  /**
+   * Name given when signing up for the list; it becomes the participant row's name.
+   */
+  name: string;
+  /**
+   * Number given when signing up for the list. Visible to admins only.
+   */
+  phone: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limits".
+ */
+export interface RateLimit {
+  id: number;
+  key: string;
+  windowStart: string;
+  count: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * In-app notices. Written by the site when something happens to a game a person is in.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications".
+ */
+export interface Notification {
+  id: number;
+  user: number | User;
+  kind:
+    | 'invited'
+    | 'promoted'
+    | 'changed'
+    | 'cancelled'
+    | 'removed'
+    | 'resultReported'
+    | 'resultConfirmed'
+    | 'resultDisputed'
+    | 'markedAbsent'
+    | 'reminder';
+  game?: (number | null) | Game;
+  gameTitle: string;
+  readAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Devices that turned on phone notifications. Created from the profile; removed when the push service drops them.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-subscriptions".
+ */
+export interface PushSubscription {
+  id: number;
+  user: number | User;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Venues players suggested. Add the real ones under Arenas, then mark them added or rejected.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "venue-suggestions".
+ */
+export interface VenueSuggestion {
+  id: number;
+  name: string;
+  district?: string | null;
+  address?: string | null;
+  sports: ('football' | 'basketball' | 'tennis')[];
+  note?: string | null;
+  submittedBy?: (number | null) | User;
+  status: 'pending' | 'added' | 'rejected';
   updatedAt: string;
   createdAt: string;
 }
@@ -404,6 +541,30 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'join-attempts';
         value: number | JoinAttempt;
+      } | null)
+    | ({
+        relationTo: 'game-invites';
+        value: number | GameInvite;
+      } | null)
+    | ({
+        relationTo: 'game-waitlist';
+        value: number | GameWaitlist;
+      } | null)
+    | ({
+        relationTo: 'rate-limits';
+        value: number | RateLimit;
+      } | null)
+    | ({
+        relationTo: 'notifications';
+        value: number | Notification;
+      } | null)
+    | ({
+        relationTo: 'push-subscriptions';
+        value: number | PushSubscription;
+      } | null)
+    | ({
+        relationTo: 'venue-suggestions';
+        value: number | VenueSuggestion;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -466,6 +627,7 @@ export interface UsersSelect<T extends boolean = true> {
   resetPasswordExpiration?: T;
   salt?: T;
   hash?: T;
+  resetPasswordRequestedAt?: T;
   loginAttempts?: T;
   lockUntil?: T;
   sessions?:
@@ -563,6 +725,8 @@ export interface GamesSelect<T extends boolean = true> {
   arena?: T;
   level?: T;
   host?: T;
+  remindedAt?: T;
+  groupLink?: T;
   contactPhone?: T;
   homeTeam?: T;
   awayTeam?: T;
@@ -587,6 +751,8 @@ export interface GameParticipantsSelect<T extends boolean = true> {
   user?: T;
   name?: T;
   side?: T;
+  attendance?: T;
+  promotedAt?: T;
   phone?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -601,6 +767,82 @@ export interface JoinAttemptsSelect<T extends boolean = true> {
   user?: T;
   remainingSpots?: T;
   ip?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-invites_select".
+ */
+export interface GameInvitesSelect<T extends boolean = true> {
+  game?: T;
+  user?: T;
+  invitedBy?: T;
+  side?: T;
+  status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-waitlist_select".
+ */
+export interface GameWaitlistSelect<T extends boolean = true> {
+  game?: T;
+  user?: T;
+  name?: T;
+  phone?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limits_select".
+ */
+export interface RateLimitsSelect<T extends boolean = true> {
+  key?: T;
+  windowStart?: T;
+  count?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications_select".
+ */
+export interface NotificationsSelect<T extends boolean = true> {
+  user?: T;
+  kind?: T;
+  game?: T;
+  gameTitle?: T;
+  readAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "push-subscriptions_select".
+ */
+export interface PushSubscriptionsSelect<T extends boolean = true> {
+  user?: T;
+  endpoint?: T;
+  p256dh?: T;
+  auth?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "venue-suggestions_select".
+ */
+export interface VenueSuggestionsSelect<T extends boolean = true> {
+  name?: T;
+  district?: T;
+  address?: T;
+  sports?: T;
+  note?: T;
+  submittedBy?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
 }

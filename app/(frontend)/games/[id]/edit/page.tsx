@@ -8,9 +8,10 @@ import styles from '@/components/create/GameForm.module.css'
 import { GameFormSkeleton } from '@/components/games/skeletons'
 import { buttonClass } from '@/components/ui/button'
 import { formatBakuDateKey, isUpcoming } from '@/lib/game-backend'
-import { getGameDetail } from '@/lib/game-queries'
+import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
 import { loginHref } from '@/lib/safe-redirect'
 import { getCurrentUser } from '@/lib/session'
+import { clubOptions } from '@/lib/teams'
 
 export const metadata: Metadata = { title: 'Oyunu redaktə et' }
 
@@ -72,5 +73,9 @@ async function EditGameForm({ params }: Props) {
   // the host of a game that has started, which can no longer be changed.
   if (!game.viewer.isHost || !isUpcoming(game.status)) redirect(`/games/${gameId}`)
 
-  return <GameForm user={user} today={formatBakuDateKey(new Date())} game={game} />
+  // The game's own clubs stay choosable even if everyone has since left one of them.
+  const current = [game.teams.home?.id, game.teams.away?.id].filter((id): id is string => Boolean(id)).map(Number)
+  const teams = await clubOptions(await getPayloadClient(), user.id, current)
+
+  return <GameForm user={user} today={formatBakuDateKey(new Date())} game={game} teams={teams} />
 }

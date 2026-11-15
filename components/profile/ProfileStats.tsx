@@ -5,6 +5,7 @@ import { ProgressBar } from '@/components/games/bits'
 import detail from '@/components/games/GameDetail.module.css'
 import { SPORT_EMOJI, sortSports } from '@/components/games/sports'
 import styles from './Profile.module.css'
+import { ActivityChart } from './StatCharts'
 
 /** Big numbers with a label underneath. A <dl>: each label names its number for screen readers. */
 export function StatTiles({ tiles }: { tiles: Array<{ value: number; label: string }> }) {
@@ -21,25 +22,54 @@ export function StatTiles({ tiles }: { tiles: Array<{ value: number; label: stri
   )
 }
 
-/** "Statistika" on "Profilim": three totals, then games played per sport. */
-export function ProfileStats({ profile }: { profile: MyProfile }) {
-  const { counts, stats } = profile
+/** "Etibarlılıq": how many of the games their hosts marked the person came to. Only shown from 3 marked games. */
+export function ReliabilityMeter({ reliability }: { reliability: { marked: number; came: number } | null }) {
+  if (!reliability) return null
+  return (
+    <div className={styles.reliability}>
+      <p className={styles.reliabilityText}>
+        <span className={styles.reliabilityLabel}>Etibarlılıq</span>
+        <span>
+          {reliability.came}/{reliability.marked} oyuna gəlib
+        </span>
+      </p>
+      <ProgressBar
+        value={reliability.came}
+        max={reliability.marked}
+        label={`Etibarlılıq: ${reliability.marked} oyundan ${reliability.came}`}
+        className={styles.sportBar}
+      />
+    </div>
+  )
+}
 
+type Stats = Pick<MyProfile['stats'], 'totalPlayed' | 'playedBySport' | 'playedByMonth'>
+
+/**
+ * "Statistika", on every profile: totals, reliability, games played per sport, then the last six
+ * months. `emptyText` speaks to the reader: "you" on your own profile, the person's name on theirs.
+ */
+export function ProfileStats({
+  tiles,
+  stats,
+  reliability,
+  emptyText,
+}: {
+  tiles: Array<{ value: number; label: string }>
+  stats: Stats
+  reliability: MyProfile['reliability']
+  emptyText: string
+}) {
   return (
     <section className={detail.panel} aria-labelledby="stats-title">
       <h2 id="stats-title" className={detail.panelLabel}>
         Statistika
       </h2>
-      <StatTiles
-        tiles={[
-          { value: stats.totalPlayed, label: 'oynanılan oyun' },
-          { value: counts.hostedPast + counts.hostingUpcoming, label: 'təşkil edilən oyun' },
-          { value: counts.joinedUpcoming + counts.hostingUpcoming, label: 'qarşıdakı oyun' },
-        ]}
-      />
+      <StatTiles tiles={tiles} />
+      <ReliabilityMeter reliability={reliability} />
       <hr className={styles.divider} />
       {stats.totalPlayed === 0 ? (
-        <p className={styles.statsEmpty}>Hələ heç bir oyunda iştirak etməmisiniz.</p>
+        <p className={styles.statsEmpty}>{emptyText}</p>
       ) : (
         <ul className={styles.sports} aria-label="İdman növləri üzrə oynanılan oyunlar">
           {sortSports(stats.playedBySport).map((sport) => (
@@ -58,6 +88,12 @@ export function ProfileStats({ profile }: { profile: MyProfile }) {
             </li>
           ))}
         </ul>
+      )}
+      {stats.totalPlayed > 0 && (
+        <>
+          <hr className={styles.divider} />
+          <ActivityChart months={stats.playedByMonth} />
+        </>
       )}
     </section>
   )

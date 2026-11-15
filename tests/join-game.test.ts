@@ -26,7 +26,7 @@ describe.skipIf(!process.env.DATABASE_URL)('claimSpot (Postgres)', () => {
       ),
     )
     userIds = users.map((user) => user.id)
-    arenaId = (await payload.create({ collection: 'arenas', data: { name: `Join Test Arena ${suffix}`, location: 'Bakı' } })).id
+    arenaId = (await payload.create({ collection: 'arenas', data: { name: `Join Test Arena ${suffix}`, location: 'Bakı', city: 'baku' } })).id
     // Only the second user is in the club.
     teamId = (
       await payload.create({ collection: 'teams', data: { name: `Join Test ${suffix}`, sport: 'football', members: [users[1].id] } })

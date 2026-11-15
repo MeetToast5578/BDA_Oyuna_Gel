@@ -77,6 +77,7 @@
   font-size: 14.5px;
   font-weight: 500;
   color: var(--color-ink);
+  white-space: nowrap;
 }
 
 /*
@@ -148,6 +149,7 @@
 
 /* Mobile menu: hidden on wide screens, where everything fits in the bar. */
 .menuButton {
+  position: relative;
   display: none;
   align-items: center;
   justify-content: center;
@@ -281,6 +283,7 @@
 
 /* The signed-in chip: avatar and first name, linking to "Profilim". */
 .user {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -310,6 +313,64 @@
   white-space: nowrap;
 }
 
+/* The bell for /notifications, the same size as the avatar ring beside it. */
+.bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--color-ink);
+  transition: background-color 0.15s ease;
+}
+
+.bell:hover,
+.bell[aria-current='page'] {
+  background: var(--color-primary-tint);
+}
+
+.bell:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* In the phone menu "Bildirişlər" is a line of its own, so the bell stays in the bar only. */
+.menuSession .bell {
+  display: none;
+}
+
+.menuCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Unread notices: a count on the corner of the bell. */
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-danger);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  color: #fff;
+}
+
 /* Matches the "Daxil ol" button, the widest thing the signed-out slot renders. */
 .sessionPlaceholder {
   display: block;
@@ -317,13 +378,18 @@
   height: 40px;
 }
 
-@media (max-width: 1023px) {
-  .nav {
-    padding-inline: var(--gutter);
-  }
-
+/* Small laptops: four links, the avatar and two buttons share the row, so the name hides. */
+@media (max-width: 1199px) {
   .userName {
     display: none;
+  }
+
+  .links {
+    gap: 4px;
+  }
+
+  .link {
+    padding-inline: 10px;
   }
 
   /* Just the avatar in a ring. */
@@ -332,9 +398,11 @@
   }
 }
 
-@media (max-width: 859px) {
+/* Below laptop width the four links and the session move into the menu, so the bar never crowds. */
+@media (max-width: 1023px) {
   .nav {
     grid-template-columns: 1fr auto;
+    padding-inline: var(--gutter);
   }
 
   .links,
@@ -352,7 +420,7 @@
 }
 
 /* The menu's copy of the session actions only shows in the menu. */
-@media (min-width: 860px) {
+@media (min-width: 1024px) {
   .menuPanel {
     display: none;
   }

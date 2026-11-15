@@ -1,12 +1,12 @@
 {
-  "name": "my-app",
+  "name": "oyunagel",
   "type": "module",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "payload generate:importmap && next build",
-    "vercel-build": "payload migrate && npm run build",
+    "vercel-build": "DATABASE_URL=${DATABASE_URL_UNPOOLED:-$DATABASE_URL} payload migrate && npm run build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
@@ -17,25 +17,29 @@
     "migrate:status": "payload migrate:status"
   },
   "dependencies": {
-    "@payloadcms/db-postgres": "^3.89.0",
-    "@payloadcms/email-nodemailer": "^3.89.0",
-    "@payloadcms/next": "^3.89.0",
-    "@payloadcms/storage-vercel-blob": "^3.89.0",
+    "@payloadcms/db-postgres": "^3.91.0",
+    "@payloadcms/email-nodemailer": "^3.91.0",
+    "@payloadcms/next": "^3.91.0",
+    "@payloadcms/storage-vercel-blob": "^3.91.0",
     "graphql": "^16.14.2",
     "jose": "^5.10.0",
-    "next": "16.3.4",
-    "payload": "^3.89.0",
+    "leaflet": "^1.9.4",
+    "next": "16.4.2",
+    "payload": "^3.91.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.5",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "dotenv": "^17.4.2",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.4.2",
     "typescript": "^5",
     "vitest": "^3.2.7"
   },

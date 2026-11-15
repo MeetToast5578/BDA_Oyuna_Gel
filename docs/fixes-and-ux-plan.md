@@ -12,8 +12,16 @@
 >   confirmations carry the calendar file; changed times or venues and cancellations (a deleted game,
 >   or the upcoming games of a deleted account) go to everyone in the game.
 > - **Built since:** D2 rate limits on join and leave (429 `RATE_LIMITED`, `tests/rate-limit.test.ts`).
-> - **Not started:** stage 0 (the owner's, in the Vercel dashboard), stages 5 and 7. Stage 6 (teams)
->   has phases 1–2 built; see the teams plan's status.
+> - **Built since:** stage 5, the waitlist (E1), to D4's first option, but with the "you got a spot" notice
+>   **in the app** (a profile panel and the header's count) because email is on hold: the email is sent
+>   too, and starts reaching people when Gmail is configured. Differences from §8: promotion is
+>   `promoteWaiting` in `lib/join-game.ts` (so `releaseSpot` can call it without an import cycle), a
+>   person who can't stand on the side with room is passed over and keeps their place, the host's
+>   removal of a player promotes too, the list is capped at 30, and a direct join drops the person's
+>   sign-up. People waiting for a game whose host deletes their account are not told.
+> - **Built since:** stage 6 (teams, all seven phases; see the teams plan's status).
+> - **Not started:** stage 0 (the owner's, in the Vercel dashboard; the `bda-oyuna-gel` project in
+>   `docs/handoff.md` §5 is the working preview copy), stage 7.
 > - **Where the build differs from the text below:**
 >   - A2 also clears the deleted host's contact number from the games that stay.
 >   - A host whose account is gone shows as "Silinmiş istifadəçi"; an account with no name still
