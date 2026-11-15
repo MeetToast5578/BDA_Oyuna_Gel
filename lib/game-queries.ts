@@ -49,6 +49,7 @@ const PARTICIPANT_PREVIEW_SIZE = 5
 const HOUR_MS = 60 * 60 * 1000
 
 const CARD_SELECT = {
+  isDemo: true,
   title: true,
   sport: true,
   level: true,

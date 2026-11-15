@@ -43,6 +43,7 @@ export async function claimSpot(
         SET available_players = available_players - 1, updated_at = now()
         WHERE id = ${gameId}
           AND status = 'scheduled'
+          AND is_demo IS NOT TRUE
           AND scheduled_at > now()
           AND available_players > 0
         RETURNING available_players, max_players
@@ -142,7 +143,7 @@ export async function clubsOf(db: Db, userId: number, game: GameSides): Promise<
 export async function promoteWaiting(tx: Db, gameId: number): Promise<number[]> {
   const promoted: number[] = []
   for (;;) {
-    const state = await tx.execute<{ available_players: number }>(sql`SELECT available_players FROM games WHERE id = ${gameId}`)
+    const state = await tx.execute<{ available_players: number }>(sql`SELECT available_players FROM games WHERE id = ${gameId} AND is_demo IS NOT TRUE`)
     if (!(Number(state.rows[0]?.available_players) > 0)) break
     const waiting = await tx.execute<{ id: number; user_id: number; name: string; phone: string }>(sql`
       SELECT id, user_id, name, phone FROM game_waitlist WHERE game_id = ${gameId} ORDER BY created_at, id
@@ -179,8 +180,8 @@ export async function promoteWaiting(tx: Db, gameId: number): Promise<number[]> 
 }
 
 async function rejectionReason(tx: Tx, gameId: number, userId: number): Promise<JoinErrorCode> {
-  const { rows } = await tx.execute<{ status: string; upcoming: boolean; joined: boolean }>(sql`
-    SELECT g.status,
+  const { rows } = await tx.execute<{ status: string; is_demo: boolean; upcoming: boolean; joined: boolean }>(sql`
+    SELECT g.status, g.is_demo,
            g.scheduled_at > now() AS upcoming,
            EXISTS (SELECT 1 FROM game_participants p WHERE p.game_id = g.id AND p.user_id = ${userId}) AS joined
     FROM games g
@@ -188,6 +189,7 @@ async function rejectionReason(tx: Tx, gameId: number, userId: number): Promise<
   `)
   const game = rows[0]
   if (!game) return 'GAME_NOT_FOUND'
+  if (game.is_demo) return 'GAME_NOT_JOINABLE'
   if (game.joined) return 'ALREADY_JOINED'
   if (game.status !== 'scheduled' || !game.upcoming) return 'GAME_NOT_JOINABLE'
   return 'GAME_FULL'

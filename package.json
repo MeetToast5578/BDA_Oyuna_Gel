@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "payload run scripts/seed.ts",
+    "demo:refresh": "payload run scripts/refresh-demo-games.ts --",
     "migrate": "payload migrate",
     "migrate:create": "payload migrate:create",
     "migrate:status": "payload migrate:status"

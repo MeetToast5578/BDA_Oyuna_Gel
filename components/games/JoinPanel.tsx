@@ -57,7 +57,7 @@ export function JoinPanel({
   const pathname = usePathname()
   const id = useId()
 
-  const canJoin = game.status === 'open' && !game.viewer.joined && !game.viewer.isHost
+  const canJoin = !game.isDemo && game.status === 'open' && !game.viewer.joined && !game.viewer.isHost
   const [open, setOpen] = useState(autoOpen && canJoin && Boolean(user))
   // The same name-and-phone form serves "Qoşul" and, for a full game, "Gözləmə siyahısına yaz".
   const [mode, setMode] = useState<'join' | 'waitlist'>('join')
@@ -91,6 +91,7 @@ export function JoinPanel({
   const joinUrl = `${pathname}?join=1${initialSide ? `&side=${initialSide}` : ''}`
 
   function openModal(next: 'join' | 'waitlist' = 'join') {
+    if (game.isDemo) return
     if (!user) {
       router.push(loginHref(joinUrl))
       return
@@ -203,7 +204,9 @@ export function JoinPanel({
 
   return (
     <>
-      {played ? (
+      {game.isDemo ? (
+        <p className={styles.state}>Nümunə oyun — real tədbir deyil. Bu oyuna qoşulmaq mümkün deyil.</p>
+      ) : played ? (
         // Past the start nothing can be joined, left or changed any more; say what happened instead.
         <div className={styles.past}>
           <p className={styles.state}>

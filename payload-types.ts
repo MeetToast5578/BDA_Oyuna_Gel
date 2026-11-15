@@ -274,6 +274,14 @@ export interface Team {
  */
 export interface Game {
   id: number;
+  /**
+   * Labelled example only; joining is disabled.
+   */
+  isDemo?: boolean | null;
+  /**
+   * Stable key used by the add-only demo refresh.
+   */
+  demoKey?: string | null;
   title: string;
   sport: 'football' | 'basketball' | 'tennis';
   /**
@@ -718,6 +726,8 @@ export interface TeamsSelect<T extends boolean = true> {
  * via the `definition` "games_select".
  */
 export interface GamesSelect<T extends boolean = true> {
+  isDemo?: T;
+  demoKey?: T;
   title?: T;
   sport?: T;
   coverImage?: T;
