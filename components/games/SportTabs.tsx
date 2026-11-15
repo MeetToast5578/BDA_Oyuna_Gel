@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useOptimistic, useTransition } from 'react'
 
 import { withQuery } from '@/lib/api-client'
+import { trackAction } from '@/lib/analytics'
 import type { SportTab } from '@/lib/api-types'
 import { sortSports, SPORT_EMOJI } from './sports'
 import styles from './SportTabs.module.css'
@@ -40,6 +41,7 @@ export function SportTabs({
     // Let the browser handle "open in new tab" and friends.
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
     event.preventDefault()
+    trackAction('sport_selected', sport)
     startTransition(() => {
       setShownActive(sport)
       router.replace(href, { scroll: false })

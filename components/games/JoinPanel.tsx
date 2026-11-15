@@ -1,5 +1,7 @@
 'use client'
 
+import { trackAction } from '@/lib/analytics'
+
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState, useTransition } from 'react'
 
@@ -123,6 +125,7 @@ export function JoinPanel({
     setPending(true)
     try {
       await postJson(`/api/v1/games/${game.id}/waitlist`, { name: name.trim(), phone: normalizePhone(`${PHONE_PREFIX}${phone}`) })
+      trackAction('waitlist_joined', game.sport)
       setOpen(false)
       startRefresh(() => router.refresh())
     } catch (err) {
@@ -164,6 +167,7 @@ export function JoinPanel({
         ...(phoneNote === 'differs' && savePhone ? { saveToProfile: true } : {}),
       })
       setJustJoined(true)
+      trackAction('game_joined', game.sport)
       setLeftMessage('')
       setOpen(false)
       // Brings in the new player count and the host's phone, which only joined players see. When the

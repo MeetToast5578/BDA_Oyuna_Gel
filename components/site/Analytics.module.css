@@ -1,0 +1,20 @@
+.banner {
+  position: fixed;
+  inset: auto 16px 16px;
+  z-index: 100;
+  max-width: 560px;
+  max-height: 70dvh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--color-primary);
+  border-radius: 16px;
+  background: #fff;
+  color: #171b29;
+  box-shadow: 0 8px 32px #0002;
+}
+.banner h2 { margin: 0 0 8px; font-size: 18px; }
+.banner p { margin: 0 0 16px; font-size: 14px; line-height: 1.6; }
+.banner a { color: var(--color-primary); text-decoration: underline; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.settings { background: none; border: 0; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; padding: 8px 0; }
+.settings:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }

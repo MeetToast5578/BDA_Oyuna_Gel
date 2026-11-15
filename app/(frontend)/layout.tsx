@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk } from 'next/font/google'
 import React, { Suspense, ViewTransition } from 'react'
 
 import { Footer } from '@/components/site/Footer'
+import { Analytics } from '@/components/site/Analytics'
 import { Header } from '@/components/site/Header'
 import { NavigationProgress } from '@/components/site/NavigationProgress'
 import { SITE_URL } from '@/lib/site-url'
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </main>
         </ViewTransition>
         <Footer />
+        <Suspense fallback={null}><Analytics /></Suspense>
       </body>
     </html>
   )
