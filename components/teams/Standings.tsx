@@ -4,7 +4,7 @@ import { FormPills } from '@/components/profile/RecordPanel'
 import type { WinLossRecord } from '@/lib/team-logic'
 import styles from './Teams.module.css'
 
-export type StandingRow = { id: string; href: string; name: string; record: WinLossRecord }
+export type StandingRow = { id: string; href?: string; name: string; record: WinLossRecord }
 
 const MEDALS = [styles.gold, styles.silver, styles.bronze]
 
@@ -63,7 +63,7 @@ export function StandingsTable({
                 <span className={`${styles.rank} ${MEDALS[index] ?? ''}`}>{index + 1}</span>
               </td>
               <td>
-                <Link href={row.href}>{row.name}</Link>
+                {row.href ? <Link href={row.href}>{row.name}</Link> : <span>{row.name}</span>}
                 {mine.includes(row.id) && <span className={styles.mineTag}>{mineLabel}</span>}
               </td>
               <td>{row.record.played}</td>

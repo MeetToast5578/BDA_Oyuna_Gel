@@ -55,6 +55,7 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
 - Fill the database with sample venues, players and games: `npm run seed`
 - Add fresh, labelled example games without resetting data: [safe demo refresh](docs/demo-games.md). `npm run demo:refresh` previews only; `-- --apply` adds examples locally. Never use the destructive seed script against a live database.
 - Inspect storage and preview existing retention cleanup: `npm run storage:audit` and `npm run storage:cleanup`. See [storage and retention](docs/storage-and-retention.md) for safe application and cron verification.
+- Ratings include an explicit “Nümunə” view with fictional, separate sport rosters. The destructive development seed now uses the same pools and marks its games as demos; real ratings exclude those games. See [demo ratings](docs/demo-ratings.md).
 - API reference: [docs/api.md](docs/api.md)
 
 ## Deploying to Vercel

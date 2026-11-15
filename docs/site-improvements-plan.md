@@ -28,6 +28,8 @@ Read-only storage audit and cleanup preview implemented; see `docs/storage-and-r
 
 Sport filters already exist. For demo data, use independent player pools for football, basketball and tennis; the requested female demo representation can be confined to tennis. Do not infer real users' gender from names or prevent genuine multi-sport players from appearing in each sport they play. If real competitions require men's, women's or mixed divisions, agree explicit eligibility rules and represent those divisions in data before filtering rankings. Verify per-sport and per-period records from confirmed results.
 
+Implemented distinct authored pools shared by a clearly labelled sample ratings view and the development seed; see `docs/demo-ratings.md`. The sample view does not write to the database, link fake profiles or mix fictional scores into real standings. Seeded hosts, participants and clubs use their sport's pool, and all seeded games are marked as demos. Real eligibility remains unchanged. Existing production records are not rewritten by this implementation.
+
 ## Decisions needed before later stages
 
 - Is the live data wholly demo, or a mixture of demo and real activity?
@@ -35,4 +37,4 @@ Sport filters already exist. For demo data, use independent player pools for foo
 - Are distinct player lists and gender restrictions requests about demo examples or actual competition eligibility?
 - What storage usage and historical retention requirements warrant archival?
 
-Stages 1–3 have been merged; their live configuration/data prerequisites still apply. Stage 4's audit and safer existing cleanup are implemented for review and local validation. Live measurements and cron verification need production access. Demo player pools remain the next stage. No stage authorises deleting real historical data.
+Stages 1–4 have been merged; their live configuration/data prerequisites still apply. Stage 5's sample view and distinct development rosters are implemented for review. Live measurements, cron verification and any migration of existing sample records still require production access and data classification. No stage authorises deleting real historical data or changing real-player eligibility.
