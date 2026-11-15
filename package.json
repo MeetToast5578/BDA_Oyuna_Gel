@@ -13,6 +13,8 @@
     "test": "vitest run",
     "seed": "payload run scripts/seed.ts",
     "demo:refresh": "payload run scripts/refresh-demo-games.ts --",
+    "storage:audit": "payload run scripts/storage.ts -- audit",
+    "storage:cleanup": "payload run scripts/storage.ts -- cleanup",
     "migrate": "payload migrate",
     "migrate:create": "payload migrate:create",
     "migrate:status": "payload migrate:status"

@@ -22,6 +22,8 @@ Implemented an add-only, dry-run-first refresh; see `docs/demo-games.md`. It add
 
 Measure database tables, indexes and uploaded media before choosing retention limits. Verify CRON_SECRET and successful daily cleanup runs; code existing in the repository does not prove production execution. Preserve historical results and participation needed for ratings and profiles. Start with past-game views, existing transient-data cleanup and image optimisation. If measurements justify archival, design a backup, result-preservation and restore process before removing data. Live deletion or archival requires an agreed scope.
 
+Read-only storage audit and cleanup preview implemented; see `docs/storage-and-retention.md`. The existing retention rules are unchanged, but cron/CLI cleanup now runs in a transaction and cron logs include completion time, duration and counts. Local tests cover audit/preview purity, rollback, repeatability and preserved player results. Production storage measurement, secret binding and actual cron execution remain unverified. No historical games or media are deleted or compressed by this stage.
+
 ## 5. Ratings and demo players
 
 Sport filters already exist. For demo data, use independent player pools for football, basketball and tennis; the requested female demo representation can be confined to tennis. Do not infer real users' gender from names or prevent genuine multi-sport players from appearing in each sport they play. If real competitions require men's, women's or mixed divisions, agree explicit eligibility rules and represent those divisions in data before filtering rankings. Verify per-sport and per-period records from confirmed results.
@@ -33,4 +35,4 @@ Sport filters already exist. For demo data, use independent player pools for foo
 - Are distinct player lists and gender restrictions requests about demo examples or actual competition eligibility?
 - What storage usage and historical retention requirements warrant archival?
 
-Stages 1 and 2 have been merged. Stage 3 is implemented for review and local validation; live rollout needs the above data confirmation and access. Storage cleanup and demo player pools remain later stages. No stage authorises deleting real historical data.
+Stages 1–3 have been merged; their live configuration/data prerequisites still apply. Stage 4's audit and safer existing cleanup are implemented for review and local validation. Live measurements and cron verification need production access. Demo player pools remain the next stage. No stage authorises deleting real historical data.
