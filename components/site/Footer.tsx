@@ -24,7 +24,7 @@ export async function Footer() {
             <Link href="/" className={styles.logo}>
               OyunaGəl
             </Link>
-            <p className={styles.tagline}>Azərbaycanın ən böyük idman koordinasiya platforması. Birlikdə oynayaq.</p>
+            <p className={styles.tagline}>Birlikdə oynayaq.</p>
           </div>
           <nav aria-label="Footer">
             <ul className={styles.links}>
