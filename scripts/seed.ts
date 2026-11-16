@@ -71,7 +71,7 @@ function slugify(text: string) {
     .replace(/^\.|\.$/g, '')
 }
 
-/** The disjoint authored pools are shared with the explicit sample ratings view. */
+/** The disjoint authored pools keep development players separate by sport. */
 function buildPeople() {
   return demoPeople().map((person, index) => ({ ...person, phoneNumber: `+99450${3100000 + index * 37}` }))
 }

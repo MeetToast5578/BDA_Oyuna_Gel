@@ -17,7 +17,6 @@ import { startOfBakuMonth } from '@/lib/game-backend'
 import { playerStandings } from '@/lib/records'
 import { getCurrentUser } from '@/lib/session'
 import { byStanding, listTeams, userClubs } from '@/lib/teams'
-import { demoStandings } from '@/lib/demo-players'
 
 export const metadata: Metadata = { title: 'Reytinq' }
 
@@ -27,19 +26,6 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
 async function Board({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams
   const sport = sportFromSearchParams(params) ?? 'football'
-  if (params.view === 'demo') return (
-    <>
-      <SegmentedLinks label="Reytinq" options={[
-        { href: withQuery('/leaderboard', { sport }), label: 'Oyunçular', active: false },
-        { href: withQuery('/leaderboard', { sport, view: 'teams' }), label: 'Komandalar', active: false },
-        { href: withQuery('/leaderboard', { sport, view: 'demo' }), label: 'Nümunə', active: true },
-      ]} />
-      <p className={section.filter}>Nümunə cədvəl: adlar və nəticələr uydurmadır. Real oyunçuların reytinqinə daxil deyil.</p>
-      <SportTabs sports={SPORT_ORDER.map((value) => ({ sport: value, label: SPORT_LABELS[value], iconKey: value, count: demoStandings(value).length }))}
-        active={sport} basePath="/leaderboard" query={{ view: 'demo' }} countLabel="nümunə oyunçu" />
-      <StandingsTable caption={`${SPORT_LABELS[sport]} · nümunə nəticələr`} nameHeader="Nümunə oyunçu" rows={demoStandings(sport)} />
-    </>
-  )
   const teamsView = params.view === 'teams'
   const monthly = params.period === 'month'
   const since = monthly ? startOfBakuMonth(new Date()) : null
@@ -66,7 +52,7 @@ async function Board({ searchParams }: { searchParams: SearchParams }) {
       )
   const rows = bySport[SPORT_ORDER.indexOf(sport)]
   // Each switch keeps the others: view, period and sport travel together.
-  const href = (next: { view?: 'teams' | 'demo' | null; period?: 'month' | null }) =>
+  const href = (next: { view?: 'teams' | null; period?: 'month' | null }) =>
     withQuery('/leaderboard', { sport, view: teamsView ? 'teams' : null, period: monthly ? 'month' : null, ...next })
 
   return (
@@ -77,7 +63,6 @@ async function Board({ searchParams }: { searchParams: SearchParams }) {
           options={[
             { href: href({ view: null }), label: 'Oyunçular', active: !teamsView },
             { href: href({ view: 'teams' }), label: 'Komandalar', active: teamsView },
-            { href: href({ view: 'demo', period: null }), label: 'Nümunə', active: false },
           ]}
         />
         <SegmentedLinks
@@ -127,7 +112,7 @@ export default function LeaderboardPage({ searchParams }: { searchParams: Search
           <h1 id="leaderboard-title" className={section.title}>
             Reytinq
           </h1>
-          <p className={section.filter}>Qələbə 3 xal, heç-heçə 1 xal. Real reytinqdə yalnız təsdiqlənmiş hesablar sayılır; “Nümunə” ayrıca nümayiş üçündür.</p>
+          <p className={section.filter}>Qələbə 3 xal, heç-heçə 1 xal. Yalnız təsdiqlənmiş hesablar sayılır.</p>
         </div>
       </div>
       <Suspense fallback={<div className="skeleton" style={{ height: 420 }} />}>
