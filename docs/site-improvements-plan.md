@@ -28,7 +28,7 @@ Read-only storage audit and cleanup preview implemented; see `docs/storage-and-r
 
 Sport filters already exist. For demo data, use independent player pools for football, basketball and tennis; the requested female demo representation can be confined to tennis. Do not infer real users' gender from names or prevent genuine multi-sport players from appearing in each sport they play. If real competitions require men's, women's or mixed divisions, agree explicit eligibility rules and represent those divisions in data before filtering rankings. Verify per-sport and per-period records from confirmed results.
 
-Implemented distinct authored pools shared by a clearly labelled sample ratings view and the development seed; see `docs/demo-ratings.md`. The sample view does not write to the database, link fake profiles or mix fictional scores into real standings. Seeded hosts, participants and clubs use their sport's pool, and all seeded games are marked as demos. Real eligibility remains unchanged. Existing production records are not rewritten by this implementation.
+Implemented distinct authored pools for the development seed; see `docs/demo-ratings.md`. The sample ratings tab was subsequently removed at the owner’s request. Ratings display only database-backed results. Seeded hosts, participants and clubs use their sport's pool, and all seeded games are marked as demos. Real eligibility remains unchanged. Existing production records are not rewritten by this implementation.
 
 ## Decisions needed before later stages
 
@@ -37,4 +37,4 @@ Implemented distinct authored pools shared by a clearly labelled sample ratings 
 - Are distinct player lists and gender restrictions requests about demo examples or actual competition eligibility?
 - What storage usage and historical retention requirements warrant archival?
 
-Stages 1–4 have been merged; their live configuration/data prerequisites still apply. Stage 5's sample view and distinct development rosters are implemented for review. Live measurements, cron verification and any migration of existing sample records still require production access and data classification. No stage authorises deleting real historical data or changing real-player eligibility.
+Stages 1–4 have been merged; their live configuration/data prerequisites still apply. Stage 5's development rosters have been merged; the sample display is being removed. Live measurements, cron verification and any migration of existing sample records still require production access and data classification. No stage authorises deleting real historical data or changing real-player eligibility.
