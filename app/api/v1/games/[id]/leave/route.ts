@@ -1,4 +1,5 @@
 import { after, NextResponse } from 'next/server'
+import { scheduleAdminAlert } from '@/lib/admin-alerts'
 
 import { apiError } from '@/lib/api-response'
 import { isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
@@ -59,6 +60,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       console.error(error)
       return null
     })
+    scheduleAdminAlert(payload, { type: 'player_left', actorId: userId, actorName: user.fullName, game: game ?? { id: gameId, title: `Oyun ${gameId}` } })
 
     return NextResponse.json({
       id: String(gameId),

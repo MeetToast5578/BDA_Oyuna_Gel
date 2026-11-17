@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { scheduleAdminAlert } from '@/lib/admin-alerts'
 
 import { apiError } from '@/lib/api-response'
 import { authorizeHost } from '@/lib/authorize-host'
@@ -58,6 +59,7 @@ export async function PATCH(
 
     // A new time or place is news to everyone who planned around the old one.
     const { game } = result
+    scheduleAdminAlert(getPayloadClient, { type: 'game_updated', actorId: auth.userId, game })
     if (game.startsAt !== existing.startsAt || game.venue.id !== existing.venue.id) {
       afterResponse(async () => {
         const payload = await getPayloadClient()
@@ -93,6 +95,7 @@ export async function DELETE(
     const payload = await getPayloadClient()
     const players = isUpcoming(game.status) ? await participantIds(payload, auth.gameId, auth.userId) : []
     await deleteGame(auth.gameId)
+    scheduleAdminAlert(payload, { type: 'game_deleted', actorId: auth.userId, game })
     // Deleted by then: the notice keeps only the name.
     if (players.length > 0) afterResponse(() => notify(payload, players, { kind: 'cancelled', gameId: null, gameTitle: game.title }, gameCancelledEmail(game)))
     return NextResponse.json({ ok: true, id: String(auth.gameId) })

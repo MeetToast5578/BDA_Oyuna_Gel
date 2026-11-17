@@ -60,6 +60,8 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
 
 ## Deploying to Vercel
 
+Admin activity emails: see [central inbox, Gmail forwarding and secure sender setup](docs/admin-email-alerts.md). Alerts are opt-in and have separate credentials from player-facing emails.
+
 Optional Google Analytics: see [setup and consent instructions](docs/analytics.md). Tracking stays off until `NEXT_PUBLIC_GA_MEASUREMENT_ID` is set and visitors accept analytics.
 
 1. Import the repo in Vercel (framework preset: Next.js, no other build settings needed).

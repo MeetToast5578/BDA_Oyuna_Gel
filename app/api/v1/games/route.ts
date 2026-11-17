@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { scheduleAdminAlert } from '@/lib/admin-alerts'
 
 import { apiError } from '@/lib/api-response'
 import { parseCreateGameBody, parseGameListParams } from '@/lib/game-backend'
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
 
     // The people the host named hear about it after the game is saved.
     const { game: created } = result
+    scheduleAdminAlert(payload, { type: 'game_created', actorId: userId, actorName: user.fullName, game: created })
     if (parsed.input.invites.length > 0) {
       afterResponse(() => notifyInvited(payload, { ...created, hostName: created.host.name }, parsed.input.invites))
     }

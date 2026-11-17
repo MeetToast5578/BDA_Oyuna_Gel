@@ -1,4 +1,5 @@
 import { after, NextResponse } from 'next/server'
+import { scheduleAdminAlert } from '@/lib/admin-alerts'
 
 import { apiError } from '@/lib/api-response'
 import { isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
@@ -94,6 +95,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       console.error(error)
       return null
     })
+    scheduleAdminAlert(payload, { type: 'player_joined', actorId: userId, actorName: user.fullName, game: game ?? { id: gameId, title: `Oyun ${gameId}` } })
     if (game) afterResponse(() => notify(payload, [userId], null, joinedEmail(game, toIcs(game, `${SITE_URL}/games/${game.id}`))))
     // A number typed in step 1 (not the profile's own fallback) is kept for the next form.
     const typedPhone = normalizePhone(body?.phone)
