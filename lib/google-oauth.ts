@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto'
 import type { Payload } from 'payload'
+import { scheduleAdminAlert } from '@/lib/admin-alerts'
 
 /**
  * The origin the visitor is on, e.g. http://localhost:3000 or https://bda-next-six.vercel.app.
@@ -55,13 +56,14 @@ export async function findOrCreateGoogleUser(payload: Payload, profile: GooglePr
   }
 
   const data = { googleId: profile.sub, fullName: profile.name ?? profile.email, avatarUrl: profile.picture ?? null }
-  return existing
-    ? payload.update({ collection: 'users', id: existing.id, overrideAccess: true, data })
-    : payload.create({
-        collection: 'users',
-        overrideAccess: true,
-        data: { ...data, email: profile.email, password: randomBytes(32).toString('hex') },
-      })
+  if (existing) return payload.update({ collection: 'users', id: existing.id, overrideAccess: true, data })
+  const created = await payload.create({
+    collection: 'users',
+    overrideAccess: true,
+    data: { ...data, email: profile.email, password: randomBytes(32).toString('hex') },
+  })
+  scheduleAdminAlert(payload, { type: 'player_registered', actorId: created.id, actorName: created.fullName })
+  return created
 }
 
 /** Proxies may join several values with commas; the first is the one the client used. */
