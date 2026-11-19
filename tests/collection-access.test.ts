@@ -151,9 +151,11 @@ describe.skipIf(!process.env.DATABASE_URL)('games and teams access (Postgres)', 
 
     expect(await findOrCreateGoogleUser(payload, { sub: `g-${suffix}-other`, email, name: 'Other' })).toBeNull()
 
+    // A name the account already has (seeded, or edited in "Profilim") is not replaced by Google's.
+    await payload.update({ collection: 'users', id: seeded.id, overrideAccess: true, data: { fullName: 'Chosen Name' } })
     const again = await findOrCreateGoogleUser(payload, { sub: `g-${suffix}-owner`, email, name: 'Owner Renamed' })
     expect(again?.id).toBe(seeded.id)
-    expect(again?.fullName).toBe('Owner Renamed')
+    expect(again?.fullName).toBe('Chosen Name')
 
     const fresh = await findOrCreateGoogleUser(payload, { sub: `g-${suffix}-new`, email: `new-${email}`, name: 'New' })
     expect(fresh?.id).not.toBe(seeded.id)

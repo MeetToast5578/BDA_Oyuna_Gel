@@ -55,12 +55,15 @@ export async function findOrCreateGoogleUser(payload: Payload, profile: GooglePr
     existing = byEmail.docs[0]
   }
 
-  const data = { googleId: profile.sub, fullName: profile.name ?? profile.email, avatarUrl: profile.picture ?? null }
-  if (existing) return payload.update({ collection: 'users', id: existing.id, overrideAccess: true, data })
+  // The name is Google's only until the account has one: people rename themselves in "Profilim", and a sign-in must not undo it.
+  const data = { googleId: profile.sub, avatarUrl: profile.picture ?? null }
+  if (existing) {
+    return payload.update({ collection: 'users', id: existing.id, overrideAccess: true, data: existing.fullName ? data : { ...data, fullName: profile.name ?? profile.email } })
+  }
   const created = await payload.create({
     collection: 'users',
     overrideAccess: true,
-    data: { ...data, email: profile.email, password: randomBytes(32).toString('hex') },
+    data: { ...data, fullName: profile.name ?? profile.email, email: profile.email, password: randomBytes(32).toString('hex') },
   })
   scheduleAdminAlert(payload, { type: 'player_registered', actorId: created.id, actorName: created.fullName })
   return created

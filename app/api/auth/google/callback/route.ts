@@ -7,7 +7,11 @@ import { findOrCreateGoogleUser, googleCallbackUrl, requestOrigin, type GooglePr
 import { safeRedirectPath } from '@/lib/safe-redirect'
 import { CONSENT_COOKIE, LOGIN_COOKIE, MEASUREMENT_ID } from '@/lib/analytics'
 
-export const GET = async (request: Request) => {
+/** Sign-in trouble sends the person back to /login with a short message, never a bare JSON error. */
+const failed = (request: Request, reason: 'google' | 'taken' = 'google') =>
+  NextResponse.redirect(new URL(`/login?error=${reason}`, requestOrigin(request)))
+
+const callback = async (request: Request) => {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state')
@@ -19,11 +23,12 @@ export const GET = async (request: Request) => {
     ?.split('=')[1]
 
   if (!code || !state || !expectedState || state !== expectedState) {
-    return NextResponse.json({ error: 'Invalid Google OAuth callback' }, { status: 400 })
+    return failed(request)
   }
 
   if (!process.env.PAYLOAD_SECRET) {
-    return NextResponse.json({ error: 'PAYLOAD_SECRET is not configured' }, { status: 500 })
+    console.error('google_callback', { reason: 'PAYLOAD_SECRET is not configured' })
+    return failed(request)
   }
 
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -39,12 +44,12 @@ export const GET = async (request: Request) => {
   })
 
   if (!tokenResponse.ok) {
-    return NextResponse.json({ error: 'Google token exchange failed' }, { status: 401 })
+    return failed(request)
   }
 
   const tokens = (await tokenResponse.json()) as { access_token?: string }
   if (!tokens.access_token) {
-    return NextResponse.json({ error: 'Google did not return an access token' }, { status: 401 })
+    return failed(request)
   }
 
   const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
@@ -54,12 +59,12 @@ export const GET = async (request: Request) => {
 
   // An unverified email must not sign in to (and take over) an existing account with that address.
   if (!profileResponse.ok || !profile.sub || !profile.email || profile.email_verified !== true) {
-    return NextResponse.json({ error: 'Could not read a verified Google profile' }, { status: 401 })
+    return failed(request)
   }
 
   const user = await findOrCreateGoogleUser(await getPayload({ config }), profile)
   if (!user) {
-    return NextResponse.json({ error: 'This email belongs to another Google account' }, { status: 409 })
+    return failed(request, 'taken')
   }
 
   // The `google` auth strategy in collections/Users.ts resolves the session by
@@ -100,4 +105,14 @@ export const GET = async (request: Request) => {
     response.cookies.set(LOGIN_COOKIE, '1', { maxAge: 60, path: '/', sameSite: 'lax', secure: process.env.NODE_ENV === 'production' })
   }
   return response
+}
+
+export const GET = async (request: Request) => {
+  try {
+    return await callback(request)
+  } catch {
+    // A network error, or two sign-ins creating the same account at once: trying again works.
+    console.error('google_callback', { reason: 'unexpected error' })
+    return failed(request)
+  }
 }

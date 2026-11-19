@@ -29,8 +29,15 @@ export default function LoginPage({ searchParams }: { searchParams: SearchParams
   )
 }
 
+/** Set by the Google callback when sign-in did not finish (app/api/auth/google/callback). */
+const ERRORS: Record<string, string> = {
+  google: 'Google ilə giriş alınmadı. Zəhmət olmasa yenidən cəhd edin.',
+  taken: 'Bu e-poçt başqa Google hesabına bağlıdır. Əvvəl istifadə etdiyiniz Google hesabı ilə daxil olun.',
+}
+
 async function SignInAction({ searchParams }: { searchParams: SearchParams }) {
-  const next = safeRedirectPath((await searchParams).next)
+  const { next: rawNext, error } = await searchParams
+  const next = safeRedirectPath(rawNext)
   if (!isGoogleAuthConfigured()) {
     return (
       <GoogleUnavailable>
@@ -38,7 +45,12 @@ async function SignInAction({ searchParams }: { searchParams: SearchParams }) {
       </GoogleUnavailable>
     )
   }
-  return <GoogleButton href={`/api/auth/google?next=${encodeURIComponent(next)}`} />
+  return (
+    <>
+      {typeof error === 'string' && Object.hasOwn(ERRORS, error) && <GoogleUnavailable>{ERRORS[error]}</GoogleUnavailable>}
+      <GoogleButton href={`/api/auth/google?next=${encodeURIComponent(next)}`} />
+    </>
+  )
 }
 
 /** Someone already signed in has nothing to do here: send them where they were going. */
