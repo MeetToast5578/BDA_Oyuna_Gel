@@ -73,7 +73,7 @@ export function SportTabsSkeleton() {
       {[0, 1, 2].map((index) => (
         <li key={index}>
           <span className={`${tabs.tab} ${sk.inert}`}>
-            {/* Heights of the real emoji, label and count lines, so the row doesn't jump. */}
+            {/* Heights of the real sport icon, label and count lines, so the row doesn't jump. */}
             <Bone className={sk.tabEmoji} />
             <Bone className={sk.line} style={{ width: 70, height: 18 }} />
             <Bone className={sk.line} style={{ width: 64, height: 15 }} />

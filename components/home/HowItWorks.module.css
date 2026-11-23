@@ -23,24 +23,57 @@
 }
 
 .step {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow: hidden;
   padding: 22px 24px;
   border: 1px solid var(--color-primary-border-soft);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: linear-gradient(160deg, var(--sport-tint), var(--color-surface) 55%);
+  transition:
+    transform 0.3s var(--ease-out),
+    box-shadow 0.3s var(--ease-out);
+}
+
+.step:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 36px -20px color-mix(in srgb, var(--sport-ink) 55%, transparent);
+}
+
+/* Icon tile in the sport's gradient, with the step number pinned to its corner. */
+.tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--gradient-sport);
+  color: var(--color-ink);
+  box-shadow: 0 10px 20px -10px var(--sport-ink);
+  transition: transform 0.4s var(--ease-spring);
+}
+
+.step:hover .tile {
+  transform: rotate(-8deg) scale(1.06);
 }
 
 .number {
+  position: absolute;
+  top: -6px;
+  right: -6px;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-surface);
   border-radius: 50%;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-ink);
+  color: #fff;
   font-family: var(--font-display);
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -75,13 +108,13 @@
 
   .step {
     display: grid;
-    grid-template-columns: 36px minmax(0, 1fr);
+    grid-template-columns: 48px minmax(0, 1fr);
     column-gap: 14px;
     row-gap: 4px;
     padding: 16px;
   }
 
-  .number {
+  .tile {
     grid-row: span 2;
   }
 

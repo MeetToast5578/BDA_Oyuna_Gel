@@ -1,11 +1,5 @@
 import type { AvailabilityStatus } from '@/lib/api-types'
 
-export const SPORT_EMOJI: Record<string, string> = {
-  football: '⚽',
-  tennis: '🎾',
-  basketball: '🏀',
-}
-
 /** Tab order in the design: Futbol, Tennis, Basketbol. */
 export const SPORT_ORDER = ['football', 'tennis', 'basketball']
 

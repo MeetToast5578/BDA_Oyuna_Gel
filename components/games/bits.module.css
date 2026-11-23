@@ -16,15 +16,19 @@
 }
 
 .sport {
-  background: rgba(255, 246, 231, 0.7);
-  border-color: #fff;
+  background: color-mix(in srgb, var(--sport) 30%, rgba(255, 255, 255, 0.78));
+  border-color: color-mix(in srgb, var(--sport) 55%, #fff);
   color: var(--color-badge-text);
+}
+
+.sportIcon {
+  color: var(--sport-ink);
 }
 
 .sportSolid {
   /* Opaque, so the blur would be invisible — and it is costly inside the scrolling carousel. */
   backdrop-filter: none;
-  background: var(--color-accent);
+  background: var(--gradient-sport);
   color: var(--color-badge-text);
   height: auto;
   padding: 8px;

@@ -8,7 +8,8 @@ import { TEAM_NAME_MAX, TEAM_NAME_MIN } from '@/lib/team-logic'
 import choices from '@/components/create/GameForm.module.css'
 import { buttonClass } from '@/components/ui/button'
 import form from '@/components/ui/form.module.css'
-import { SPORT_EMOJI, SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
+import { SportIcon } from '@/components/games/bits'
+import { SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 
 /** "Komanda yarat": a name and the one sport the club plays. The creator becomes its captain. */
 export function TeamForm({ initialSport }: { initialSport?: string }) {
@@ -54,10 +55,10 @@ export function TeamForm({ initialSport }: { initialSport?: string }) {
         </legend>
         <div className={choices.choices}>
           {SPORT_ORDER.map((value) => (
-            <label key={value} className={`${choices.choice} ${choices.sportChoice}`}>
+            <label key={value} data-sport={value} className={`${choices.choice} ${choices.sportChoice}`}>
               <input type="radio" name="sport" value={value} checked={sport === value} onChange={() => setSport(value)} />
-              <span className={choices.emoji} aria-hidden="true">
-                {SPORT_EMOJI[value]}
+              <span className={choices.sportIcon}>
+                <SportIcon sport={value} size={26} />
               </span>
               <span className={choices.choiceLabel}>{SPORT_LABELS[value]}</span>
             </label>

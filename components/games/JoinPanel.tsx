@@ -231,7 +231,7 @@ export function JoinPanel({
         <>
           <p ref={joinedNote} tabIndex={-1} className={`${styles.state} ${styles.joined}`} role={justJoined ? 'status' : undefined}>
             <span className={`${styles.check} ${justJoined ? styles.checkPop : ''}`} aria-hidden="true">
-              ✓
+              <Icon name="check" size={14} />
             </span>
             Siz bu oyuna qoşulmusunuz
           </p>

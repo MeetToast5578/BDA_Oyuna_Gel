@@ -181,9 +181,7 @@ async function GameDetailContent({ params, searchParams }: Props) {
             <Link href={`/users/${host.id}`} className={`${styles.host} ${styles.hostLink}`}>
               <Avatar person={host} size={42} decorative />
               <span className={styles.hostName}>{host.name}</span>
-              <span className={styles.hostArrow} aria-hidden="true">
-                →
-              </span>
+              <Icon name="next" size={18} className={styles.hostArrow} />
             </Link>
           ) : (
             <div className={styles.host}>
@@ -222,7 +220,7 @@ async function GameDetailContent({ params, searchParams }: Props) {
           {game.groupLink && (
             <a className={styles.groupLink} href={game.groupLink} target="_blank" rel="noopener noreferrer">
               {game.groupLink.includes('t.me/') ? 'Telegram qrupuna qoşul' : 'WhatsApp qrupuna qoşul'}
-              <span aria-hidden="true">↗</span>
+              <Icon name="external" size={14} />
             </a>
           )}
         </section>

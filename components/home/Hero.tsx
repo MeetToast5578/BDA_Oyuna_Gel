@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 
+import { SportIcon } from '@/components/games/bits'
 import { buttonClass } from '@/components/ui/button'
 import styles from './Hero.module.css'
 
@@ -12,6 +13,13 @@ export function Hero({ carousel, gamesAnchor }: { carousel?: ReactNode; gamesAnc
   return (
     <section className={styles.hero} aria-labelledby="hero-title">
       <div className={styles.grid} aria-hidden="true" />
+      <div className={styles.balls} aria-hidden="true">
+        {['football', 'basketball', 'tennis'].map((sport) => (
+          <span key={sport} data-sport={sport} className={styles.ball}>
+            <SportIcon sport={sport} size={44} />
+          </span>
+        ))}
+      </div>
       <div className={styles.content}>
         <p className={styles.eyebrow}>
           <span className={styles.eyebrowDot} aria-hidden="true" />

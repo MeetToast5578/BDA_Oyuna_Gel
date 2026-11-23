@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Icon } from '@/components/ui/Icon'
 
 
 type NavigationApi = { currentEntry?: { index: number } | null }
@@ -26,7 +27,7 @@ export function BackLink({ fallback, className, children }: { fallback: string; 
         }
       }}
     >
-      <span aria-hidden="true">←</span> {children}
+      <Icon name="back" size={16} /> {children}
     </Link>
   )
 }

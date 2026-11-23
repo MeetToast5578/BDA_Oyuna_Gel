@@ -12,6 +12,7 @@
   white-space: nowrap;
   transition:
     background-color 0.15s ease,
+    background-position 0.5s var(--ease-out),
     border-color 0.15s ease,
     color 0.15s ease,
     opacity 0.15s ease,
@@ -63,13 +64,15 @@
 
 /* Variants */
 .primary {
-  background: var(--color-primary);
+  /* Twice as wide as the button; hover slides it to show the brighter violet half. */
+  background: linear-gradient(110deg, var(--color-primary) 0%, #5b3df0 50%, var(--color-primary-hover) 100%) 0 0 / 200%
+    100%;
   color: #fff;
   box-shadow: var(--shadow-button);
 }
 
 .primary:hover:not(:disabled) {
-  background: var(--color-primary-hover);
+  background-position: 100% 0;
   box-shadow:
     0 10px 20px -8px color-mix(in srgb, var(--color-primary) 55%, transparent),
     0 2px 4px -2px color-mix(in srgb, var(--color-primary) 20%, transparent);
@@ -97,12 +100,12 @@
 }
 
 .accent {
-  background: var(--color-accent);
+  background: linear-gradient(110deg, var(--color-accent) 0%, #ffd27f 50%, var(--color-accent-hover) 100%) 0 0 / 200% 100%;
   color: var(--color-on-accent);
 }
 
 .accent:hover:not(:disabled) {
-  background: var(--color-accent-hover);
+  background-position: 100% 0;
   box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--color-accent) 80%, transparent);
   transform: translateY(-1px);
 }

@@ -2,7 +2,9 @@ import type { PostgresAdapter } from '@payloadcms/db-postgres'
 import Link from 'next/link'
 import { connection } from 'next/server'
 
-import { SPORT_EMOJI, SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
+import { SportIcon } from '@/components/games/bits'
+import { SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
+import { Icon } from '@/components/ui/Icon'
 import { startOfBakuMonth } from '@/lib/game-backend'
 import { getPayloadClient } from '@/lib/game-queries'
 import { playerStandings } from '@/lib/records'
@@ -25,20 +27,20 @@ export async function MonthTop() {
   if (boards.length === 0) return null
 
   return (
-    <section className={`container ${styles.section}`} aria-labelledby="month-top-title">
+    <section className={`container scroll-reveal ${styles.section}`} aria-labelledby="month-top-title">
       <div className={styles.head}>
         <h2 id="month-top-title" className={styles.title}>
           Ayın ən yaxşıları
         </h2>
         <Link href="/leaderboard?period=month" className={styles.all}>
-          Reytinqə bax <span aria-hidden="true">→</span>
+          Reytinqə bax <Icon name="next" size={16} />
         </Link>
       </div>
       <div className={styles.boards}>
         {boards.map(({ sport, top }) => (
-          <Link key={sport} href={`/leaderboard?sport=${sport}&period=month`} className={styles.board}>
+          <Link key={sport} href={`/leaderboard?sport=${sport}&period=month`} className={styles.board} data-sport={sport}>
             <h3 className={styles.sport}>
-              <span aria-hidden="true">{SPORT_EMOJI[sport]}</span> {SPORT_LABELS[sport]}
+              <SportIcon sport={sport} size={20} /> {SPORT_LABELS[sport]}
             </h3>
             <ol className={styles.list}>
               {top.map((player, index) => (

@@ -1,4 +1,5 @@
 import { Avatar } from '@/components/games/bits'
+import { Icon } from '@/components/ui/Icon'
 import type { FoundPlayer } from '@/components/games/PlayerPicker'
 import { occupancy, otherSide, sideCapacity, type Side } from '@/lib/team-logic'
 import styles from './TeamSheet.module.css'
@@ -79,7 +80,7 @@ export function TeamSheet({
                     aria-label={`${player.name} oyunçusunu ${labels[otherSide(side)]} komandasına köçür`}
                     title={`${labels[otherSide(side)]} komandasına köçür`}
                   >
-                    <span aria-hidden="true">⇄</span>
+                    <Icon name="swap" size={16} />
                   </button>
                   <button
                     type="button"
@@ -88,7 +89,7 @@ export function TeamSheet({
                     aria-label={`${player.name} oyunçusunu siyahıdan sil`}
                     title="Sil"
                   >
-                    <span aria-hidden="true">✕</span>
+                    <Icon name="x" size={16} />
                   </button>
                 </li>
               ))}

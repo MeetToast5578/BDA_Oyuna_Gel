@@ -209,7 +209,7 @@ preview, and the page has no share button.
    preview images get relative URLs that WhatsApp can't load.
 2. **The game's preview image:** `app/(frontend)/games/[id]/opengraph-image.tsx`, using
    `ImageResponse` from `next/og`. See `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/01-metadata/opengraph-image.md`.
-   - Size 1200×630: the sport emoji, title, "Şən, 18 Okt · 19:00", the venue, and "3 yer qalıb" or
+   - Size 1200×630: the sport, title, "Şən, 18 Okt · 19:00", the venue, and "3 yer qalıb" or
      "Oyun doludur".
    - It reads the game with `getGameDetail(id, null)`.
    - **Check:** that ə, ş, ğ, ı, ö, ü and ç render. If the default font lacks any of them, load a

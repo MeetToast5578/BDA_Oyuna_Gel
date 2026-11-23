@@ -64,6 +64,33 @@
   --level-high-text: #fff;
   --level-high-border: #991b1b;
 
+  /*
+   * Sports. Each has a bright colour for fills and gradients (dark text on it) and a dark "ink" for
+   * icons and text on white (AA, 4.5:1 or more). Components set data-sport="football" and read the
+   * generic --sport / --sport-ink below; without data-sport they fall back to the brand.
+   */
+  --sport-football: #22c55e;
+  --sport-football-ink: #15803d;
+  --sport-basketball: #fb923c;
+  --sport-basketball-ink: #c2410c;
+  --sport-tennis: #c6e83a;
+  --sport-tennis-ink: #4d7c0f;
+  --sport: var(--color-primary-soft);
+  --sport-ink: var(--color-primary);
+
+  /* Gradients */
+  --color-violet: #7b6cff;
+  --gradient-brand: linear-gradient(120deg, var(--color-primary) 0%, #5b3df0 55%, var(--color-violet) 100%);
+  --gradient-warm: linear-gradient(120deg, var(--color-accent) 0%, #f26b4f 100%);
+
+  /* Monthly podium */
+  --podium-gold: #f6d27a;
+  --podium-gold-text: #5c3a0e;
+  --podium-silver: #dcdde3;
+  --podium-silver-text: #33343d;
+  --podium-bronze: #e7b48c;
+  --podium-bronze-text: #4f2a10;
+
   /* Hero */
   --hero-gradient: linear-gradient(104.13deg, var(--color-primary) 46.78%, var(--color-primary-deep) 109.51%);
   --hero-text-soft: #dee3d6;
@@ -120,6 +147,26 @@
   /* Skeletons */
   --skeleton-base: color-mix(in srgb, var(--color-primary) 6%, #eef0f4);
   --skeleton-shine: color-mix(in srgb, var(--color-primary) 2%, #f8f9fb);
+}
+
+/* One rule per sport sets the generic tokens for everything inside; the gradient is derived here so
+   it picks up the nearest data-sport, not the root's. */
+[data-sport='football'] {
+  --sport: var(--sport-football);
+  --sport-ink: var(--sport-football-ink);
+}
+[data-sport='basketball'] {
+  --sport: var(--sport-basketball);
+  --sport-ink: var(--sport-basketball-ink);
+}
+[data-sport='tennis'] {
+  --sport: var(--sport-tennis);
+  --sport-ink: var(--sport-tennis-ink);
+}
+:root,
+[data-sport] {
+  --sport-tint: color-mix(in srgb, var(--sport) 16%, #fff);
+  --gradient-sport: linear-gradient(135deg, color-mix(in srgb, var(--sport) 30%, #fff) 0%, var(--sport) 100%);
 }
 
 *,
@@ -315,6 +362,18 @@ html:has(dialog[open]) {
   animation: fade-in var(--duration-base) ease-out backwards;
 }
 
+/* Fades a section up as it scrolls into view. Browsers without scroll timelines, and anyone who
+   asked for less motion, just see it in place. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-reveal {
+      animation: fade-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 60%;
+      --rise: 28px;
+    }
+  }
+}
 /* Placeholder block while content streams in. Size it with width/height or a layout class. */
 .skeleton {
   display: block;

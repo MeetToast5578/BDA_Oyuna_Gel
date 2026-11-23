@@ -16,6 +16,7 @@ import { GameHistory } from '@/components/profile/GameHistory'
 import { RecordPanel } from '@/components/profile/RecordPanel'
 import { ProfileStats } from '@/components/profile/ProfileStats'
 import { buttonClass } from '@/components/ui/button'
+import { Icon } from '@/components/ui/Icon'
 import { getPublicProfile } from '@/lib/profile-queries'
 import { getCurrentUser } from '@/lib/session'
 
@@ -141,7 +142,7 @@ async function OwnProfileNotice({ userId }: { userId: string }) {
     <p className={styles.notice}>
       Bu sizin ictimai profilinizdir — digər oyunçular onu belə görür.
       <Link href="/profile" className={styles.noticeLink}>
-        Profilimə keç →
+        Profilimə keç <Icon name="next" size={16} />
       </Link>
     </p>
   )

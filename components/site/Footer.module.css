@@ -1,7 +1,10 @@
 .footer {
   --focus-ring: var(--focus-ring-on-dark);
   border-top: 1px solid var(--color-footer-border);
-  background: var(--color-footer);
+  background:
+    radial-gradient(50% 80% at 100% 0%, color-mix(in srgb, var(--color-violet) 45%, transparent), transparent 70%),
+    radial-gradient(40% 70% at 0% 100%, color-mix(in srgb, var(--sport-football) 16%, transparent), transparent 70%),
+    var(--color-footer);
   padding: 65px 0 64px;
 }
 

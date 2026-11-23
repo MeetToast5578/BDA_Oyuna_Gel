@@ -1,9 +1,9 @@
 import type { CSSProperties } from 'react'
 
 import type { MyProfile } from '@/lib/api-types'
-import { ProgressBar } from '@/components/games/bits'
+import { ProgressBar, SportIcon } from '@/components/games/bits'
 import detail from '@/components/games/GameDetail.module.css'
-import { SPORT_EMOJI, sortSports } from '@/components/games/sports'
+import { sortSports } from '@/components/games/sports'
 import styles from './Profile.module.css'
 import { ActivityChart } from './StatCharts'
 
@@ -75,7 +75,7 @@ export function ProfileStats({
           {sortSports(stats.playedBySport).map((sport) => (
             <li key={sport.sport} className={styles.sport}>
               <span className={styles.sportLabel}>
-                <span aria-hidden="true">{SPORT_EMOJI[sport.iconKey] ?? '🏅'}</span>
+                <SportIcon sport={sport.iconKey} />
                 {sport.label}
               </span>
               <ProgressBar

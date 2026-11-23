@@ -1,14 +1,19 @@
 import Image from 'next/image'
 import type { CSSProperties } from 'react'
 
+import { Icon, isIconName } from '@/components/ui/Icon'
 import type { Participant } from '@/lib/api-types'
 import styles from './bits.module.css'
-import { SPORT_EMOJI } from './sports'
+
+/** The sport's ball icon (a medal for a sport without one), in the current text colour. Decorative. */
+export function SportIcon({ sport, size = 16, className }: { sport: string; size?: number; className?: string }) {
+  return <Icon name={isIconName(sport) ? sport : 'medal'} size={size} className={className} />
+}
 
 export function SportBadge({ sport, label, solid = false }: { sport: string; label: string; solid?: boolean }) {
   return (
-    <span className={`${styles.badge} ${solid ? styles.sportSolid : styles.sport}`}>
-      <span aria-hidden="true">{SPORT_EMOJI[sport] ?? '🏅'}</span>
+    <span data-sport={sport} className={`${styles.badge} ${solid ? styles.sportSolid : styles.sport}`}>
+      <SportIcon sport={sport} size={14} className={styles.sportIcon} />
       {label}
     </span>
   )

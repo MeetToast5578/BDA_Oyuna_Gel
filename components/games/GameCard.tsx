@@ -38,7 +38,7 @@ export function GameCard({
   const past = context === 'past'
 
   return (
-    <article className={styles.card}>
+    <article className={styles.card} data-sport={game.sport}>
       <div className={styles.media}>
         <CoverImage
           src={game.coverImage.thumbnailUrl}

@@ -259,7 +259,7 @@ function PlayersList({
                         title={`${labels[otherSide(side)]} tərəfinə köçür`}
                         onClick={() => change({ assignments: [{ userId: Number(player.id), side: otherSide(side) }] })}
                       >
-                        <span aria-hidden="true">⇄</span>
+                        <Icon name="swap" size={16} />
                       </button>
                     )}
                     {list.canMove && player.id && (
@@ -274,7 +274,7 @@ function PlayersList({
                           setRemoving({ id: player.id as string, name: player.name })
                         }}
                       >
-                        <span aria-hidden="true">✕</span>
+                        <Icon name="x" size={16} />
                       </button>
                     )}
                   </li>

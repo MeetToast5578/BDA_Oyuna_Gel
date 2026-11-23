@@ -3,6 +3,7 @@ import Link from 'next/link'
 import type { GameListResponse, SportTab } from '@/lib/api-types'
 import type { ProfileWindow } from '@/lib/game-backend'
 import { buttonClass } from '@/components/ui/button'
+import { Icon } from '@/components/ui/Icon'
 import { SegmentedLinks } from '@/components/ui/SegmentedLinks'
 import type { ListFilters } from '@/lib/page-data'
 import { EmptyState } from './EmptyState'
@@ -17,7 +18,7 @@ import { SportTabs } from './SportTabs'
 export function BackHomeLink() {
   return (
     <Link href="/" className={`back-link ${styles.back}`}>
-      <span aria-hidden="true">←</span> Ana səhifəyə qayıt
+      <Icon name="back" size={16} /> Ana səhifəyə qayıt
     </Link>
   )
 }
@@ -100,7 +101,7 @@ export function GamesSection({
       {when && <GamesWhenLinks when={when} sport={sport} />}
       {seeAllHref && (
         <Link href={seeAllHref} className={buttonClass('outlinePrimary', 'sm', { className: styles.seeAll })}>
-          Hamısına bax <span aria-hidden="true">→</span>
+          Hamısına bax <Icon name="next" size={16} />
         </Link>
       )}
     </div>

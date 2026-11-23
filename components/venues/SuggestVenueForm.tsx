@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useState, type FormEvent } from 'react'
 
 import choices from '@/components/create/GameForm.module.css'
-import { SPORT_EMOJI, SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
+import { SportIcon } from '@/components/games/bits'
+import { SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 import { buttonClass } from '@/components/ui/button'
 import form from '@/components/ui/form.module.css'
 import { postJson } from '@/lib/api-client'
@@ -70,15 +71,15 @@ export function SuggestVenueForm() {
         </legend>
         <div className={choices.choices}>
           {SPORT_ORDER.map((value) => (
-            <label key={value} className={`${choices.choice} ${choices.sportChoice}`}>
+            <label key={value} data-sport={value} className={`${choices.choice} ${choices.sportChoice}`}>
               <input
                 type="checkbox"
                 value={value}
                 checked={sports.includes(value)}
                 onChange={(event) => setSports((current) => (event.target.checked ? [...current, value] : current.filter((sport) => sport !== value)))}
               />
-              <span className={choices.emoji} aria-hidden="true">
-                {SPORT_EMOJI[value]}
+              <span className={choices.sportIcon}>
+                <SportIcon sport={value} size={26} />
               </span>
               <span className={choices.choiceLabel}>{SPORT_LABELS[value]}</span>
             </label>

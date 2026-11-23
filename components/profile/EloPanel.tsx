@@ -1,5 +1,5 @@
 import detail from '@/components/games/GameDetail.module.css'
-import { SPORT_EMOJI } from '@/components/games/sports'
+import { SportIcon } from '@/components/games/bits'
 import { ELO_START } from '@/lib/elo'
 import type { MyProfile } from '@/lib/api-types'
 import styles from './EloPanel.module.css'
@@ -58,7 +58,7 @@ export function EloPanel({ elo, emptyText }: { elo: SportElo[]; emptyText: strin
               <figure key={sport.sport} className={styles.sport}>
                 <figcaption className={styles.head}>
                   <span className={styles.label}>
-                    <span aria-hidden="true">{SPORT_EMOJI[sport.sport] ?? '🏅'}</span> {sport.label}
+                    <SportIcon sport={sport.sport} /> {sport.label}
                   </span>
                   <span className={styles.rating}>{sport.rating}</span>
                   <span className={styles.meta}>

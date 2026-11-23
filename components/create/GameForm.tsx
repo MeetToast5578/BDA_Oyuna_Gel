@@ -35,7 +35,8 @@ import { phoneSource, type PhoneSource } from '@/lib/profile-form'
 import { loginHref } from '@/lib/safe-redirect'
 import type { ClubOption } from '@/lib/teams'
 import { expireSession } from '@/lib/session-actions'
-import { LEVEL_OPTIONS, SPORT_EMOJI, SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
+import { SportIcon } from '@/components/games/bits'
+import { LEVEL_OPTIONS, SPORT_LABELS, SPORT_ORDER } from '@/components/games/sports'
 import { buttonClass } from '@/components/ui/button'
 import form from '@/components/ui/form.module.css'
 import { Icon } from '@/components/ui/Icon'
@@ -123,7 +124,7 @@ function Stepper({
         disabled={value - step < min}
         aria-label={`${step} nəfər azalt`}
       >
-        −
+        <Icon name="minus" size={18} />
       </button>
       <output id={id} className={styles.stepValue} aria-describedby={describedBy}>
         {value}
@@ -135,7 +136,7 @@ function Stepper({
         disabled={value + step > max}
         aria-label={`${step} nəfər artır`}
       >
-        +
+        <Icon name="plus" size={18} />
       </button>
     </div>
   )
@@ -496,7 +497,7 @@ export function GameForm({
             </legend>
             <div className={styles.choices}>
               {SPORT_ORDER.map((value) => (
-                <label key={value} className={`${styles.choice} ${styles.sportChoice}`}>
+                <label key={value} data-sport={value} className={`${styles.choice} ${styles.sportChoice}`}>
                   <input
                     type="radio"
                     name="sport"
@@ -504,8 +505,8 @@ export function GameForm({
                     checked={sport === value}
                     onChange={() => chooseSport(value)}
                   />
-                  <span className={styles.emoji} aria-hidden="true">
-                    {SPORT_EMOJI[value]}
+                  <span className={styles.sportIcon}>
+                    <SportIcon sport={value} size={26} />
                   </span>
                   <span className={styles.choiceLabel}>{SPORT_LABELS[value]}</span>
                 </label>
@@ -840,7 +841,7 @@ export function GameForm({
                 </div>
                 <p className={form.hint}>
                   Seçdiyiniz oyunçulara dəvət gedir: qəbul edib oyuna qoşulanda yerləri ayrılır, dəvət yer tutmur. Fikrinizi dəyişsəniz
-                  ✕ ilə silə, ⇄ ilə o biri komandaya keçirə bilərsiniz. Oyun yaradıldıqdan sonra da əlavə edə bilərsiniz.
+                  oyunçunu siyahıdan silə və ya o biri komandaya keçirə bilərsiniz. Oyun yaradıldıqdan sonra da əlavə edə bilərsiniz.
                 </p>
                 <PlayerPicker
                   open={pickerOpen}

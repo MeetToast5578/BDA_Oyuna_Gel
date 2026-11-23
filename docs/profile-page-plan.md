@@ -73,7 +73,7 @@ Where the build differs from the text below:
 | Empty illustration, heading, text, CTA | `EmptyState` | Empty tabs |
 | Danger zone (red tint panel) + confirm modal, focus starts on "İmtina et" | GameForm edit mode | "Hesabı sil" |
 | Modal on `<dialog>`, form fields, `+994` phone prefix | `Modal`, `form.module.css`, `JoinPanel` | Edit profile |
-| `Avatar`, `ProgressBar`, sport emoji | `components/games/bits.tsx`, `sports.ts` | Identity, stats |
+| `Avatar`, `ProgressBar`, sport icon (`SportIcon`) | `components/games/bits.tsx`, `sports.ts` | Identity, stats |
 | `.reveal` stagger / `.fade` | `globals.css` | Content arriving after the skeleton |
 
 No new colours or tokens. All new CSS goes in `components/profile/Profile.module.css`, which reuses
@@ -147,7 +147,7 @@ with the phone field focused (Phase 3). "Qeydiyyat: {memberSinceLabel}" has the 
 | Hosted | `counts.hostedPast + counts.hostingUpcoming` | "təşkil edilən oyun" |
 | Upcoming | `counts.joinedUpcoming + counts.hostingUpcoming` | "qarşıdakı oyun" |
 
-Below a hairline divider is one row per sport, in `SPORT_ORDER`: emoji, label (14px/600), a
+Below a hairline divider is one row per sport, in `SPORT_ORDER`: sport icon, label (14px/600), a
 `ProgressBar` (`value = playedCount`, `max = totalPlayed`, 8px), and the count right-aligned. With
 nothing played yet, the rows are replaced by muted text: "Hələ heç bir oyunda iştirak etməmisiniz."
 

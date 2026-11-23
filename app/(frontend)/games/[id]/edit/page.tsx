@@ -7,6 +7,7 @@ import { GameForm } from '@/components/create/GameForm'
 import styles from '@/components/create/GameForm.module.css'
 import { GameFormSkeleton } from '@/components/games/skeletons'
 import { buttonClass } from '@/components/ui/button'
+import { Icon } from '@/components/ui/Icon'
 import { formatBakuDateKey, isUpcoming } from '@/lib/game-backend'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
 import { loginHref } from '@/lib/safe-redirect'
@@ -30,7 +31,7 @@ export default function EditGamePage({ params }: Props) {
       <Suspense
         fallback={
           <span className={buttonClass('outlineDark', 'sm')} aria-hidden="true">
-            ← Oyuna qayıt
+            <Icon name="back" size={16} /> Oyuna qayıt
           </span>
         }
       >

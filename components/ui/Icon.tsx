@@ -2,6 +2,18 @@ import type { ReactNode } from 'react'
 
 type IconDef = { width: number; height: number; color: string; body: ReactNode }
 
+/** A 24px line icon in the current text colour, drawn with the same rounded 2px stroke as the rest of the set. */
+const line = (body: ReactNode): IconDef => ({
+  width: 24,
+  height: 24,
+  color: 'currentColor',
+  body: (
+    <g fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {body}
+    </g>
+  ),
+})
+
 // Icons exported from the Figma file, at their designed sizes. Inlined rather than loaded as <img>,
 // so they paint with the text instead of popping in after it and cost no extra request each.
 const ICONS = {
@@ -87,23 +99,77 @@ const ICONS = {
       />
     ),
   },
+  // Sports: a ball each, so the three read as one family.
+  football: line(
+    <>
+      <circle cx="12" cy="12" r="9.25" />
+      <path d="M12 7.5l4.28 3.11-1.63 5.03h-5.3L7.72 10.6Z" fill="currentColor" />
+      <path d="M12 7.5V2.75M16.28 10.6l4.52-1.46M14.65 15.64l2.79 3.84M9.35 15.64l-2.79 3.84M7.72 10.6 3.2 9.14" />
+    </>,
+  ),
+  basketball: line(
+    <>
+      <circle cx="12" cy="12" r="9.25" />
+      <path d="M12 2.75v18.5M2.75 12h18.5M5.6 5.4c2.2 1.9 3.4 4.1 3.4 6.6s-1.2 4.7-3.4 6.6M18.4 5.4c-2.2 1.9-3.4 4.1-3.4 6.6s1.2 4.7 3.4 6.6" />
+    </>,
+  ),
+  tennis: line(
+    <>
+      <circle cx="12" cy="12" r="9.25" />
+      <path d="M4.4 6.6c2.6 2.9 2.6 7.9 0 10.8M19.6 6.6c-2.6 2.9-2.6 7.9 0 10.8" />
+    </>,
+  ),
+  medal: line(
+    <>
+      <circle cx="12" cy="15" r="5.25" />
+      <path d="M8.7 10.9 5.5 3h4l2.5 5.5M15.3 10.9 18.5 3h-4L13 6.3" />
+    </>,
+  ),
+  check: line(<path d="m5 12.5 4.5 4.5L19 7.5" />),
+  swap: line(<path d="M7 4 3.5 7.5 7 11M3.5 7.5h15M17 13l3.5 3.5L17 20M20.5 16.5h-15" />),
+  x: line(<path d="M6 6l12 12M18 6 6 18" />),
+  back: line(<path d="M19 12H5M11 6l-6 6 6 6" />),
+  next: line(<path d="M5 12h14M13 6l6 6-6 6" />),
+  external: line(
+    <path d="M14 4h6v6M20 4l-9 9M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />,
+  ),
+  minus: line(<path d="M5 12h14" />),
+  plus: line(<path d="M12 5v14M5 12h14" />),
+  search: line(
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m20 20-4.4-4.4" />
+    </>,
+  ),
+  userPlus: line(
+    <>
+      <circle cx="9" cy="8" r="3.75" />
+      <path d="M2.75 20c.6-3.5 3.1-5.5 6.25-5.5s5.65 2 6.25 5.5M19 8v6M16 11h6" />
+    </>,
+  ),
+  trophy: line(
+    <path d="M8 4h8v5a4 4 0 0 1-8 0ZM8 6H4.5v1A3.5 3.5 0 0 0 8 10.5M16 6h3.5v1a3.5 3.5 0 0 1-3.5 3.5M12 13v4M8.5 20h7M10 17h4" />,
+  ),
 } satisfies Record<string, IconDef>
 
 export type IconName = keyof typeof ICONS
 
+export const isIconName = (name: string): name is IconName => Object.hasOwn(ICONS, name)
+
 /**
  * Decorative icon; the surrounding text carries the meaning. The `color` attribute is only a
- * default: a stylesheet `color` on the icon or its class overrides it.
+ * default: a stylesheet `color` on the icon or its class overrides it. `size` sets the rendered
+ * width (height keeps the icon's proportions); without it the icon keeps its designed size.
  */
-export function Icon({ name, className }: { name: IconName; className?: string }) {
+export function Icon({ name, className, size }: { name: IconName; className?: string; size?: number }) {
   const { width, height, color, body } = ICONS[name]
   return (
     <svg
       aria-hidden="true"
       focusable="false"
       className={className}
-      width={width}
-      height={height}
+      width={size ?? width}
+      height={size ? (size * height) / width : height}
       viewBox={`0 0 ${width} ${height}`}
       color={color}
       style={{ display: 'inline-block', flexShrink: 0, overflow: 'visible' }}

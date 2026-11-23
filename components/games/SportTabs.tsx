@@ -7,7 +7,8 @@ import { useOptimistic, useTransition } from 'react'
 import { withQuery } from '@/lib/api-client'
 import { trackAction } from '@/lib/analytics'
 import type { SportTab } from '@/lib/api-types'
-import { sortSports, SPORT_EMOJI } from './sports'
+import { SportIcon } from './bits'
+import { sortSports } from './sports'
 import styles from './SportTabs.module.css'
 
 /**
@@ -63,11 +64,12 @@ export function SportTabs({
                 scroll={false}
                 replace
                 className={`${styles.tab} ${isActive ? styles.active : ''}`}
+                data-sport={sport.iconKey}
                 aria-current={isActive ? 'true' : undefined}
                 onClick={(event) => select(event, target, href)}
               >
-                <span className={styles.emoji} aria-hidden="true">
-                  {SPORT_EMOJI[sport.iconKey] ?? '🏅'}
+                <span className={styles.sportIcon}>
+                  <SportIcon sport={sport.iconKey} size={26} />
                 </span>
                 <span className={styles.label}>{sport.label}</span>
                 <span className={styles.count}>

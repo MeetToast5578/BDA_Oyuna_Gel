@@ -14,11 +14,26 @@
     border-color 0.2s ease;
 }
 
+/* The sport's colour runs along the top edge and fills the progress bar. */
+.card {
+  --progress-fill: linear-gradient(90deg, var(--sport), var(--sport-ink));
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 4px;
+  background: linear-gradient(90deg, var(--sport-ink), var(--sport), var(--color-violet));
+  pointer-events: none;
+}
+
 .card:hover {
   transform: translateY(-4px);
-  border-color: var(--color-primary-border);
+  border-color: color-mix(in srgb, var(--sport-ink) 35%, transparent);
   box-shadow:
-    0 22px 38px -14px color-mix(in srgb, var(--color-primary) 24%, transparent),
+    0 24px 40px -16px color-mix(in srgb, var(--sport-ink) 38%, transparent),
     0 4px 12px rgba(0, 0, 0, 0.03);
 }
 

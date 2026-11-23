@@ -127,9 +127,14 @@
 }
 
 .choice:has(input:checked) {
-  border-color: var(--color-primary);
-  box-shadow: inset 0 0 0 1px var(--color-primary);
+  border-color: var(--sport-ink);
+  box-shadow: inset 0 0 0 1px var(--sport-ink);
   background: linear-gradient(var(--color-primary-tint), var(--color-primary-tint)), var(--color-surface);
+}
+
+/* A chosen sport fills with its own colour. */
+.sportChoice:has(input:checked) {
+  background: var(--gradient-sport);
 }
 
 .choice:has(input:disabled) {
@@ -147,12 +152,16 @@
   padding: 18px 12px;
 }
 
-.emoji {
-  font-size: 26px;
-  line-height: 1.2;
+.sportIcon {
+  display: inline-flex;
+  color: var(--sport-ink);
 }
 
-.choice:has(input:checked) .emoji {
+.sportChoice:has(input:checked) .sportIcon {
+  color: var(--color-ink);
+}
+
+.choice:has(input:checked) .sportIcon {
   animation: hop 0.45s var(--ease-spring);
 }
 
