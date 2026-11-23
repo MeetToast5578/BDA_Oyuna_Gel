@@ -61,4 +61,18 @@ describe('analytics privacy boundaries', () => {
     const { trackAction } = await import('@/lib/analytics')
     expect(() => trackAction('waitlist_joined', 'tennis')).not.toThrow()
   })
+
+  it('sends only a numeric venue id when a venue map is opened', async () => {
+    vi.stubEnv('NEXT_PUBLIC_GA_MEASUREMENT_ID', 'G-TEST123')
+    const events: unknown[][] = []
+    vi.stubGlobal('document', { cookie: 'oyuna_analytics_consent=granted' })
+    vi.stubGlobal('window', { gtag: (...args: unknown[]) => events.push(args) })
+    const { trackAction } = await import('@/lib/analytics')
+    trackAction('venue_map_opened', '42')
+    trackAction('venue_map_opened', 'Nizami küç. 5, +994501234567')
+    expect(events).toEqual([
+      ['event', 'venue_map_opened', { venue_id: '42' }],
+      ['event', 'venue_map_opened', { venue_id: 'unknown' }],
+    ])
+  })
 })

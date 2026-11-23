@@ -75,6 +75,15 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 - [ ] Merge draft PR [MeetToast5578/BDA_Oyuna_Gel#14](https://github.com/MeetToast5578/BDA_Oyuna_Gel/pull/14)
       when ready (owner only).
 
+## Business model (see `docs/business-model.md`; build only after the first venue or sponsor agrees)
+
+- [ ] Owner: register as a sole proprietor (VÖEN), open a business bank account, supply the GA4 ID.
+- [ ] Partner venue fields on `arenas` (`partner`, `phone`, `bookingUrl`, `priceNote`, `hours`), partner
+      venues first in `/venues` and the venue picker, "Tərəfdaş" badge, call / WhatsApp button.
+- [ ] Monthly per-venue report script (games, players, repeat players).
+- [ ] Sponsor slot on `MonthTop` (Payload global).
+- [ ] Phase 2 only: `promotedUntil` on games with an "Önə çıxan" label, then online payments.
+
 ## D. Optional or skipped on purpose
 
 - [ ] Profile T4.5: cache `getPublicProfile` (skipped: `next/cache` breaks the database tests).

@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/games/EmptyState'
 import styles from '@/components/games/GameDetail.module.css'
 import { GamesGrid } from '@/components/games/GamesGrid'
 import { buttonClass } from '@/components/ui/button'
+import { MapLink } from '@/components/venues/MapLink'
 import { Icon } from '@/components/ui/Icon'
 import { SPORT_META, mapsUrl, startOfBakuDay } from '@/lib/game-backend'
 import { getVenuePage } from '@/lib/game-queries'
@@ -87,9 +88,9 @@ async function VenueContent({ params }: Props) {
             <Link href={`/games/new?venue=${venue.id}`} className={buttonClass('primary', 'md')}>
               Burada oyun yarat
             </Link>
-            <a href={mapsUrl(venue)} target="_blank" rel="noopener noreferrer" className={buttonClass('outlinePrimary', 'md')}>
+            <MapLink href={mapsUrl(venue)} venueId={String(venue.id)} className={buttonClass('outlinePrimary', 'md')}>
               Xəritədə aç
-            </a>
+            </MapLink>
           </div>
         </div>
       </section>

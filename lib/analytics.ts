@@ -61,11 +61,19 @@ export function trackPage(path: string) {
   })
 }
 
-export function trackAction(event: 'game_created' | 'game_joined' | 'waitlist_joined' | 'sport_selected' | 'login', sport?: string | null) {
+type ActionEvent = 'game_created' | 'game_joined' | 'waitlist_joined' | 'sport_selected' | 'login' | 'venue_map_opened'
+
+/** `value` is the sport, or for `venue_map_opened` the venue's numeric id (a public page, not a person). */
+export function trackAction(event: ActionEvent, value?: string | null) {
   // Analytics must never turn a successful application action into an error.
   try {
     if (!analyticsEnabled()) return
-    const params = event === 'login' ? { method: 'Google' } : { sport: sportValue(sport ?? null) }
+    const params =
+      event === 'login'
+        ? { method: 'Google' }
+        : event === 'venue_map_opened'
+          ? { venue_id: /^\d+$/.test(value ?? '') ? value : 'unknown' }
+          : { sport: sportValue(value ?? null) }
     window.gtag?.('event', event, params)
   } catch { /* Optional analytics can be blocked by the browser. */ }
 }
