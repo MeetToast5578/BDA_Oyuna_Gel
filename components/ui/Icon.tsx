@@ -105,6 +105,15 @@ const ICONS = {
       <path d="M8.7 10.9 5.5 3h4l2.5 5.5M15.3 10.9 18.5 3h-4L13 6.3" />
     </>,
   ),
+  share: line(
+    <>
+      <circle cx="18" cy="5.5" r="2.5" />
+      <circle cx="6" cy="12" r="2.5" />
+      <circle cx="18" cy="18.5" r="2.5" />
+      <path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1" />
+    </>,
+  ),
+  chat: line(<path d="M4 19.5 5.3 15A8 8 0 1 1 9 18.7Z" />),
   check: line(<path d="m5 12.5 4.5 4.5L19 7.5" />),
   swap: line(<path d="M7 4 3.5 7.5 7 11M3.5 7.5h15M17 13l3.5 3.5L17 20M20.5 16.5h-15" />),
   x: line(<path d="M6 6l12 12M18 6 6 18" />),

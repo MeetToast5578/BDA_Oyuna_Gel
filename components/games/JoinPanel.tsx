@@ -3,7 +3,7 @@
 import { trackAction } from '@/lib/analytics'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useId, useRef, useState, useTransition } from 'react'
+import { useEffect, useId, useRef, useState, useTransition, type CSSProperties } from 'react'
 
 import { ApiError, apiFetch, postJson } from '@/lib/api-client'
 import type { CurrentUser, GameDetail } from '@/lib/api-types'
@@ -18,12 +18,16 @@ import { buttonClass } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import form from '@/components/ui/form.module.css'
 import { Icon } from '@/components/ui/Icon'
+import { SportIcon } from './bits'
 import { Modal } from '@/components/ui/Modal'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 import { PhoneProfileNote } from '@/components/ui/PhoneProfileNote'
 import styles from './JoinPanel.module.css'
 import { LeaveGame } from './LeaveGame'
 import { STATUS_LABELS } from './sports'
+
+/** Where each ball of the join burst lands, in px from the tick. */
+const BURST = [[-56, -30], [-30, -52], [8, -60], [44, -44], [60, -10], [-62, 6]]
 
 /** Errors after which the page data is stale (spot taken, already a player, game closed). */
 const REFRESH_ON = new Set(['ALREADY_JOINED', 'GAME_FULL', 'GAME_NOT_JOINABLE', 'SIDE_FULL'])
@@ -232,6 +236,13 @@ export function JoinPanel({
           <p ref={joinedNote} tabIndex={-1} className={`${styles.state} ${styles.joined}`} role={justJoined ? 'status' : undefined}>
             <span className={`${styles.check} ${justJoined ? styles.checkPop : ''}`} aria-hidden="true">
               <Icon name="check" size={14} />
+              {/* A burst of the sport's balls, only right after joining. */}
+              {justJoined &&
+                BURST.map(([dx, dy], index) => (
+                  <span key={index} className={styles.burst} style={{ '--dx': `${dx}px`, '--dy': `${dy}px` } as CSSProperties}>
+                    <SportIcon sport={game.sport} size={18} />
+                  </span>
+                ))}
             </span>
             Siz bu oyuna qoşulmusunuz
           </p>

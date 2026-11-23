@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding-block: 8px 72px;
+  padding-block: 8px 48px;
 }
 
 .title {

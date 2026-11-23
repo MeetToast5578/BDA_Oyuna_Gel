@@ -1,0 +1,116 @@
+.wrap {
+  padding-block: 8px 88px;
+}
+
+/* The hero's look in a rounded band: brand gradient, sport glows, white text. */
+.band {
+  --focus-ring: var(--focus-ring-on-dark);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 56px 24px;
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(45% 80% at 95% 10%, color-mix(in srgb, var(--sport-football) 38%, transparent), transparent 70%),
+    radial-gradient(40% 80% at 5% 100%, color-mix(in srgb, var(--sport-basketball) 38%, transparent), transparent 70%),
+    var(--hero-gradient);
+  box-shadow: 0 30px 60px -30px color-mix(in srgb, var(--color-primary) 70%, transparent);
+  color: #fff;
+  text-align: center;
+}
+
+.title {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.text {
+  position: relative;
+  max-width: 460px;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--hero-text-soft);
+}
+
+.actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.balls {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ball {
+  position: absolute;
+  filter: drop-shadow(0 14px 18px rgba(11, 0, 58, 0.35));
+  animation: float 6s ease-in-out infinite alternate;
+}
+
+.ball:nth-child(1) {
+  top: 28px;
+  left: 6%;
+}
+
+.ball:nth-child(2) {
+  right: 7%;
+  bottom: 30px;
+  animation-delay: -2s;
+}
+
+.ball:nth-child(3) {
+  top: 34px;
+  right: 16%;
+  animation-delay: -4s;
+}
+
+.ball:nth-child(3) img {
+  width: 38px;
+  height: 38px;
+}
+
+@keyframes float {
+  to {
+    transform: translateY(-14px) rotate(18deg);
+  }
+}
+
+@media (max-width: 700px) {
+  .band {
+    padding: 72px 20px 40px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .ball:nth-child(2) {
+    top: 20px;
+    right: 40%;
+    bottom: auto;
+  }
+
+  .ball img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-self: stretch;
+    gap: 12px;
+  }
+}

@@ -23,6 +23,8 @@ export async function Footer() {
         <div className={styles.top}>
           <div className={styles.brand}>
             <Link href="/" className={styles.logo}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- a tiny static SVG; next/image adds nothing */}
+              <img src="/icons/oyunagel.svg" alt="" width={36} height={36} className={styles.mark} />
               OyunaGəl
             </Link>
             <p className={styles.tagline}>Birlikdə oynayaq.</p>

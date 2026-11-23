@@ -4,6 +4,8 @@ import { Suspense } from 'react'
 import { GamesSection } from '@/components/games/GamesSection'
 import { GamesSectionSkeleton, TicketCarouselSkeleton } from '@/components/games/skeletons'
 import { Hero } from '@/components/home/Hero'
+import { ClosingCta } from '@/components/home/ClosingCta'
+import { HeroStats, HeroStatsSkeleton } from '@/components/home/HeroStats'
 import { HowItWorks } from '@/components/home/HowItWorks'
 import { MonthTop } from '@/components/home/MonthTop'
 import { TicketCarousel } from '@/components/home/TicketCarousel'
@@ -52,6 +54,11 @@ export default function HomePage({ searchParams }: { searchParams: SearchParams 
     <>
       <Hero
         gamesAnchor={GAMES_ANCHOR}
+        stats={
+          <Suspense fallback={<HeroStatsSkeleton />}>
+            <HeroStats />
+          </Suspense>
+        }
         carousel={
           <Suspense fallback={<TicketCarouselSkeleton />}>
             <FeaturedCarousel />
@@ -71,6 +78,7 @@ export default function HomePage({ searchParams }: { searchParams: SearchParams 
         <MonthTop />
       </Suspense>
       <HowItWorks />
+      <ClosingCta gamesAnchor={GAMES_ANCHOR} />
     </>
   )
 }

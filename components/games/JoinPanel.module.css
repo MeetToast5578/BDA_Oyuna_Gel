@@ -77,6 +77,7 @@
 }
 
 .check {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -158,4 +159,38 @@
   font-size: 12px;
   font-weight: 500;
   opacity: 0.8;
+}
+
+/* The balls fly out of the tick and fade. Decorative, and skipped for anyone who asked for less motion. */
+.burst {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .burst {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    display: block;
+    pointer-events: none;
+    animation: burst 0.9s var(--ease-out) forwards;
+  }
+
+  .burst:nth-child(even) {
+    animation-duration: 1.05s;
+  }
+}
+
+@keyframes burst {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.4) rotate(0);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1) rotate(200deg);
+  }
 }

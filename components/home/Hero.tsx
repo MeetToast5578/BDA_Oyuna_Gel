@@ -9,7 +9,7 @@ import styles from './Hero.module.css'
  * Everything here is static, so it prerenders into the shell and paints immediately. The carousel
  * is passed in as a slot because it needs the featured games, which are ranked at request time.
  */
-export function Hero({ carousel, gamesAnchor }: { carousel?: ReactNode; gamesAnchor: string }) {
+export function Hero({ carousel, stats, gamesAnchor }: { carousel?: ReactNode; stats?: ReactNode; gamesAnchor: string }) {
   return (
     <section className={styles.hero} aria-labelledby="hero-title">
       <div className={styles.grid} aria-hidden="true" />
@@ -39,6 +39,7 @@ export function Hero({ carousel, gamesAnchor }: { carousel?: ReactNode; gamesAnc
             Oyun yarat
           </Link>
         </div>
+        {stats}
       </div>
 
       {carousel}

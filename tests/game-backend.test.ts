@@ -33,6 +33,7 @@ import {
   parseGroupLink,
   toGameCard,
   toPlayer,
+  heroStats,
 } from '@/lib/game-backend'
 import {
   addDays,
@@ -1047,5 +1048,15 @@ describe('placeLabel', () => {
       '10-cusunuz', '20-cisiniz', '30-cusunuz', '40-cısınız', '60-cısınız', '90-cısınız', '100-cüsünüz', '1000-cisiniz',
     ])
     expect([13, 26, 29].map(placeLabel)).toEqual(['13-cüsünüz', '26-cısınız', '29-cusunuz'])
+  })
+})
+
+describe('heroStats', () => {
+  it('keeps the display order and leaves zeros out', () => {
+    expect(heroStats({ openGames: 5, players: 0, venues: 12 })).toEqual([
+      { key: 'openGames', value: 5, label: 'açıq oyun' },
+      { key: 'venues', value: 12, label: 'meydança' },
+    ])
+    expect(heroStats({ openGames: 0, players: 0, venues: 0 })).toEqual([])
   })
 })

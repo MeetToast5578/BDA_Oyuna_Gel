@@ -605,6 +605,15 @@ export function toGameCard(game: GameRecord) {
 }
 
 /** One entry per known sport, including sports with no open games, so tab counters never go missing. */
+/** The hero's live numbers, in display order; a zero is left out rather than shown as "0 oyunçu". */
+export function heroStats(counts: { openGames: number; players: number; venues: number }) {
+  return [
+    { key: 'openGames', value: counts.openGames, label: 'açıq oyun' },
+    { key: 'players', value: counts.players, label: 'oyunçu' },
+    { key: 'venues', value: counts.venues, label: 'meydança' },
+  ].filter((stat) => stat.value > 0)
+}
+
 export function countOpenGamesBySport(games: Array<{ sport: string; status: AvailabilityStatus }>) {
   const counts = new Map<string, number>()
   for (const game of games) {

@@ -5,6 +5,11 @@
   padding-block: 32px 96px;
 }
 
+/* On the home page another section follows straight away. */
+.section[id='oyunlar'] {
+  padding-bottom: 48px;
+}
+
 .intro {
   display: flex;
   flex-direction: column;

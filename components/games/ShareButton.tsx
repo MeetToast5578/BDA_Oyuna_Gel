@@ -3,6 +3,7 @@
 import { useState } from 'react'
 
 import { buttonClass } from '@/components/ui/button'
+import { Icon } from '@/components/ui/Icon'
 import styles from './GameDetail.module.css'
 
 /**
@@ -42,7 +43,8 @@ export function ShareButton({
 
   return (
     <div className={styles.share}>
-      <button type="button" className={buttonClass('outlinePrimary', 'md')} onClick={() => share(url)}>
+      <button type="button" className={buttonClass('primary', 'md')} onClick={() => share(url)}>
+        <Icon name="share" size={18} />
         Paylaş
       </button>
       <a
@@ -51,10 +53,12 @@ export function ShareButton({
         target="_blank"
         rel="noopener noreferrer"
       >
+        <Icon name="chat" size={18} />
         WhatsApp
       </a>
+      {sideLinks.length > 0 && <p className={styles.shareLabel}>Komanda linkləri</p>}
       {sideLinks.map((link) => (
-        <button key={link.url} type="button" className={buttonClass('outlineDark', 'md')} onClick={() => share(link.url)}>
+        <button key={link.url} type="button" className={styles.sideLink} onClick={() => share(link.url)}>
           {link.label}
         </button>
       ))}

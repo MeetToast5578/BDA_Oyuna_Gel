@@ -43,15 +43,26 @@
 
 .card {
   overflow: hidden;
-  border: 1px solid var(--color-primary-border);
+  border: 1px solid var(--color-primary-border-soft);
+  box-shadow: var(--shadow-card);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
 
 .cover {
   position: relative;
-  height: 244px;
+  height: 300px;
   background: var(--color-track);
+}
+
+/* The photo fades into the sport's colour where it meets the title. */
+.cover::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 45%;
+  background: linear-gradient(to top, color-mix(in srgb, var(--sport) 45%, transparent), transparent);
+  pointer-events: none;
 }
 
 .coverBadges {
@@ -68,8 +79,10 @@
 .summary {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   padding: 32px;
+  border-top: 4px solid var(--sport);
+  background: linear-gradient(180deg, var(--sport-tint), var(--color-surface) 75%);
 }
 
 .title {
@@ -78,7 +91,7 @@
   font-weight: 700;
   line-height: 48.76px;
   letter-spacing: -0.01em;
-  color: #00130b;
+  color: var(--color-heading);
   overflow-wrap: anywhere;
 }
 
@@ -86,7 +99,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 18px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -99,7 +112,16 @@
 .facts li {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+}
+
+.facts svg {
+  color: var(--sport-ink);
 }
 
 .panel {
@@ -107,7 +129,7 @@
   flex-direction: column;
   gap: 16px;
   padding: 24px;
-  border: 1px solid var(--color-primary-border);
+  border: 1px solid var(--color-primary-border-soft);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
 }
@@ -131,7 +153,7 @@
   font-size: 30px;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--color-heading);
+  color: var(--sport-ink);
 }
 
 .headlineOf {
@@ -262,7 +284,7 @@ a.phone:hover {
   }
 
   .cover {
-    height: 200px;
+    height: 220px;
   }
 
   .summary {
@@ -275,15 +297,47 @@ a.phone:hover {
   }
 }
 
-/* "Paylaş" and "Təqvimə əlavə et", under the join panel. */
+/* "Paylaş" and "Təqvimə əlavə et", under the join panel: two equal buttons, then the team links. */
 .share {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
+.shareLabel {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-subtle);
+}
+
+/* Team names can be long: these wrap instead of overflowing. */
+.sideLink {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-chip);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--color-ink);
+  white-space: normal;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.sideLink:hover {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+}
+
 .shareStatus {
+  grid-column: 1 / -1;
   font-size: 13px;
   color: var(--color-muted);
 }

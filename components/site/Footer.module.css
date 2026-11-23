@@ -1,5 +1,6 @@
 .footer {
   --focus-ring: var(--focus-ring-on-dark);
+  position: relative;
   border-top: 1px solid var(--color-footer-border);
   background:
     radial-gradient(50% 80% at 100% 0%, color-mix(in srgb, var(--color-violet) 45%, transparent), transparent 70%),
@@ -30,7 +31,19 @@
   max-width: 320px;
 }
 
+/* A thin warm line across the top, like the active nav underline. */
+.footer::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-accent), #f26b4f, var(--color-violet));
+}
+
 .logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   align-self: flex-start;
   border-radius: 4px;
   font-family: var(--font-display);
@@ -38,7 +51,12 @@
   font-weight: 700;
   line-height: 33.6px;
   letter-spacing: -0.01em;
-  color: var(--color-footer-logo);
+  color: #fff;
+}
+
+.mark {
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 8px 18px -8px rgba(11, 0, 58, 0.6);
 }
 
 .tagline,

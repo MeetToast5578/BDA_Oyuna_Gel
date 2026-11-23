@@ -136,6 +136,31 @@ async function findOpenGameSlots(city: string) {
   return docs
 }
 
+/**
+ * The hero's live numbers. Demo games and the seed's demo accounts (`@seed.oyunagel.az`,
+ * lib/demo-players.ts) are left out, so the numbers never present sample data as real activity.
+ */
+export async function getSiteStats(city: string) {
+  'use cache'
+  cacheLife(CACHE_PROFILE)
+  cacheTag(GAMES_CACHE_TAG)
+
+  const payload = await getPayloadClient()
+  const openWhere = upcomingOpenWhere(city, new Date())
+  const [openGames, venues, users, seedUsers] = await Promise.all([
+    payload.count({
+      collection: 'games',
+      where: { and: [...(openWhere.and ?? []), { isDemo: { not_equals: true } }] },
+      overrideAccess: true,
+    }),
+    payload.count({ collection: 'arenas', where: cityWhere('city', city), overrideAccess: true }),
+    payload.count({ collection: 'users', overrideAccess: true }),
+    // Payload's not_like doesn't match a substring on Postgres, so the seed accounts are counted and subtracted.
+    payload.count({ collection: 'users', where: { email: { like: '@seed.oyunagel.az' } }, overrideAccess: true }),
+  ])
+  return { openGames: openGames.totalDocs, venues: venues.totalDocs, players: users.totalDocs - seedUsers.totalDocs }
+}
+
 export async function getOpenGamesCountBySport(city: string, now = Date.now()) {
   // Availability is re-derived per request so a game that started since the cache fill is not counted.
   const slots = await findOpenGameSlots(city)
