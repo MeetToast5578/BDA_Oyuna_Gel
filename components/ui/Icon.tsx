@@ -99,31 +99,6 @@ const ICONS = {
       />
     ),
   },
-  // Sports: a ball each, so the three read as one family.
-  football: line(
-    <>
-      <circle cx="12" cy="12" r="9.25" />
-      {/* Centre patch, five rim patches and the seams between them. */}
-      <path
-        fill="currentColor"
-        strokeWidth="1"
-        d="M12 8.1 15.71 10.79 14.29 15.16H9.71L8.29 10.79ZM12 5.6 8.09 3.62A9.25 9.25 0 0 1 15.91 3.62ZM18.09 10.02 18.77 5.69A9.25 9.25 0 0 1 21.18 13.13ZM15.76 17.18 20.09 16.48A9.25 9.25 0 0 1 13.76 21.08ZM8.24 17.18 10.24 21.08A9.25 9.25 0 0 1 3.91 16.48ZM5.91 10.02 2.82 13.13A9.25 9.25 0 0 1 5.23 5.69Z"
-      />
-      <path strokeWidth="1.5" d="M12 8.1V5.6M15.71 10.79l2.38-.77M14.29 15.16l1.47 2.02M9.71 15.16l-1.47 2.02M8.29 10.79l-2.38-.77" />
-    </>,
-  ),
-  basketball: line(
-    <>
-      <circle cx="12" cy="12" r="9.25" />
-      <path d="M12 2.75v18.5M2.75 12h18.5M5.6 5.4c2.2 1.9 3.4 4.1 3.4 6.6s-1.2 4.7-3.4 6.6M18.4 5.4c-2.2 1.9-3.4 4.1-3.4 6.6s1.2 4.7 3.4 6.6" />
-    </>,
-  ),
-  tennis: line(
-    <>
-      <circle cx="12" cy="12" r="9.25" />
-      <path d="M4.4 6.6c2.6 2.9 2.6 7.9 0 10.8M19.6 6.6c-2.6 2.9-2.6 7.9 0 10.8" />
-    </>,
-  ),
   medal: line(
     <>
       <circle cx="12" cy="15" r="5.25" />
@@ -158,8 +133,6 @@ const ICONS = {
 } satisfies Record<string, IconDef>
 
 export type IconName = keyof typeof ICONS
-
-export const isIconName = (name: string): name is IconName => Object.hasOwn(ICONS, name)
 
 /**
  * Decorative icon; the surrounding text carries the meaning. The `color` attribute is only a

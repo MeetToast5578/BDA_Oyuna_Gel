@@ -165,7 +165,7 @@
   animation-delay: -4s;
 }
 
-.ball:nth-child(3) svg {
+.ball:nth-child(3) img {
   width: 32px;
   height: 32px;
 }

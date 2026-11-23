@@ -1,13 +1,18 @@
 import Image from 'next/image'
 import type { CSSProperties } from 'react'
 
-import { Icon, isIconName } from '@/components/ui/Icon'
+import { Icon } from '@/components/ui/Icon'
 import type { Participant } from '@/lib/api-types'
 import styles from './bits.module.css'
 
-/** The sport's ball icon (a medal for a sport without one), in the current text colour. Decorative. */
+// 3D balls cut from the empty-state picture (public/images/empty-sports.png), 128px WebP.
+const SPORT_BALLS = new Set(['football', 'basketball', 'tennis'])
+
+/** The sport's 3D ball (a medal line icon for a sport without one). Decorative. */
 export function SportIcon({ sport, size = 16, className }: { sport: string; size?: number; className?: string }) {
-  return <Icon name={isIconName(sport) ? sport : 'medal'} size={size} className={className} />
+  if (!SPORT_BALLS.has(sport)) return <Icon name="medal" size={size} className={className} />
+  // unoptimized: the files are already small and pre-sized, the image optimiser would add nothing.
+  return <Image src={`/icons/sport-${sport}.webp`} alt="" width={size} height={size} unoptimized className={className} />
 }
 
 export function SportBadge({ sport, label, solid = false }: { sport: string; label: string; solid?: boolean }) {
