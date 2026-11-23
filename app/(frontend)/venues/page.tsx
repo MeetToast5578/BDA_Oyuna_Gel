@@ -74,7 +74,7 @@ async function VenueList({ searchParams }: { searchParams: SearchParams }) {
       <ul className={grid.grid}>
         {venues.map((venue) => (
           <li key={venue.id}>
-            <article className={card.card}>
+            <article className={card.card} data-sport={venue.sportTypes[0]}>
               <div className={card.media}>
                 <CoverImage
                   src={venue.imageUrl ?? SPORT_META.football.image}

@@ -5,9 +5,9 @@
   padding: 64px 0 28px;
   /* A mesh: the three sport colours glow from the corners over the brand gradient. */
   background:
-    radial-gradient(55% 60% at 92% 8%, color-mix(in srgb, var(--sport-football) 30%, transparent), transparent 70%),
-    radial-gradient(45% 55% at 4% 96%, color-mix(in srgb, var(--sport-basketball) 30%, transparent), transparent 70%),
-    radial-gradient(40% 40% at 70% 100%, color-mix(in srgb, var(--sport-tennis) 18%, transparent), transparent 70%),
+    radial-gradient(55% 60% at 92% 8%, color-mix(in srgb, var(--sport-football) 40%, transparent), transparent 70%),
+    radial-gradient(45% 55% at 4% 96%, color-mix(in srgb, var(--sport-basketball) 40%, transparent), transparent 70%),
+    radial-gradient(40% 40% at 70% 100%, color-mix(in srgb, var(--sport-tennis) 24%, transparent), transparent 70%),
     var(--hero-gradient);
   color: #fff;
 }

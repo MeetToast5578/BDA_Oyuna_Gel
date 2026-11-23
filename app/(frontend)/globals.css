@@ -13,7 +13,7 @@
   --color-primary-night: #0b003a; /* overlays and shadows */
   --color-primary-tint: color-mix(in srgb, var(--color-primary) 5%, transparent);
   --color-primary-border: color-mix(in srgb, var(--color-primary) 20%, transparent);
-  --color-primary-border-soft: color-mix(in srgb, var(--color-primary) 15%, transparent);
+  --color-primary-border-soft: color-mix(in srgb, var(--color-primary) 8%, #e2e3ec); /* card edges: near-neutral */
   --color-primary-soft: color-mix(in srgb, var(--color-primary) 8%, #fff);
   --color-accent: #e8a33d;
   --color-accent-hover: #f0b458;
@@ -31,38 +31,34 @@
   /* Ink */
   --color-ink: #141b2b;
   --color-ink-hover: #26304a;
-  --color-heading: #141a16;
+  --color-heading: #14152a;
   --color-title: #11111a;
   --color-text: #464555;
-  --color-muted: #5c665f;
+  --color-muted: #5b6072;
   --color-muted-alt: #5e5c66;
-  --color-subtle: #706e80; /* AA: Figma #777587 is 4.49:1 */
-  --color-placeholder: #666e69; /* AA: Figma #a5ada8 is 2.1:1 */
+  --color-subtle: #605e73; /* AA on the page wash and chips */
+  --color-placeholder: #5b6072; /* AA: Figma #a5ada8 is 2.1:1 */
   --color-badge-text: #323232;
 
   /* Surfaces */
-  --color-page: #fafafa;
+  --color-page: #f6f6fb;
   --color-surface: #ffffff;
-  --color-border: #dee3d6;
+  --color-border: #e2e3ec;
   --color-track: #e9edff;
-  --color-track-warm: #efeee7;
-  --color-chip: #f3f5ee;
+  --color-track-warm: #eceef5;
+  --color-chip: #f1f2f8;
   --color-footer: var(--color-primary);
-  --color-footer-border: rgba(222, 227, 214, 0.3);
+  --color-footer-border: rgba(255, 255, 255, 0.18);
   --color-footer-text: rgba(255, 255, 255, 0.65); /* AA: Figma 0.35 is 3.2:1 */
   --color-footer-logo: rgba(255, 255, 255, 0.7);
 
-  /* Levels: semantic colors (Başlanğıc green, Yüksək red), deliberately not the brand color. */
-  /* Solid, so the 11px label keeps at least 4.5:1 contrast over any cover photo. */
-  --level-beginner-bg: #dff4c9;
-  --level-beginner-text: #2c5a07;
-  --level-beginner-border: #6db926;
-  --level-medium-bg: #fcecc4;
-  --level-medium-text: #6e4a00;
-  --level-medium-border: #c69731;
-  --level-high-bg: #b91c1c;
-  --level-high-text: #fff;
-  --level-high-border: #991b1b;
+  /* Levels: one neutral chip with 1–3 signal bars, so green and orange stay the sports' colours.
+     Solid, so the 11px label keeps at least 4.5:1 contrast over any cover photo. */
+  --level-bg: #fff;
+  --level-text: var(--color-ink);
+  --level-border: #e2e3ec;
+  --level-bar: var(--color-primary);
+  --level-bar-off: #c3c5dc;
 
   /*
    * Sports. Each has a bright colour for fills and gradients (dark text on it) and a dark "ink" for
@@ -92,7 +88,7 @@
   --podium-bronze-text: #4f2a10;
 
   /* Hero */
-  --hero-gradient: linear-gradient(104.13deg, var(--color-primary) 46.78%, var(--color-primary-deep) 109.51%);
+  --hero-gradient: linear-gradient(115deg, var(--color-primary-deep) 0%, var(--color-primary) 38%, #3f2be0 62%, var(--color-primary-deep) 112%);
   --hero-text-soft: #dee3d6;
   --glass-bg: rgba(255, 255, 255, 0.16);
   --glass-border: rgba(222, 227, 214, 0.1);
@@ -129,7 +125,7 @@
   --header-height: 65px;
 
   /* Effects */
-  --shadow-card: 0 12px 28px -10px rgba(131, 84, 0, 0.1), 0 4px 12px 0 rgba(0, 0, 0, 0.02);
+  --shadow-card: 0 12px 28px -12px color-mix(in srgb, var(--color-primary) 16%, transparent), 0 4px 12px 0 rgba(20, 21, 42, 0.03);
   --shadow-button:
     0 4px 6px -1px color-mix(in srgb, var(--color-primary) 20%, transparent),
     0 2px 4px -2px color-mix(in srgb, var(--color-primary) 20%, transparent);
@@ -150,20 +146,25 @@
 }
 
 /* One rule per sport sets the generic tokens for everything inside; the gradient is derived here so
-   it picks up the nearest data-sport, not the root's. */
-[data-sport='football'] {
+   it picks up the nearest data-sport, not the root's. A page about one sport marks its wrapper
+   `sport-page`, and the body then takes that sport too, so the page wash behind it matches. */
+[data-sport='football'],
+body:has(.sport-page[data-sport='football']) {
   --sport: var(--sport-football);
   --sport-ink: var(--sport-football-ink);
 }
-[data-sport='basketball'] {
+[data-sport='basketball'],
+body:has(.sport-page[data-sport='basketball']) {
   --sport: var(--sport-basketball);
   --sport-ink: var(--sport-basketball-ink);
 }
-[data-sport='tennis'] {
+[data-sport='tennis'],
+body:has(.sport-page[data-sport='tennis']) {
   --sport: var(--sport-tennis);
   --sport-ink: var(--sport-tennis-ink);
 }
 :root,
+body,
 [data-sport] {
   --sport-tint: color-mix(in srgb, var(--sport) 16%, #fff);
   --gradient-sport: linear-gradient(135deg, color-mix(in srgb, var(--sport) 30%, #fff) 0%, var(--sport) 100%);
@@ -214,7 +215,13 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-page);
+  /* A soft brand wash behind the top of every page; on a sport's page (data-sport) it takes that colour.
+     The home hero sits on top of it. */
+  background:
+    radial-gradient(70% 420px at 12% 0, color-mix(in srgb, var(--color-violet) 12%, transparent), transparent 75%),
+    radial-gradient(55% 380px at 92% 0, color-mix(in srgb, var(--sport-ink) 14%, transparent), transparent 75%),
+    var(--color-page);
+  background-repeat: no-repeat;
   color: var(--color-heading);
   font-family: var(--font-body);
   font-size: 16px;

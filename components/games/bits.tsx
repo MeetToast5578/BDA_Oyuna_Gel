@@ -19,9 +19,21 @@ export function SportBadge({ sport, label, solid = false }: { sport: string; lab
   )
 }
 
+const LEVEL_BARS: Record<string, number> = { beginner: 1, medium: 2, high: 3 }
+
+/** Level as a neutral chip with 1–3 signal bars; the label carries the meaning, the bars are decorative. */
 export function LevelBadge({ level, label }: { level: string; label: string }) {
-  const tone = styles[level as 'beginner' | 'medium' | 'high'] ?? styles.medium
-  return <span className={`${styles.badge} ${styles.level} ${tone}`}>{label}</span>
+  const filled = LEVEL_BARS[level] ?? 2
+  return (
+    <span className={`${styles.badge} ${styles.level}`}>
+      <svg className={styles.levelBars} width="12" height="11" viewBox="0 0 12 11" aria-hidden="true" focusable="false">
+        {[0, 1, 2].map((bar) => (
+          <rect key={bar} x={bar * 4.5} y={7 - bar * 3.5} width="3" height={4 + bar * 3.5} rx="1" className={bar < filled ? styles.barOn : undefined} />
+        ))}
+      </svg>
+      {label}
+    </span>
+  )
 }
 
 export function ProgressBar({
@@ -54,13 +66,13 @@ export function ProgressBar({
   )
 }
 
-// Initials backgrounds from the "İştirakçılar" avatar row.
+// Initials backgrounds: the brand, the accent and the sport inks, each AA (4.5:1+) with its text.
 const AVATAR_TONES = [
-  { bg: '#2d6a4f', fg: '#fff' },
+  { bg: '#3525cd', fg: '#fff' },
+  { bg: '#15803d', fg: '#fff' },
   { bg: '#e8a33d', fg: '#5c3a0e' },
-  { bg: '#8e5b3c', fg: '#fff' },
-  { bg: '#3d6b8a', fg: '#fff' },
-  { bg: '#b4443c', fg: '#fff' },
+  { bg: '#c2410c', fg: '#fff' },
+  { bg: '#5b3df0', fg: '#fff' },
 ]
 
 /** All an avatar needs: players, hosts and the signed-in user all have these. */

@@ -86,12 +86,76 @@
   text-align: center;
 }
 
-.emptyImage {
+/* Three sport balls floating on a soft brand disc, with a swoosh in each sport's colour. */
+.emptyArt {
+  position: relative;
+  width: 220px;
+  height: 180px;
+  margin-bottom: 8px;
+}
+
+.emptyArt::before {
+  content: '';
+  position: absolute;
+  inset: 14px 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--color-violet) 22%, #fff), var(--color-primary-soft) 70%);
+}
+
+.emptyArcs {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-width: 320px;
-  height: auto;
-  margin-bottom: 16px;
+  height: 100%;
+}
+
+.arcFootball {
+  stroke: var(--sport-football);
+}
+
+.arcBasketball {
+  stroke: var(--sport-basketball);
+}
+
+.arcTennis {
+  stroke: var(--sport-tennis);
+}
+
+.emptyBall {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--gradient-sport);
+  box-shadow: 0 14px 26px -14px var(--sport-ink);
+  color: var(--color-ink);
   animation: float 5s ease-in-out infinite;
+}
+
+.emptyBall:nth-of-type(1) {
+  top: 54px;
+  left: 22px;
+}
+
+.emptyBall:nth-of-type(2) {
+  top: 20px;
+  left: 112px;
+  animation-delay: -1.6s;
+}
+
+.emptyBall:nth-of-type(3) {
+  top: 92px;
+  left: 120px;
+  width: 58px;
+  height: 58px;
+  animation-delay: -3.2s;
+}
+
+.emptyBall:nth-of-type(3) svg {
+  width: 34px;
+  height: 34px;
 }
 
 @keyframes float {

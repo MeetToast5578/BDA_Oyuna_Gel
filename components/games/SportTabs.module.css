@@ -18,7 +18,8 @@
   padding: 20px;
   border: 1px solid var(--color-primary-border);
   border-radius: var(--radius-lg);
-  background: var(--color-surface);
+  /* A hint of the sport's colour even before it is chosen. */
+  background: linear-gradient(170deg, var(--sport-tint), var(--color-surface) 65%);
   text-align: center;
   transition:
     border-color 0.15s ease,

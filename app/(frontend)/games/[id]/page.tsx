@@ -99,7 +99,7 @@ async function GameDetailContent({ params, searchParams }: Props) {
   const googleCalendar = googleCalendarUrl(game, gameUrl)
 
   return (
-    <div className={`${styles.layout} fade`}>
+    <div className={`${styles.layout} sport-page fade`} data-sport={game.sport}>
       <div className={styles.column}>
         <section className={styles.card} aria-labelledby="game-title">
           <div className={styles.cover}>

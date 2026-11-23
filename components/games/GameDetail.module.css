@@ -142,6 +142,7 @@
 .progress {
   --progress-height: 8px;
   --progress-track: var(--color-track-warm);
+  --progress-fill: linear-gradient(90deg, var(--sport), var(--sport-ink));
 }
 
 .avatars {
