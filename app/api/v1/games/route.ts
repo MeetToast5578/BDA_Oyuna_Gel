@@ -8,6 +8,7 @@ import { INVITE_ERRORS, type InviteErrorCode } from '@/lib/invites'
 import { afterResponse, notifyInvited } from '@/lib/notify'
 import { rememberPhone } from '@/lib/profile-queries'
 import { clientIp, isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
+import { scheduleTelegramPost } from '@/lib/telegram'
 
 export async function GET(request: Request) {
   const now = new Date()
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
     // The people the host named hear about it after the game is saved.
     const { game: created } = result
     scheduleAdminAlert(payload, { type: 'game_created', actorId: userId, actorName: user.fullName, game: created })
+    scheduleTelegramPost(created)
     if (parsed.input.invites.length > 0) {
       afterResponse(() => notifyInvited(payload, { ...created, hostName: created.host.name }, parsed.input.invites))
     }
