@@ -1,8 +1,15 @@
 import { cacheLife } from 'next/cache'
 import Link from 'next/link'
 
+import { Icon } from '@/components/ui/Icon'
 import styles from './Footer.module.css'
 import { AnalyticsSettings } from './Analytics'
+
+/** OyunaGəl's own channels; also listed on the contact page. */
+export const SOCIAL_LINKS = [
+  { href: 'https://www.instagram.com/oyunagel.az/', label: 'Instagram', icon: 'instagram' },
+  { href: 'https://whatsapp.com/channel/0029Vb9MolH96H4JPXNHTu2p', label: 'WhatsApp kanalı', icon: 'chat' },
+] as const
 
 const LINKS = [
   { href: '/about', label: 'Haqqımızda' },
@@ -28,6 +35,16 @@ export async function Footer() {
               OyunaGəl
             </Link>
             <p className={styles.tagline}>Birlikdə oynayaq.</p>
+            <ul className={styles.social}>
+              {SOCIAL_LINKS.map((link) => (
+                <li key={link.href}>
+                  <a href={link.href} target="_blank" rel="noopener noreferrer" className={styles.socialLink}>
+                    <Icon name={link.icon} size={18} />
+                    {link.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
           <nav aria-label="Footer">
             <ul className={styles.links}>

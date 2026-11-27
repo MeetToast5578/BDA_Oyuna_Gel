@@ -113,6 +113,13 @@ const ICONS = {
       <path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1" />
     </>,
   ),
+  instagram: line(
+    <>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.2" cy="6.8" r="0.6" fill="currentColor" />
+    </>,
+  ),
   chat: line(<path d="M4 19.5 5.3 15A8 8 0 1 1 9 18.7Z" />),
   check: line(<path d="m5 12.5 4.5 4.5L19 7.5" />),
   swap: line(<path d="M7 4 3.5 7.5 7 11M3.5 7.5h15M17 13l3.5 3.5L17 20M20.5 16.5h-15" />),
