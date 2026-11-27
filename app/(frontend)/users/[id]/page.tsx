@@ -14,7 +14,7 @@ import { ProfileIdentity } from '@/components/profile/ProfileIdentity'
 import { EloPanel } from '@/components/profile/EloPanel'
 import { GameHistory } from '@/components/profile/GameHistory'
 import { RecordPanel } from '@/components/profile/RecordPanel'
-import { ProfileStats } from '@/components/profile/ProfileStats'
+import { ProfileStats, reliabilitySummary } from '@/components/profile/ProfileStats'
 import { buttonClass } from '@/components/ui/button'
 import { Icon } from '@/components/ui/Icon'
 import { getPublicProfile } from '@/lib/profile-queries'
@@ -80,7 +80,7 @@ async function PublicProfileContent({ params }: Props) {
           facts={
             profile.reliability && (
               <li className={styles.reliabilityFact}>
-                Etibarlılıq: {profile.reliability.came}/{profile.reliability.marked} oyuna gəlib
+                Etibarlılıq: {reliabilitySummary(profile.reliability)}
               </li>
             )
           }

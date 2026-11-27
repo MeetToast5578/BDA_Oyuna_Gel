@@ -310,7 +310,7 @@ function PlayerRow({
   toneIndex,
   onPick,
 }: {
-  person: GamePlayers['host']
+  person: GamePlayers['host'] & { reliability?: GamePlayers['players'][number]['reliability'] }
   host?: boolean
   toneIndex?: number
   onPick: () => void
@@ -321,6 +321,16 @@ function PlayerRow({
       <span className={styles.name}>{person.name}</span>
       {host && <span className={`${styles.tag} ${styles.hostTag}`}>Host</span>}
       {person.you && <span className={`${styles.tag} ${styles.youTag}`}>Siz</span>}
+      {/* "Etibarlılıq" at a glance for the host deciding who's coming; the profile has the detail. */}
+      {person.reliability && (
+        <span
+          className={`${styles.tag} ${styles.reliabilityTag} ${person.reliability.percent >= 80 ? styles.reliable : person.reliability.percent >= 50 ? '' : styles.unreliable}`}
+          title={`Etibarlılıq: ${person.reliability.came}/${person.reliability.marked} oyuna gəlib${person.reliability.late > 0 ? ` · ${person.reliability.late} son anda imtina` : ''}`}
+        >
+          <span className="visually-hidden">Etibarlılıq: </span>
+          {person.reliability.percent}%
+        </span>
+      )}
     </>
   )
 

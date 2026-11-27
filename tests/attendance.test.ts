@@ -104,7 +104,7 @@ describe.skipIf(!process.env.DATABASE_URL)('attendance (Postgres)', () => {
 
     const third = await makeGame(-4 * DAY_MS)
     await markAttendance(payload, third, ids.p1, 'came')
-    expect(await reliability(payload, ids.p1)).toEqual({ marked: 3, came: 2 })
+    expect(await reliability(payload, ids.p1)).toEqual({ marked: 3, came: 2, late: 0 })
 
     // Clearing a mark takes it back out.
     await markAttendance(payload, third, ids.p1, null)

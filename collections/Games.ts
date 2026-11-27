@@ -89,6 +89,14 @@ export const Games: CollectionConfig = {
       },
     },
     {
+      name: 'attendanceRemindedAt',
+      type: 'date',
+      admin: {
+        readOnly: true,
+        description: 'When the host was reminded to mark who came (/api/cron/reminders), so they get it once.',
+      },
+    },
+    {
       name: 'groupLink',
       type: 'text',
       admin: {

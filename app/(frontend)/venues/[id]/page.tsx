@@ -4,16 +4,17 @@ import { notFound } from 'next/navigation'
 import { cache, Suspense } from 'react'
 
 import { BackLink } from '@/components/games/BackLink'
-import { SportBadge } from '@/components/games/bits'
+import { PartnerBadge, SportBadge } from '@/components/games/bits'
 import { CoverImage } from '@/components/games/CoverImage'
 import { EmptyState } from '@/components/games/EmptyState'
 import styles from '@/components/games/GameDetail.module.css'
 import { GamesGrid } from '@/components/games/GamesGrid'
 import { buttonClass } from '@/components/ui/button'
-import { MapLink } from '@/components/venues/MapLink'
+import { TrackedLink } from '@/components/venues/TrackedLink'
 import { Icon } from '@/components/ui/Icon'
 import { SPORT_META, mapsUrl, startOfBakuDay } from '@/lib/game-backend'
 import { getVenuePage } from '@/lib/game-queries'
+import { formatPhone } from '@/lib/phone'
 import { loadGameList } from '@/lib/page-data'
 
 type Props = { params: Promise<{ id: string }> }
@@ -65,11 +66,14 @@ async function VenueContent({ params }: Props) {
             sizes="(max-width: 859px) 100vw, 1100px"
             priority
           />
-          {venue.sportTypes.length > 0 && (
+          {(venue.sportTypes.length > 0 || venue.partner) && (
             <div className={styles.coverBadges}>
-              {venue.sportTypes.map((sport) => (
-                <SportBadge key={sport} sport={sport} label={SPORT_META[sport]?.label ?? sport} />
-              ))}
+              <span className={styles.coverBadgeGroup}>
+                {venue.sportTypes.map((sport) => (
+                  <SportBadge key={sport} sport={sport} label={SPORT_META[sport]?.label ?? sport} />
+                ))}
+              </span>
+              {venue.partner && <PartnerBadge />}
             </div>
           )}
         </div>
@@ -82,16 +86,51 @@ async function VenueContent({ params }: Props) {
               <Icon name="pin" />
               <span className="visually-hidden">Ünvan:</span> {place}
             </li>
+            {venue.hours && (
+              <li>
+                <Icon name="clock" />
+                İş saatları: {venue.hours}
+              </li>
+            )}
+            {venue.priceNote && <li>Qiymət: {venue.priceNote}</li>}
           </ul>
           {venue.description && <p className={styles.muted}>{venue.description}</p>}
           <div className={styles.venueActions}>
             <Link href={`/games/new?venue=${venue.id}`} className={buttonClass('primary', 'md')}>
               Burada oyun yarat
             </Link>
-            <MapLink href={mapsUrl(venue)} venueId={String(venue.id)} className={buttonClass('outlinePrimary', 'md')}>
+            <TrackedLink href={mapsUrl(venue)} venueId={String(venue.id)} event="venue_map_opened" className={buttonClass('outlinePrimary', 'md')}>
               Xəritədə aç
-            </MapLink>
+            </TrackedLink>
           </div>
+          {/* A partner's own booking channels; each only when the venue gave it. */}
+          {(venue.phone || venue.bookingUrl) && (
+            <div className={styles.venueActions}>
+              {venue.bookingUrl && (
+                <TrackedLink href={venue.bookingUrl} venueId={String(venue.id)} event="venue_booking" className={buttonClass('accent', 'md')}>
+                  Bron et
+                  <Icon name="external" size={14} />
+                </TrackedLink>
+              )}
+              {venue.phone && (
+                <>
+                  <TrackedLink href={`tel:${venue.phone}`} venueId={String(venue.id)} event="venue_call" className={buttonClass('outlineDark', 'md')}>
+                    Zəng et
+                    <span className="visually-hidden">: {formatPhone(venue.phone)}</span>
+                  </TrackedLink>
+                  <TrackedLink
+                    href={`https://wa.me/${venue.phone.replace(/\D/g, '')}`}
+                    venueId={String(venue.id)}
+                    event="venue_whatsapp"
+                    className={buttonClass('outlineDark', 'md')}
+                  >
+                    <Icon name="chat" size={18} />
+                    WhatsApp
+                  </TrackedLink>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </section>
 

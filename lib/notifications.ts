@@ -14,6 +14,7 @@ export const NOTICE_TEXT: Record<NoticeKind, string> = {
   resultDisputed: 'Rəqib hesaba etiraz etdi',
   markedAbsent: 'Təşkilatçı sizi "gəlmədi" kimi qeyd etdi',
   reminder: 'Oyununuz 2 saata başlayır',
+  markAttendance: 'Oyun bitdi: kimin gəldiyini qeyd edin',
 }
 
 /** How long a notice still looks new after the visit that marked it read: that visit's refresh keeps it. */

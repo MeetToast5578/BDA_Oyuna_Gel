@@ -61,9 +61,11 @@ export function trackPage(path: string) {
   })
 }
 
-type ActionEvent = 'game_created' | 'game_joined' | 'waitlist_joined' | 'sport_selected' | 'login' | 'venue_map_opened'
+type ActionEvent =
+  | 'game_created' | 'game_joined' | 'waitlist_joined' | 'sport_selected' | 'login'
+  | 'venue_map_opened' | 'venue_call' | 'venue_whatsapp' | 'venue_booking'
 
-/** `value` is the sport, or for `venue_map_opened` the venue's numeric id (a public page, not a person). */
+/** `value` is the sport, or for the `venue_*` events the venue's numeric id (a public page, not a person). */
 export function trackAction(event: ActionEvent, value?: string | null) {
   // Analytics must never turn a successful application action into an error.
   try {
@@ -71,7 +73,7 @@ export function trackAction(event: ActionEvent, value?: string | null) {
     const params =
       event === 'login'
         ? { method: 'Google' }
-        : event === 'venue_map_opened'
+        : event.startsWith('venue_')
           ? { venue_id: /^\d+$/.test(value ?? '') ? value : 'unknown' }
           : { sport: sportValue(value ?? null) }
     window.gtag?.('event', event, params)

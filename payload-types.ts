@@ -151,6 +151,10 @@ export interface User {
   emailNotifications?: boolean | null;
   profilePicture?: (number | null) | Media;
   avatarUrl?: string | null;
+  /**
+   * Last-minute cancellations (left a game within 3 hours of kick-off).
+   */
+  lateCancellations?: number | null;
   googleId?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -244,6 +248,26 @@ export interface Arena {
   imagePath?: string | null;
   sportTypes?: ('football' | 'basketball' | 'tennis')[] | null;
   description?: string | null;
+  /**
+   * Tərəfdaş: listed first on /venues and in the venue picker, with a badge and contact buttons.
+   */
+  partner?: boolean | null;
+  /**
+   * Booking phone, e.g. +994501234567. Shows "Zəng et" and "WhatsApp" on the venue page.
+   */
+  phone?: string | null;
+  /**
+   * Online booking page (https://…). Shows "Bron et" on the venue page.
+   */
+  bookingUrl?: string | null;
+  /**
+   * Price as shown to players, e.g. "40–60 ₼/saat".
+   */
+  priceNote?: string | null;
+  /**
+   * Opening hours, e.g. "09:00–24:00".
+   */
+  hours?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -299,6 +323,10 @@ export interface Game {
    * When its players were sent "Oyununuz 2 saata başlayır" (/api/cron/reminders), so they get it once.
    */
   remindedAt?: string | null;
+  /**
+   * When the host was reminded to mark who came (/api/cron/reminders), so they get it once.
+   */
+  attendanceRemindedAt?: string | null;
   /**
    * WhatsApp or Telegram group invite link. Shown only to the host and players who joined; emptied 30 days after the game.
    */
@@ -458,7 +486,8 @@ export interface Notification {
     | 'resultConfirmed'
     | 'resultDisputed'
     | 'markedAbsent'
-    | 'reminder';
+    | 'reminder'
+    | 'markAttendance';
   game?: (number | null) | Game;
   gameTitle: string;
   readAt?: string | null;
@@ -627,6 +656,7 @@ export interface UsersSelect<T extends boolean = true> {
   emailNotifications?: T;
   profilePicture?: T;
   avatarUrl?: T;
+  lateCancellations?: T;
   googleId?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -704,6 +734,11 @@ export interface ArenasSelect<T extends boolean = true> {
   imagePath?: T;
   sportTypes?: T;
   description?: T;
+  partner?: T;
+  phone?: T;
+  bookingUrl?: T;
+  priceNote?: T;
+  hours?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -736,6 +771,7 @@ export interface GamesSelect<T extends boolean = true> {
   level?: T;
   host?: T;
   remindedAt?: T;
+  attendanceRemindedAt?: T;
   groupLink?: T;
   contactPhone?: T;
   homeTeam?: T;

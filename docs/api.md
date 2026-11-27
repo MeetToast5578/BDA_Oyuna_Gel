@@ -87,7 +87,8 @@ Returned by the list, featured and detail endpoints.
     "city": "baku",
     "cityLabel": "Bakı",
     "coordinates": { "lat": 40.4, "lng": 49.87 },
-    "sportTypes": ["football"]
+    "sportTypes": ["football"],
+    "partner": false
   },
   "district": "Nizami",
   "startsAt": "2026-08-02T16:00:00.000Z",
@@ -562,7 +563,9 @@ single `INSERT … ON CONFLICT DO UPDATE … RETURNING count`, so parallel reque
 
 ## `GET /api/v1/venues`
 
-Options for the "Meydança" picker.
+Options for the "Meydança" picker. Partner venues (`"partner": true`, set by admins) come first, then
+the rest by name; the picker badges them "Tərəfdaş". Their contact details (`phone`, `bookingUrl`,
+`priceNote`, `hours`) are shown on `/venues/{id}`, not returned here.
 
 | Query   | Default | Notes                                                   |
 | ------- | ------- | ------------------------------------------------------- |

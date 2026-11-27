@@ -23,6 +23,9 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
    # On Vercel: any long random string. Vercel Cron sends it to /api/cron/cleanup (vercel.json),
    # the daily job that deletes old logs and phone numbers; without it the job refuses to run.
    CRON_SECRET=<random string>
+   # Optional: post every new real game to a Telegram channel (setup: docs/telegram-channel.md)
+   TELEGRAM_BOT_TOKEN=<token from @BotFather>
+   TELEGRAM_CHANNEL_ID=<@channelname>
    # Optional: phone notifications. Generate once with `npx web-push generate-vapid-keys`; without
    # both keys the profile hides the switch and nothing is sent. The subject is a mailto: or https URL.
    NEXT_PUBLIC_VAPID_PUBLIC_KEY=<public key>
@@ -30,7 +33,8 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
    VAPID_SUBJECT=mailto:<an address you read>
    ```
 
-   "Oyununuz 2 saata başlayır" needs `/api/cron/reminders` called every 15 minutes with
+   "Oyununuz 2 saata başlayır" (and, after a game, "Oyun bitdi: kimin gəldiyini qeyd edin" to its host)
+   needs `/api/cron/reminders` called every 15 minutes with
    `Authorization: Bearer $CRON_SECRET`. Vercel's free plan only runs its cron daily, so use an outside
    scheduler (cron-job.org is free) or a Pro plan.
 

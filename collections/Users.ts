@@ -132,6 +132,22 @@ export const Users: CollectionConfig = {
       },
     },
     {
+      // Times the user left a game within LATE_LEAVE_HOURS of kick-off (lib/attendance.ts); each
+      // counts as half a no-show in "Etibarlılıq". Written by the leave route only.
+      name: 'lateCancellations',
+      type: 'number',
+      defaultValue: 0,
+      min: 0,
+      access: {
+        create: adminOnlyField,
+        update: adminOnlyField,
+      },
+      admin: {
+        readOnly: true,
+        description: 'Last-minute cancellations (left a game within 3 hours of kick-off).',
+      },
+    },
+    {
       name: 'googleId',
       type: 'text',
       unique: true,

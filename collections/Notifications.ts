@@ -14,6 +14,7 @@ export const NOTICE_KINDS = [
   'resultDisputed',
   'markedAbsent',
   'reminder',
+  'markAttendance',
 ] as const
 
 /**

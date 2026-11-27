@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
-import { SportBadge } from '@/components/games/bits'
+import { PartnerBadge, SportBadge } from '@/components/games/bits'
 import { CoverImage } from '@/components/games/CoverImage'
 import card from '@/components/games/GameCard.module.css'
 import grid from '@/components/games/GamesGrid.module.css'
@@ -98,8 +98,9 @@ async function VenueList({ searchParams }: { searchParams: SearchParams }) {
                     </span>
                   </p>
                 </div>
-                {venue.sportTypes.length > 0 && (
+                {(venue.sportTypes.length > 0 || venue.partner) && (
                   <p className={card.metaRow}>
+                    {venue.partner && <PartnerBadge />}
                     {venue.sportTypes.map((sport) => (
                       <SportBadge key={sport} sport={sport} label={SPORT_META[sport]?.label ?? sport} />
                     ))}

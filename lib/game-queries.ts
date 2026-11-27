@@ -2,7 +2,7 @@ import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import { cacheLife, cacheTag } from 'next/cache'
 import type { Payload, Where } from 'payload'
 
-import { attendanceOpen } from '@/lib/attendance'
+import { attendanceOpen, reliabilityFor, reliabilityPercent } from '@/lib/attendance'
 import { GAMES_CACHE_TAG, invalidateGamesCache } from '@/lib/cache-tags'
 import {
   DEFAULT_CITY,
@@ -533,6 +533,11 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
     // The host's spot is the game itself; a stray participant row for them would list them twice.
     .filter((player) => player.id === null || player.id !== game.host.id)
     .map((player) => ({ ...player, you: isViewer(player.id) }))
+  // "Etibarlılıq" beside each name, so the host sees who tends to turn up; one query for the whole list.
+  const reliabilities = await reliabilityFor(
+    (payload.db as unknown as PostgresAdapter).drizzle,
+    players.flatMap((player) => (player.id ? [Number(player.id)] : [])),
+  )
 
   return {
     game: { id: game.id, title: game.title, currentCount: game.currentCount, maxCount: game.maxCount },
@@ -543,7 +548,10 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
     canMarkAttendance: isViewer(game.host.id) && attendanceOpen({ status: game.status, scheduledAt: game.startsAt ?? '' }),
     // The clubs' names, where a side has one; the dialog says "A komandası" for an open side.
     sideNames: { home: game.teams.home?.name ?? null, away: game.teams.away?.name ?? null },
-    players,
+    players: players.map((player) => {
+      const reliability = player.id ? reliabilities.get(Number(player.id)) : undefined
+      return { ...player, reliability: reliability ? { ...reliability, percent: reliabilityPercent(reliability) } : null }
+    }),
     others: Math.max(0, game.currentCount - players.length - 1),
   }
 }
@@ -835,8 +843,14 @@ async function findVenues(city: string) {
       image: true,
       imagePath: true,
       description: true,
+      partner: true,
+      phone: true,
+      bookingUrl: true,
+      priceNote: true,
+      hours: true,
     },
-    sort: 'name',
+    // Partner venues first (docs/business-model.md), then by name; every venue list keeps this order.
+    sort: ['-partner', 'name'],
     // The photo, for the venue pages; the picker only reads the other fields.
     depth: 1,
     pagination: false,
@@ -851,6 +865,10 @@ export async function listVenuePages(city: string) {
     ...normalizeVenue(doc),
     imageUrl: venueImageUrl(doc),
     description: typeof doc.description === 'string' && doc.description.trim() ? doc.description.trim() : null,
+    phone: doc.phone || null,
+    bookingUrl: doc.bookingUrl || null,
+    priceNote: doc.priceNote?.trim() || null,
+    hours: doc.hours?.trim() || null,
   }))
 }
 
