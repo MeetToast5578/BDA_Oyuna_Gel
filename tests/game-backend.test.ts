@@ -34,6 +34,8 @@ import {
   toGameCard,
   toPlayer,
   heroStats,
+  isHttpsUrl,
+  normalizeVenue,
 } from '@/lib/game-backend'
 import {
   addDays,
@@ -887,6 +889,7 @@ describe('normalizeGameRecord / toGameCard', () => {
         cityLabel: 'Bakı',
         coordinates: { lat: 40.4, lng: 49.87 },
         sportTypes: ['football'],
+        partner: false,
       },
       district: 'Nərimanov',
       startsAt: inHours(3),
@@ -1058,5 +1061,18 @@ describe('heroStats', () => {
       { key: 'venues', value: 12, label: 'meydança' },
     ])
     expect(heroStats({ openGames: 0, players: 0, venues: 0 })).toEqual([])
+  })
+})
+
+describe('partner venue fields', () => {
+  it('accepts only full https links as booking pages', () => {
+    expect(isHttpsUrl('https://book.example.az/aku')).toBe(true)
+    for (const bad of ['http://book.example.az', 'javascript:alert(1)', 'book.example.az', '']) expect(isHttpsUrl(bad)).toBe(false)
+  })
+
+  it('flags partner venues, and only when the checkbox is on', () => {
+    expect(normalizeVenue({ id: 1, name: 'Aku Arena', partner: true }).partner).toBe(true)
+    expect(normalizeVenue({ id: 2, name: 'Inter Arena', partner: false }).partner).toBe(false)
+    expect(normalizeVenue({ id: 3, name: 'Old Arena' }).partner).toBe(false)
   })
 })

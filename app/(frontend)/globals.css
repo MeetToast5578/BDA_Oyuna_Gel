@@ -77,6 +77,8 @@
   --color-violet: #7b6cff;
   --gradient-brand: linear-gradient(120deg, var(--color-primary) 0%, #5b3df0 55%, var(--color-violet) 100%);
   --gradient-warm: linear-gradient(120deg, var(--color-accent) 0%, #f26b4f 100%);
+  /* "Tərəfdaş" badges: gold, so their dark text stays AA (4.7:1 or more) across the whole gradient. */
+  --gradient-partner: linear-gradient(120deg, #ffd27f 0%, var(--color-accent) 100%);
 
   /* Monthly podium */
   --podium-gold: #f6d27a;

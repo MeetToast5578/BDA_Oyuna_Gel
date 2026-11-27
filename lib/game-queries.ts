@@ -843,8 +843,14 @@ async function findVenues(city: string) {
       image: true,
       imagePath: true,
       description: true,
+      partner: true,
+      phone: true,
+      bookingUrl: true,
+      priceNote: true,
+      hours: true,
     },
-    sort: 'name',
+    // Partner venues first (docs/business-model.md), then by name; every venue list keeps this order.
+    sort: ['-partner', 'name'],
     // The photo, for the venue pages; the picker only reads the other fields.
     depth: 1,
     pagination: false,
@@ -859,6 +865,10 @@ export async function listVenuePages(city: string) {
     ...normalizeVenue(doc),
     imageUrl: venueImageUrl(doc),
     description: typeof doc.description === 'string' && doc.description.trim() ? doc.description.trim() : null,
+    phone: doc.phone || null,
+    bookingUrl: doc.bookingUrl || null,
+    priceNote: doc.priceNote?.trim() || null,
+    hours: doc.hours?.trim() || null,
   }))
 }
 

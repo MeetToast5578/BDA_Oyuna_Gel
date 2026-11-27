@@ -76,6 +76,13 @@
   gap: 8px;
 }
 
+/* The sport badges on the left, a partner venue's badge on the right. */
+.coverBadgeGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .summary {
   display: flex;
   flex-direction: column;

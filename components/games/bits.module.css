@@ -35,6 +35,12 @@
   line-height: 1;
 }
 
+.partner {
+  backdrop-filter: none;
+  background: var(--gradient-partner);
+  color: var(--color-on-accent);
+}
+
 .level {
   /* Opaque like .sportSolid: nothing shows through to blur. */
   backdrop-filter: none;

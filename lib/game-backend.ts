@@ -292,6 +292,17 @@ export function normalizeVenue(value: unknown) {
     cityLabel,
     coordinates: parseCoordinates(arena?.coordinates),
     sportTypes: Array.isArray(arena?.sportTypes) ? arena.sportTypes.map(String) : [],
+    // A partner venue (docs/business-model.md); the picker and the venue pages badge it.
+    partner: arena?.partner === true,
+  }
+}
+
+/** A full https:// link, such as a partner venue's booking page; anything else could send players anywhere. */
+export function isHttpsUrl(value: string) {
+  try {
+    return new URL(value).protocol === 'https:'
+  } catch {
+    return false
   }
 }
 

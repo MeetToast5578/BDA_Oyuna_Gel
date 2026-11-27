@@ -248,6 +248,26 @@ export interface Arena {
   imagePath?: string | null;
   sportTypes?: ('football' | 'basketball' | 'tennis')[] | null;
   description?: string | null;
+  /**
+   * Tərəfdaş: listed first on /venues and in the venue picker, with a badge and contact buttons.
+   */
+  partner?: boolean | null;
+  /**
+   * Booking phone, e.g. +994501234567. Shows "Zəng et" and "WhatsApp" on the venue page.
+   */
+  phone?: string | null;
+  /**
+   * Online booking page (https://…). Shows "Bron et" on the venue page.
+   */
+  bookingUrl?: string | null;
+  /**
+   * Price as shown to players, e.g. "40–60 ₼/saat".
+   */
+  priceNote?: string | null;
+  /**
+   * Opening hours, e.g. "09:00–24:00".
+   */
+  hours?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -714,6 +734,11 @@ export interface ArenasSelect<T extends boolean = true> {
   imagePath?: T;
   sportTypes?: T;
   description?: T;
+  partner?: T;
+  phone?: T;
+  bookingUrl?: T;
+  priceNote?: T;
+  hours?: T;
   updatedAt?: T;
   createdAt?: T;
 }

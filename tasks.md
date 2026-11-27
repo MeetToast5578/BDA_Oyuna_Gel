@@ -78,7 +78,7 @@ tested and reviewed. Work only on `Branch-1`; never touch the live database.
 ## Business model (see `docs/business-model.md`; build only after the first venue or sponsor agrees)
 
 - [ ] Owner: register as a sole proprietor (VÖEN), open a business bank account, supply the GA4 ID.
-- [ ] Partner venue fields on `arenas` (`partner`, `phone`, `bookingUrl`, `priceNote`, `hours`), partner
+- [x] Partner venue fields on `arenas` (`partner`, `phone`, `bookingUrl`, `priceNote`, `hours`), partner
       venues first in `/venues` and the venue picker, "Tərəfdaş" badge, call / WhatsApp button.
 - [ ] Monthly per-venue report script (games, players, repeat players).
 - [ ] Sponsor slot on `MonthTop` (Payload global).

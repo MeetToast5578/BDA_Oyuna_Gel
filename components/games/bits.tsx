@@ -27,6 +27,16 @@ export function SportBadge({ sport, label, solid = false }: { sport: string; lab
 const LEVEL_BARS: Record<string, number> = { beginner: 1, medium: 2, high: 3 }
 
 /** Level as a neutral chip with 1–3 signal bars; the label carries the meaning, the bars are decorative. */
+/** "Tərəfdaş": a partner venue (docs/business-model.md). Says so in words, so it is never hidden advertising. */
+export function PartnerBadge() {
+  return (
+    <span className={`${styles.badge} ${styles.partner}`}>
+      <Icon name="check" size={12} />
+      Tərəfdaş
+    </span>
+  )
+}
+
 export function LevelBadge({ level, label }: { level: string; label: string }) {
   const filled = LEVEL_BARS[level] ?? 2
   return (

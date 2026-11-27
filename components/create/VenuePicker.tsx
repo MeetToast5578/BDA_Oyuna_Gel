@@ -180,7 +180,10 @@ export function VenuePicker({
                 }}
                 onMouseMove={() => setHighlight(index)}
               >
-                <span className={styles.optionName}>{venue.name}</span>
+                <span className={styles.optionName}>
+                  {venue.name}
+                  {venue.partner && <span className={styles.partnerTag}>Tərəfdaş</span>}
+                </span>
                 <span className={styles.optionMeta}>
                   {[venue.district, venue.address, venue.cityLabel].filter(Boolean).join(' · ')}
                 </span>

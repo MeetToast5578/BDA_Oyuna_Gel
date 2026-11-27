@@ -18,6 +18,7 @@ import * as migration_20261029_104811_push_and_reminders from './20261029_104811
 import * as migration_20261029_105436_venue_suggestions from './20261029_105436_venue_suggestions';
 import * as migration_20261115_195043_demo_games from './20261115_195043_demo_games';
 import * as migration_20261127_213649_reliability from './20261127_213649_reliability';
+import * as migration_20261127_214025_partner_venues from './20261127_214025_partner_venues';
 
 export const migrations = [
   {
@@ -119,5 +120,10 @@ export const migrations = [
     up: migration_20261127_213649_reliability.up,
     down: migration_20261127_213649_reliability.down,
     name: '20261127_213649_reliability',
+  },
+  {
+    up: migration_20261127_214025_partner_venues.up,
+    down: migration_20261127_214025_partner_venues.down,
+    name: '20261127_214025_partner_venues',
   },
 ];
