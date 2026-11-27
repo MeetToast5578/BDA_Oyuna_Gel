@@ -2,7 +2,7 @@ import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import { cacheLife, cacheTag } from 'next/cache'
 import type { Payload, Where } from 'payload'
 
-import { attendanceOpen } from '@/lib/attendance'
+import { attendanceOpen, reliabilityFor, reliabilityPercent } from '@/lib/attendance'
 import { GAMES_CACHE_TAG, invalidateGamesCache } from '@/lib/cache-tags'
 import {
   DEFAULT_CITY,
@@ -533,6 +533,11 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
     // The host's spot is the game itself; a stray participant row for them would list them twice.
     .filter((player) => player.id === null || player.id !== game.host.id)
     .map((player) => ({ ...player, you: isViewer(player.id) }))
+  // "Etibarlılıq" beside each name, so the host sees who tends to turn up; one query for the whole list.
+  const reliabilities = await reliabilityFor(
+    (payload.db as unknown as PostgresAdapter).drizzle,
+    players.flatMap((player) => (player.id ? [Number(player.id)] : [])),
+  )
 
   return {
     game: { id: game.id, title: game.title, currentCount: game.currentCount, maxCount: game.maxCount },
@@ -543,7 +548,10 @@ export async function getGamePlayers(gameId: number, viewerId: number | null) {
     canMarkAttendance: isViewer(game.host.id) && attendanceOpen({ status: game.status, scheduledAt: game.startsAt ?? '' }),
     // The clubs' names, where a side has one; the dialog says "A komandası" for an open side.
     sideNames: { home: game.teams.home?.name ?? null, away: game.teams.away?.name ?? null },
-    players,
+    players: players.map((player) => {
+      const reliability = player.id ? reliabilities.get(Number(player.id)) : undefined
+      return { ...player, reliability: reliability ? { ...reliability, percent: reliabilityPercent(reliability) } : null }
+    }),
     others: Math.max(0, game.currentCount - players.length - 1),
   }
 }

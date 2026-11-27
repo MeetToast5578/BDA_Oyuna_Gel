@@ -151,6 +151,10 @@ export interface User {
   emailNotifications?: boolean | null;
   profilePicture?: (number | null) | Media;
   avatarUrl?: string | null;
+  /**
+   * Last-minute cancellations (left a game within 3 hours of kick-off).
+   */
+  lateCancellations?: number | null;
   googleId?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -299,6 +303,10 @@ export interface Game {
    * When its players were sent "Oyununuz 2 saata başlayır" (/api/cron/reminders), so they get it once.
    */
   remindedAt?: string | null;
+  /**
+   * When the host was reminded to mark who came (/api/cron/reminders), so they get it once.
+   */
+  attendanceRemindedAt?: string | null;
   /**
    * WhatsApp or Telegram group invite link. Shown only to the host and players who joined; emptied 30 days after the game.
    */
@@ -458,7 +466,8 @@ export interface Notification {
     | 'resultConfirmed'
     | 'resultDisputed'
     | 'markedAbsent'
-    | 'reminder';
+    | 'reminder'
+    | 'markAttendance';
   game?: (number | null) | Game;
   gameTitle: string;
   readAt?: string | null;
@@ -627,6 +636,7 @@ export interface UsersSelect<T extends boolean = true> {
   emailNotifications?: T;
   profilePicture?: T;
   avatarUrl?: T;
+  lateCancellations?: T;
   googleId?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -736,6 +746,7 @@ export interface GamesSelect<T extends boolean = true> {
   level?: T;
   host?: T;
   remindedAt?: T;
+  attendanceRemindedAt?: T;
   groupLink?: T;
   contactPhone?: T;
   homeTeam?: T;

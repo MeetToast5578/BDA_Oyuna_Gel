@@ -2,6 +2,7 @@ import { after, NextResponse } from 'next/server'
 import { scheduleAdminAlert } from '@/lib/admin-alerts'
 
 import { apiError } from '@/lib/api-response'
+import { recordLateLeave } from '@/lib/attendance'
 import { isRateLimited, rateLimitedResponse } from '@/lib/rate-limit'
 import { invalidateGamesCache } from '@/lib/cache-tags'
 import { getGameDetail, getPayloadClient } from '@/lib/game-queries'
@@ -49,6 +50,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     invalidateGamesCache()
+    // A last-minute drop-out lowers "Etibarlılıq"; the spot is already released, so a failure here is only logged.
+    await recordLateLeave(payload, gameId, userId).catch((error) => console.error(error))
     // The spot went to the first person waiting, if there was one.
     if (result.promoted.length > 0) afterResponse(() => notifyPromoted(payload, [{ gameId, userIds: result.promoted }]))
     after(() =>

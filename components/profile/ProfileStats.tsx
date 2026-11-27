@@ -4,6 +4,7 @@ import type { MyProfile } from '@/lib/api-types'
 import { ProgressBar, SportIcon } from '@/components/games/bits'
 import detail from '@/components/games/GameDetail.module.css'
 import { sortSports } from '@/components/games/sports'
+import { reliabilityPercent } from '@/lib/attendance'
 import styles from './Profile.module.css'
 import { ActivityChart } from './StatCharts'
 
@@ -22,25 +23,31 @@ export function StatTiles({ tiles }: { tiles: Array<{ value: number; label: stri
   )
 }
 
-/** "Etibarlılıq": how many of the games their hosts marked the person came to. Only shown from 3 marked games. */
-export function ReliabilityMeter({ reliability }: { reliability: { marked: number; came: number } | null }) {
+/**
+ * "Etibarlılıq": how many of the games their hosts marked the person came to, a last-minute
+ * cancellation counting as half a missed game. Only shown from 3 marked games or cancellations.
+ */
+export function ReliabilityMeter({ reliability }: { reliability: { marked: number; came: number; late: number } | null }) {
   if (!reliability) return null
   return (
     <div className={styles.reliability}>
       <p className={styles.reliabilityText}>
         <span className={styles.reliabilityLabel}>Etibarlılıq</span>
-        <span>
-          {reliability.came}/{reliability.marked} oyuna gəlib
-        </span>
+        <span>{reliabilitySummary(reliability)}</span>
       </p>
       <ProgressBar
-        value={reliability.came}
-        max={reliability.marked}
-        label={`Etibarlılıq: ${reliability.marked} oyundan ${reliability.came}`}
+        value={reliabilityPercent(reliability)}
+        max={100}
+        label={`Etibarlılıq: ${reliabilityPercent(reliability)}%`}
         className={styles.sportBar}
       />
     </div>
   )
+}
+
+/** "11/12 oyuna gəlib · 1 son anda imtina" */
+export function reliabilitySummary({ marked, came, late }: { marked: number; came: number; late: number }) {
+  return `${came}/${marked} oyuna gəlib${late > 0 ? ` · ${late} son anda imtina` : ''}`
 }
 
 type Stats = Pick<MyProfile['stats'], 'totalPlayed' | 'playedBySport' | 'playedByMonth'>

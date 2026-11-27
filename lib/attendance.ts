@@ -1,6 +1,8 @@
 import { sql, type PostgresAdapter } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
+import type { Db } from '@/lib/join-game'
+
 /** How long after kick-off the host can still mark who came. */
 export const ATTENDANCE_DAYS = 7
 
@@ -33,14 +35,55 @@ export async function markAttendance(payload: Payload, gameId: number, playerId:
   return (updated.rowCount ?? 0) > 0 ? { ok: true } : { ok: false, code: 'NOT_A_PLAYER' }
 }
 
-/** How often a player came to games whose host marked them; shown once `RELIABILITY_MIN` are marked. */
+/** Leaving a game this close to kick-off is a late cancellation: half a no-show in "Etibarlılıq". */
+export const LATE_LEAVE_HOURS = 3
+
+/** How often a player came to games whose host marked them; shown once `RELIABILITY_MIN` count. */
 export const RELIABILITY_MIN = 3
+
+export type Reliability = { marked: number; came: number; late: number }
+
+/** Share of games the player kept, a late cancellation counting as half a missed game. */
+export function reliabilityPercent({ marked, came, late }: Reliability) {
+  const weight = marked + late / 2
+  return weight > 0 ? Math.round((100 * came) / weight) : 0
+}
+
+/** Each listed player's reliability, in one query; players under `RELIABILITY_MIN` are absent from the map. */
+export async function reliabilityFor(db: Db, userIds: number[]): Promise<Map<number, Reliability>> {
+  const result = new Map<number, Reliability>()
+  if (userIds.length === 0) return result
+  const { rows } = await db.execute<{ id: number; marked: string; came: string; late: string }>(sql`
+    SELECT u.id,
+      count(p.id) FILTER (WHERE p.attendance IS NOT NULL) AS marked,
+      count(p.id) FILTER (WHERE p.attendance = 'came') AS came,
+      COALESCE(u.late_cancellations, 0) AS late
+    FROM users u
+    LEFT JOIN game_participants p ON p.user_id = u.id
+    WHERE u.id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`, `)})
+    GROUP BY u.id`)
+  for (const row of rows) {
+    const value = { marked: Number(row.marked), came: Number(row.came), late: Number(row.late) }
+    if (value.marked + value.late >= RELIABILITY_MIN) result.set(Number(row.id), value)
+  }
+  return result
+}
 
 export async function reliability(payload: Payload, userId: number) {
   const db = (payload.db as unknown as PostgresAdapter).drizzle
-  const { rows } = await db.execute<{ marked: string; came: string }>(sql`
-    SELECT count(*) FILTER (WHERE attendance IS NOT NULL) AS marked, count(*) FILTER (WHERE attendance = 'came') AS came
-    FROM game_participants WHERE user_id = ${userId}`)
-  const marked = Number(rows[0]?.marked ?? 0)
-  return marked >= RELIABILITY_MIN ? { marked, came: Number(rows[0]?.came ?? 0) } : null
+  return (await reliabilityFor(db, [userId])).get(userId) ?? null
+}
+
+/**
+ * After a player left a game themselves: counts it as a late cancellation when the game starts within
+ * `LATE_LEAVE_HOURS`. Host removals never come here. Returns whether it counted.
+ */
+export async function recordLateLeave(payload: Payload, gameId: number, userId: number, now = new Date()) {
+  const db = (payload.db as unknown as PostgresAdapter).drizzle
+  const until = new Date(now.getTime() + LATE_LEAVE_HOURS * 3_600_000)
+  const updated = await db.execute(sql`
+    UPDATE users SET late_cancellations = COALESCE(late_cancellations, 0) + 1
+    WHERE id = ${userId}
+      AND EXISTS (SELECT 1 FROM games WHERE id = ${gameId} AND scheduled_at <= ${until.toISOString()})`)
+  return (updated.rowCount ?? 0) > 0
 }

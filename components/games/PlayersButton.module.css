@@ -228,6 +228,22 @@
   color: var(--color-primary);
 }
 
+.reliabilityTag {
+  background: var(--color-chip);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.reliable {
+  background: #e7f6ec;
+  color: var(--color-success-text);
+}
+
+.unreliable {
+  background: var(--color-danger-tint);
+  color: var(--color-danger);
+}
+
 .link:hover .youTag {
   background: var(--color-surface);
 }

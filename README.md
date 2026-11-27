@@ -33,7 +33,8 @@ A [Next.js](https://nextjs.org) app with [Payload CMS](https://payloadcms.com) a
    VAPID_SUBJECT=mailto:<an address you read>
    ```
 
-   "Oyununuz 2 saata başlayır" needs `/api/cron/reminders` called every 15 minutes with
+   "Oyununuz 2 saata başlayır" (and, after a game, "Oyun bitdi: kimin gəldiyini qeyd edin" to its host)
+   needs `/api/cron/reminders` called every 15 minutes with
    `Authorization: Bearer $CRON_SECRET`. Vercel's free plan only runs its cron daily, so use an outside
    scheduler (cron-job.org is free) or a Pro plan.
 
